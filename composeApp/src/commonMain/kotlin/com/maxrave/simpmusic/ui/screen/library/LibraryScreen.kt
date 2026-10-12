@@ -92,9 +92,13 @@ import com.maxrave.simpmusic.ui.component.selection.SelectedSongsBottomSheet
 import com.maxrave.simpmusic.ui.component.selection.SongSelectionTopAppBar
 import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
 import com.maxrave.simpmusic.ui.icon.Groups
+import com.maxrave.simpmusic.ui.icon.History
+import com.maxrave.simpmusic.ui.icon.Notifications
 import com.maxrave.simpmusic.ui.icon.PeopleAlt
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
+import com.maxrave.simpmusic.ui.navigation.destination.home.NotificationDestination
+import com.maxrave.simpmusic.ui.navigation.destination.home.RecentlySongsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.SettingsDestination
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
@@ -558,7 +562,15 @@ fun LibraryScreen(
             },
             // The Library bar had no actions slot at all — added for the Listen Together entry,
             // which the design canvas puts on Home AND Library.
+            // Fork: Notifications and Recently played moved here from Home's bar, which keeps only
+            // Settings.
             actions = {
+                RippleIconButton(imageVector = SimpIcons.Notifications, tint = MaterialTheme.colorScheme.onBackground) {
+                    navController.navigate(NotificationDestination)
+                }
+                RippleIconButton(imageVector = SimpIcons.History, tint = MaterialTheme.colorScheme.onBackground) {
+                    navController.navigate(RecentlySongsDestination)
+                }
                 ListenTogetherIconButton { navController.navigate(ListenTogetherDestination) }
             },
         )

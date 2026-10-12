@@ -824,7 +824,7 @@ fun QuickPicksItem(
                 // second title line pushes the artist row out of the cell, where the grid clips it.
                 Text(
                     text = data.title,
-                    style = typo().titleSmall,
+                    style = typo().titleSmall.copy(fontWeight = FontWeight.Bold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface,

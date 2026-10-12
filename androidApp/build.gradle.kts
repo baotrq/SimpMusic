@@ -89,6 +89,9 @@ android {
             // debug key since this build is only ever sideloaded onto my own phone.
             applicationIdSuffix = ".bao"
             signingConfig = signingConfigs.getByName("debug")
+            // The unofficial-copy check would lock this personal build out: its package is not on
+            // the official list and its key is not the release key.
+            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "true")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -106,6 +109,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "false")
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
         }

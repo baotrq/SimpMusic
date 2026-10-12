@@ -8,18 +8,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import org.jetbrains.compose.resources.Font
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.poppins_medium
 
+// Fork: the phone's own font (Samsung's One UI font, OnePlus Sans, Roboto…) instead of the bundled
+// Poppins, so the app reads like the rest of the system. Weights still come from each style below;
+// the system font has real bold and semibold cuts, where Poppins had to synthesize them.
 @Composable
-fun fontFamily(): FontFamily =
-    FontFamily(
-        Font(Res.font.poppins_medium, FontWeight.Normal, FontStyle.Normal),
-    )
+fun fontFamily(): FontFamily = FontFamily.Default
 
 /**
  * When true, [typo] keeps the original always-light text colors (pure white titles, #A8A8A8 body)

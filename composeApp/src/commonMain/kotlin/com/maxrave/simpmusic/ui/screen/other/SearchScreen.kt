@@ -10,7 +10,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.WindowInsets
@@ -36,6 +38,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -163,6 +166,7 @@ import simpmusic.composeapp.generated.resources.no_results_found
 import simpmusic.composeapp.generated.resources.playlists
 import simpmusic.composeapp.generated.resources.podcasts
 import simpmusic.composeapp.generated.resources.retry
+import simpmusic.composeapp.generated.resources.recent_searches
 import simpmusic.composeapp.generated.resources.search_for
 import simpmusic.composeapp.generated.resources.search_for_songs_artists_albums_playlists_and_more
 import simpmusic.composeapp.generated.resources.song
@@ -194,8 +198,11 @@ fun SearchScreen(
 
     var isFocused by rememberSaveable { mutableStateOf(false) }
 
+    val recentSongs by searchViewModel.recentSongs.collectAsStateWithLifecycle()
     val isSearchPanelVisible =
-        searchUIType == SearchUIType.SEARCH_HISTORY || searchUIType == SearchUIType.SEARCH_SUGGESTIONS
+        searchUIType == SearchUIType.SEARCH_HISTORY ||
+            searchUIType == SearchUIType.SEARCH_SUGGESTIONS ||
+            (searchUIType == SearchUIType.EMPTY && isFocused)
     val dismissSearchPanel: () -> Unit = {
         isExpanded = false
         focusManager.clearFocus()
@@ -282,6 +289,30 @@ fun SearchScreen(
         showBottomSheet = true
     }
 
+    // Runs a past search again, exactly as tapping it in the history list does.
+    val runHistorySearch: (String) -> Unit = { historyItem ->
+        searchText = historyItem
+        focusManager.clearFocus()
+        isSearchSubmitted = true
+        searchViewModel.insertSearchHistory(historyItem)
+        when (searchScreenState.searchType) {
+            SearchType.ALL -> searchViewModel.searchAll(historyItem)
+            SearchType.SONGS -> searchViewModel.searchSongs(historyItem)
+            SearchType.VIDEOS -> searchViewModel.searchVideos(historyItem)
+            SearchType.ALBUMS -> searchViewModel.searchAlbums(historyItem)
+            SearchType.ARTISTS -> searchViewModel.searchArtists(historyItem)
+            SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(historyItem)
+            SearchType.FEATURED_PLAYLISTS -> searchViewModel.searchFeaturedPlaylist(historyItem)
+            SearchType.PODCASTS -> searchViewModel.searchPodcast(historyItem)
+        }
+    }
+
+    // The landing's recent songs row is re-read whenever the landing comes back into view, so a
+    // song just played shows up first.
+    LaunchedEffect(searchUIType) {
+        if (searchUIType == SearchUIType.EMPTY) searchViewModel.loadRecentSongs()
+    }
+
     LaunchedEffect(searchText) {
         if (isFocused) {
             isSearchSubmitted = false
@@ -308,9 +339,10 @@ fun SearchScreen(
         searchUIType =
             if (searchText.isNotEmpty() && isExpanded) {
                 SearchUIType.SEARCH_SUGGESTIONS
-            } else if (isFocused && isExpanded) {
-                SearchUIType.SEARCH_HISTORY
             } else if (searchText.isEmpty()) {
+                // Fork: focused or not, an empty box shows the one landing page — recent songs,
+                // the last few searches, then the categories — as YouTube Music does, instead of a
+                // separate full-screen history list while the keyboard is up.
                 SearchUIType.EMPTY
             } else {
                 SearchUIType.SEARCH_RESULTS
@@ -617,34 +649,75 @@ fun SearchScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
+                            // Fork: YouTube Music's search landing — the songs played most recently
+                            // as a row of covers, the last few searches, then the categories.
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Column(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            // Breathing room on both sides of this block: above it
-                                            // sits the floating search bar, below it the tile grid.
-                                            .padding(top = 36.dp, bottom = 20.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        text = stringResource(Res.string.everything_you_need),
-                                        style = typo().titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text(
-                                        text = stringResource(Res.string.search_for_songs_artists_albums_playlists_and_more),
-                                        style = typo().bodyMedium,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    SimpMusicChartButton(
-                                        modifier = Modifier.padding(top = 10.dp),
-                                    ) {
-                                        uriHandler.openUri("https://chart.simpmusic.org")
+                                Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp)) {
+                                    if (recentSongs.isNotEmpty()) {
+                                        Text(
+                                            text = stringResource(Res.string.recent_searches),
+                                            style = typo().titleMedium,
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier.padding(bottom = 12.dp),
+                                        )
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            items(recentSongs, key = { it.videoId }) { song ->
+                                                RecentSongCard(
+                                                    song = song,
+                                                    onClick = {
+                                                        val track = song.toTrack()
+                                                        searchViewModel.setQueueData(
+                                                            QueueData.Data(
+                                                                listTracks = arrayListOf(track),
+                                                                firstPlayedTrack = track,
+                                                                playlistId = "RDAMVM${track.videoId}",
+                                                                playlistName = song.title,
+                                                                playlistType = PlaylistType.RADIO,
+                                                                continuation = null,
+                                                            ),
+                                                        )
+                                                        searchViewModel.loadMediaItem(track, type = Config.SONG_CLICK)
+                                                    },
+                                                    onLongClick = { onMoreClick(song) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                    searchHistory.take(RECENT_SEARCH_COUNT).forEach { historyItem ->
+                                        Row(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable { runHistorySearch(historyItem) }
+                                                    .padding(vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                imageVector = SimpIcons.History,
+                                                contentDescription = "Search history",
+                                                modifier = Modifier.padding(horizontal = 4.dp).size(24.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(20.dp))
+                                            Text(
+                                                text = historyItem,
+                                                style = typo().bodyMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    searchText = historyItem
+                                                    focusRequester.requestFocus()
+                                                },
+                                            ) {
+                                                Icon(
+                                                    imageVector = SimpIcons.ArrowOutward,
+                                                    contentDescription = "Search suggestion",
+                                                    modifier = Modifier.size(24.dp),
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1313,3 +1386,49 @@ enum class SearchUIType {
     SEARCH_SUGGESTIONS,
     SEARCH_RESULTS,
 }
+
+// Fork: how many past searches the landing lists under the recent songs.
+private const val RECENT_SEARCH_COUNT = 5
+
+/** Fork: one recently played song on the search landing — its cover with the title under it. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RecentSongCard(
+    song: SongEntity,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .width(RECENT_SONG_COVER)
+                .clip(RoundedCornerShape(8.dp))
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        AsyncImage(
+            model =
+                ImageRequest
+                    .Builder(LocalPlatformContext.current)
+                    .data(song.thumbnails)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .diskCacheKey(song.thumbnails)
+                    .crossfade(300)
+                    .build(),
+            placeholder = rememberHolderPainter(),
+            error = rememberHolderPainter(),
+            contentDescription = song.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(RECENT_SONG_COVER).clip(RoundedCornerShape(8.dp)),
+        )
+        Text(
+            text = song.title,
+            style = typo().bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+        )
+    }
+}
+
+private val RECENT_SONG_COVER = 112.dp

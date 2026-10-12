@@ -11,6 +11,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -44,8 +45,11 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -56,6 +60,9 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -88,6 +95,7 @@ import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import java.text.Bidi
@@ -437,11 +445,6 @@ fun LyricsView(
     romanizer: LyricsRomanizerRepository = koinInject(),
 ) {
     val listState = rememberLazyListState()
-    // AMLL drops blur to zero while the user is scrolling by hand (resolveBlurLevel:
-    // `if (this.scrollState.isTouchScrolled || isFocused) return 0`) — you are reading ahead at
-    // that moment, and out-of-focus text is not readable. Dragged, not isScrollInProgress: the
-    // latter is also true for the player's own animated scroll, which must stay blurred.
-    val isDragging by listState.interactionSource.collectIsDraggedAsState()
     val current by timeLine.collectAsStateWithLifecycle()
 
     // The listener's audio-delay correction, applied HERE rather than to the lyric rows: the rows
@@ -504,6 +507,22 @@ fun LyricsView(
             buildDisplayLines(lyricsData.lyrics.lines, lyricsData.lyrics.syncType)
         }
 
+    val isDragging by listState.interactionSource.collectIsDraggedAsState()
+    var userBrowsing by remember(displayLines) { mutableStateOf(false) }
+    var browseRevision by remember(displayLines) { mutableIntStateOf(0) }
+    LaunchedEffect(listState.interactionSource, displayLines) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) userBrowsing = true
+        }
+    }
+    // Give a manual drag (including its fling) five idle seconds before following playback again.
+    LaunchedEffect(userBrowsing, isDragging, listState.isScrollInProgress, browseRevision) {
+        if (userBrowsing && !isDragging && !listState.isScrollInProgress) {
+            delay(5_000)
+            userBrowsing = false
+        }
+    }
+
     val timedLineIndexes =
         remember(displayLines) {
             val timed =
@@ -559,18 +578,21 @@ fun LyricsView(
     // so a new song's first line counts as the next line rather than as a jump.
     val stagger = remember(displayLines) { LyricsStagger() }
 
-    LaunchedEffect(currentLineIndex, lyricsData.lyrics.syncType, appleStyle, stagger) {
+    LaunchedEffect(currentLineIndex, lyricsData.lyrics.syncType, appleStyle, stagger, userBrowsing, isDragging) {
+        if (userBrowsing || isDragging) return@LaunchedEffect
         if (currentLineIndex > -1 &&
             (lyricsData.lyrics.syncType == "LINE_SYNCED" || lyricsData.lyrics.syncType == "RICH_SYNCED")
         ) {
             if (appleStyle) {
-                // NEAR the top, not against it: Apple leaves exactly ONE physical row of the
-                // previous lyric visible above the line being sung. Scrolling to `index - 1`
-                // instead — which is what this did first — anchors the whole previous ITEM, and a
-                // lyric that wraps is one item spanning two or three rows, so the entire wrapped
-                // block hung above the sung line. Anchoring the sung line itself and backing off by
-                // one row's height is row-accurate no matter how the previous line wrapped.
-                listState.animateScrollAndAnchorItemTop(currentLineIndex, -exposedRowPx, stagger)
+                withFrameNanos { }
+                val thirdDown = listState.layoutInfo.viewportSize.height / 3f
+                val activeItem = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == currentLineIndex }
+                // Opening lines advance naturally from the top. Do not animate a negative scroll
+                // the list cannot travel: that would make the stagger move otherwise still rows.
+                if (!listState.canScrollBackward && activeItem != null && activeItem.offset <= thirdDown) {
+                    return@LaunchedEffect
+                }
+                listState.animateScrollAndAnchorItemTop(currentLineIndex, -maxOf(exposedRowPx, thirdDown), stagger)
             } else {
                 listState.animateScrollAndCentralizeItem(currentLineIndex)
             }
@@ -585,7 +607,18 @@ fun LyricsView(
         val tailPadding = if (appleStyle) maxHeight * 0.72f else 0.dp
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize()
+                .lyricsViewportBlur(enabled = appleStyle, topBlurred = listState.canScrollBackward)
+                .pointerInput(displayLines) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            if (awaitPointerEvent(PointerEventPass.Initial).type == PointerEventType.Scroll) {
+                                userBrowsing = true
+                                browseRevision++
+                            }
+                        }
+                    }
+                },
             contentPadding = PaddingValues(bottom = tailPadding),
         ) {
             items(displayLines.lines.size) { index ->
@@ -613,7 +646,6 @@ fun LyricsView(
                     // Signed distance from the line being sung. The shell is the only place that
                     // knows it, and it is the ONLY extra input the Apple Music renderer needs —
                     // which is why the split lives here and not inside the line items.
-                    val distanceFromCurrent = if (currentLineIndex < 0) 0 else index - currentLineIndex
 
                     // Romanization is its OWN row, between the original and the translation, so the
                     // reader can follow the original script and still know how to pronounce it.
@@ -778,21 +810,12 @@ fun LyricsView(
                                         onLineClick(line.startTimeMs.toFloat() * 100 / timeLine.value.total)
                                     },
                         ) {
-                            // Blur spans the FULL width; the gutter is applied inside it. Ordered
-                            // the other way — gutter outside, blur around the text — the blurred
-                            // box begins exactly where the glyphs begin, so there is no margin for
-                            // the softened edge to spill into and it comes out sliced flat down the
-                            // left. This is the same problem AMLL solves with `margin: -1em;
-                            // padding: 1em`, which widens the painted area without moving the
-                            // layout; Compose has no negative padding, so the equivalent is to blur
-                            // the wide box and inset the content within it.
+                            // Emphasis wraps the lyric and translation; edge blur is applied to the viewport.
                             Box(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
                                         .appleMusicLyricFocus(
-                                            distanceFromCurrent,
-                                            blurEnabled = !isDragging,
                                             hasActiveLine = currentLineIndex >= 0,
                                             allLinesCurrent = allLinesCurrent,
                                         ),

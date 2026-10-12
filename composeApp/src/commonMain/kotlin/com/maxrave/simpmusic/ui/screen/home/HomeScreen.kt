@@ -78,8 +78,12 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -119,7 +123,6 @@ import com.maxrave.simpmusic.extension.ultraThinBarStyle
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.BlogPromoDialog
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
-import com.maxrave.simpmusic.ui.component.Chip
 import com.maxrave.simpmusic.ui.component.DropdownButton
 import com.maxrave.simpmusic.ui.component.EndOfPage
 import com.maxrave.simpmusic.ui.component.FootgunsStarDialog
@@ -127,8 +130,9 @@ import com.maxrave.simpmusic.ui.component.HomeDiscoverSection
 import com.maxrave.simpmusic.ui.component.HomeItem
 import com.maxrave.simpmusic.ui.component.HomeItemContentPlaylist
 import com.maxrave.simpmusic.ui.component.HomeShimmer
+import com.maxrave.simpmusic.ui.component.HomeSpeedDial
+import com.maxrave.simpmusic.ui.component.isSpeedDialShelf
 import com.maxrave.simpmusic.ui.component.ItemArtistChart
-import com.maxrave.simpmusic.ui.component.ListenTogetherIconButton
 import com.maxrave.simpmusic.ui.component.LocalAppDialogOpen
 import com.maxrave.simpmusic.ui.component.LocalNowPlayingOpen
 import com.maxrave.simpmusic.ui.component.LocalUserStarted
@@ -144,15 +148,10 @@ import com.maxrave.simpmusic.ui.component.ShareSavedLyricsDialog
 import com.maxrave.simpmusic.ui.component.homeCardAspectRatio
 import com.maxrave.simpmusic.ui.component.rememberHolderPainter
 import com.maxrave.simpmusic.ui.icon.Groups
-import com.maxrave.simpmusic.ui.icon.History
-import com.maxrave.simpmusic.ui.icon.Notifications
 import com.maxrave.simpmusic.ui.icon.Settings
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.MoodDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.NotificationDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.RecentlySongsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.SettingsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDynamicPlaylistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
@@ -185,6 +184,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.http.Url
+import kotlin.random.Random
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -194,7 +194,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.all
-import simpmusic.composeapp.generated.resources.app_name
 import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.chart
 import simpmusic.composeapp.generated.resources.commute
@@ -207,6 +206,22 @@ import simpmusic.composeapp.generated.resources.good_afternoon
 import simpmusic.composeapp.generated.resources.good_evening
 import simpmusic.composeapp.generated.resources.good_morning
 import simpmusic.composeapp.generated.resources.good_night
+import simpmusic.composeapp.generated.resources.greeting_morning_1
+import simpmusic.composeapp.generated.resources.greeting_morning_2
+import simpmusic.composeapp.generated.resources.greeting_morning_3
+import simpmusic.composeapp.generated.resources.greeting_morning_4
+import simpmusic.composeapp.generated.resources.greeting_afternoon_1
+import simpmusic.composeapp.generated.resources.greeting_afternoon_2
+import simpmusic.composeapp.generated.resources.greeting_afternoon_3
+import simpmusic.composeapp.generated.resources.greeting_afternoon_4
+import simpmusic.composeapp.generated.resources.greeting_evening_1
+import simpmusic.composeapp.generated.resources.greeting_evening_2
+import simpmusic.composeapp.generated.resources.greeting_evening_3
+import simpmusic.composeapp.generated.resources.greeting_evening_4
+import simpmusic.composeapp.generated.resources.greeting_night_1
+import simpmusic.composeapp.generated.resources.greeting_night_2
+import simpmusic.composeapp.generated.resources.greeting_night_3
+import simpmusic.composeapp.generated.resources.greeting_night_4
 import simpmusic.composeapp.generated.resources.let_s_pick_a_playlist_for_you
 import simpmusic.composeapp.generated.resources.let_s_start_with_a_radio
 import simpmusic.composeapp.generated.resources.log_in_warning
@@ -409,22 +424,10 @@ fun HomeScreen(
     }
     LaunchedEffect(openAppTime, shareLyricsPermissions) {
         Logger.w("HomeScreen", "openAppTime: $openAppTime, shareLyricsPermissions: $shareLyricsPermissions")
-        if (openAppTime >= 10 && openAppTime % 10 == 0 && openAppTime <= 50) {
-            showReviewDialog = true
-        } else if ((openAppTime == 1 || openAppTime % 15 == 0) && openAppTime <= 60 && !shareLyricsPermissions) {
+        // Fork: no rate-the-app, blog or "star the repo" prompts — only the lyrics-sharing consent
+        // question, which is a setting rather than a promotion.
+        if ((openAppTime == 1 || openAppTime % 15 == 0) && openAppTime <= 60 && !shareLyricsPermissions) {
             showRequestShareLyricsPermissions = true
-        } else if (openAppTime == 5) {
-            // Blog promo: one-shot after 5 app opens, bump key suffix to re-promote later
-            if (sharedViewModel.getString(BLOG_PROMO_KEY) != "true") {
-                showBlogPromoDialog = true
-            }
-        } else if (openAppTime % 10 == 6 &&
-            openAppTime <= 46 &&
-            sharedViewModel.getString(FOOTGUNS_STAR_KEY) != "true"
-        ) {
-            // kotlin-footguns star prompt: 6, 16, 26, 36, 46 - one open after each review milestone,
-            // and clear of the share-lyrics (15, 45) and blog-promo (5) milestones
-            showFootgunsDialog = true
         } else {
             showReviewDialog = false
             showFootgunsDialog = false
@@ -535,6 +538,8 @@ fun HomeScreen(
     // started at launch, however long that takes, so an update dialog comes first. Then it takes the
     // first banner this version has not shown yet.
     LaunchedEffect(Unit) {
+        // Fork: the maker's launch banners are switched off entirely.
+        if (LAUNCH_BANNERS_ENABLED.not()) return@LaunchedEffect
         if (promoLaunchDecided) return@LaunchedEffect
         // Marked at the start, not the end: leaving Home cancels this for good (by then the user is
         // busy elsewhere), and a value written while Home is being left would not be saved.
@@ -734,11 +739,34 @@ fun HomeScreen(
                         )
                         return@Crossfade
                     }
+                    // Fork: the shelves for picking a song in one tap go first (this is used in a
+                    // car): Speed dial, Quick picks, then Forgotten favorites, Trending songs and New
+                    // releases, then the rest in YouTube's order. YouTube orders Home differently
+                    // on every load and often buries these halfway down.
+                    val quickPicksTitle = stringResource(Res.string.quick_picks)
+                    val speedDialAccount = accountInfo?.first
+                    val orderedHome =
+                        remember(homeData, quickPicksTitle, speedDialAccount) {
+                            val pinned =
+                                listOf<(HomeItem) -> Boolean>(
+                                    { it.isSpeedDialShelf(speedDialAccount) },
+                                    { it.title == quickPicksTitle },
+                                    { it.title.trim().equals("Forgotten favorites", ignoreCase = true) },
+                                    { it.title.trim().startsWith("Trending songs", ignoreCase = true) },
+                                    { it.title.trim().startsWith("New release", ignoreCase = true) },
+                                )
+                            val taken = mutableSetOf<HomeItem>()
+                            val head =
+                                pinned.flatMap { matches ->
+                                    homeData.filter { it !in taken && matches(it) }.also { taken += it }
+                                }
+                            head + homeData.filter { it !in taken }
+                        }
                     LazyColumn(
                         state = scrollState,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        itemsIndexed(homeData, key = { _, item ->
+                        itemsIndexed(orderedHome, key = { _, item ->
                             item.hashCode().toString() + (mainHomeThumbnail ?: "nothumb")
                         }) { index, item ->
                             Box {
@@ -826,6 +854,19 @@ fun HomeScreen(
                                                 viewModel = viewModel,
                                             )
                                         }
+                                    } else if (item.isSpeedDialShelf(accountInfo?.first)) {
+                                        HomeSpeedDial(
+                                            data = item,
+                                            navController = navController,
+                                            homeViewModel = viewModel,
+                                            randomPool =
+                                                remember(homeData, item) {
+                                                    homeData
+                                                        .filter { it !== item }
+                                                        .flatMap { it.contents.filterNotNull() }
+                                                        .distinctBy { it.videoId }
+                                                },
+                                        )
                                     } else if (item.isSongCardShelf()) {
                                         HomeDiscoverSection(
                                             data = item,
@@ -987,7 +1028,7 @@ fun HomeScreen(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    HomeTopAppBar(navController)
+                    HomeTopAppBar(navController, accountName = accountInfo?.first)
                 }
                 AnimatedVisibility(
                     visible = !isScrollingUp,
@@ -1011,7 +1052,9 @@ fun HomeScreen(
                             .background(Color.Transparent),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    listOfHomeChip.forEach { id ->
+                    // Fork: no "All" chip, as on YouTube Music — tapping the selected mood again goes
+                    // back to everything.
+                    listOfHomeChip.filter { it != Res.string.all }.forEach { id ->
                         val isSelected =
                             when (params) {
                                 HOME_PARAMS_RELAX -> id == Res.string.relax
@@ -1026,11 +1069,14 @@ fun HomeScreen(
                                 HOME_PARAMS_FOCUS -> id == Res.string.focus
                                 else -> id == Res.string.all
                             }
-                        Chip(
-                            isAnimated = loading,
+                        HomeMoodChip(
                             isSelected = isSelected,
                             text = stringResource(id),
                         ) {
+                            if (isSelected) {
+                                viewModel.setParams(null)
+                                return@HomeMoodChip
+                            }
                             when (id) {
                                 Res.string.all -> viewModel.setParams(null)
                                 Res.string.relax -> viewModel.setParams(HOME_PARAMS_RELAX)
@@ -1052,59 +1098,76 @@ fun HomeScreen(
     }
 }
 
+private val MORNING_GREETINGS =
+    listOf(Res.string.greeting_morning_1, Res.string.greeting_morning_2, Res.string.greeting_morning_3, Res.string.greeting_morning_4)
+private val AFTERNOON_GREETINGS =
+    listOf(Res.string.greeting_afternoon_1, Res.string.greeting_afternoon_2, Res.string.greeting_afternoon_3, Res.string.greeting_afternoon_4)
+private val EVENING_GREETINGS =
+    listOf(Res.string.greeting_evening_1, Res.string.greeting_evening_2, Res.string.greeting_evening_3, Res.string.greeting_evening_4)
+private val NIGHT_GREETINGS =
+    listOf(Res.string.greeting_night_1, Res.string.greeting_night_2, Res.string.greeting_night_3, Res.string.greeting_night_4)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopAppBar(navController: NavController) {
+fun HomeTopAppBar(
+    navController: NavController,
+    // Fork: the signed-in account's name; its first word is who the greeting addresses.
+    accountName: String? = null,
+) {
     val hour =
         remember {
             val date = now().time
             date.hour
         }
+    // The account name can arrive in capitals ("BẢO TRƯƠNG"); the greeting writes it the way a
+    // person would, "Bảo".
+    val firstName =
+        accountName
+            ?.trim()
+            ?.split(Regex("\\s+"))
+            ?.firstOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?.lowercase()
+            ?.replaceFirstChar { it.titlecase() }
+    // One of a few greetings for the time of day, picked at random each time Home is opened.
+    val greetings =
+        when (hour) {
+            in 6..12 -> MORNING_GREETINGS
+            in 13..17 -> AFTERNOON_GREETINGS
+            in 18..23 -> EVENING_GREETINGS
+            else -> NIGHT_GREETINGS
+        }
+    val greetingIndex = remember(greetings) { Random.nextInt(greetings.size) }
     TopAppBar(
         windowInsets =
             TopAppBarDefaults.windowInsets.exclude(
                 TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Start),
             ),
         title = {
+            // Fork: no "SimpMusic" label — just a greeting by time of day, with the listener's name.
             Column {
+                val greeting =
+                    if (firstName != null) {
+                        stringResource(greetings[greetingIndex], firstName)
+                    } else {
+                        when (hour) {
+                            in 6..12 -> stringResource(Res.string.good_morning)
+                            in 13..17 -> stringResource(Res.string.good_afternoon)
+                            in 18..23 -> stringResource(Res.string.good_evening)
+                            else -> stringResource(Res.string.good_night)
+                        }
+                    }
                 Text(
-                    text = stringResource(Res.string.app_name),
+                    text = greeting,
                     style = typo().titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
-                Text(
-                    text =
-                        when (hour) {
-                            in 6..12 -> {
-                                stringResource(Res.string.good_morning)
-                            }
-
-                            in 13..17 -> {
-                                stringResource(Res.string.good_afternoon)
-                            }
-
-                            in 18..23 -> {
-                                stringResource(Res.string.good_evening)
-                            }
-
-                            else -> {
-                                stringResource(Res.string.good_night)
-                            }
-                        },
-                    style = typo().bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         },
         actions = {
-            RippleIconButton(imageVector = SimpIcons.Notifications, tint = MaterialTheme.colorScheme.onBackground) {
-                navController.navigate(NotificationDestination)
-            }
-            RippleIconButton(imageVector = SimpIcons.History, tint = MaterialTheme.colorScheme.onBackground) {
-                navController.navigate(RecentlySongsDestination)
-            }
-            // Fourth button, immediately before Settings — the position the design canvas fixes.
-            ListenTogetherIconButton { navController.navigate(ListenTogetherDestination) }
+            // Fork: Settings only. Notifications, Recently played and Listen Together moved to Library.
             RippleIconButton(imageVector = SimpIcons.Settings, tint = MaterialTheme.colorScheme.onBackground) {
                 navController.navigate(SettingsDestination)
             }
@@ -1242,7 +1305,7 @@ fun QuickPicks(
         }
         LazyHorizontalGrid(
             rows = GridCells.Fixed(4),
-            modifier = Modifier.height(256.dp),
+            modifier = Modifier.height(256.dp.grownForFontScale()),
             state = lazyListState,
             flingBehavior = snapperFlingBehavior,
         ) {
@@ -1316,7 +1379,7 @@ fun MoodMomentAndGenre(
             )
             LazyHorizontalGrid(
                 rows = GridCells.Fixed(3),
-                modifier = Modifier.height(210.dp),
+                modifier = Modifier.height(210.dp.grownForFontScale()),
                 state = gridState,
                 flingBehavior = flingBehavior,
             ) {
@@ -1427,7 +1490,7 @@ fun ChartData(
         )
         LazyHorizontalGrid(
             rows = GridCells.Fixed(3),
-            modifier = Modifier.height(240.dp),
+            modifier = Modifier.height(240.dp.grownForFontScale()),
             state = lazyListState2,
             flingBehavior = snapperFlingBehavior2,
         ) {
@@ -1470,7 +1533,7 @@ fun ChartData(
             val podcastFlingBehavior = rememberSnapFlingBehavior(SnapLayoutInfoProvider(lazyGridState = podcastGridState))
             LazyHorizontalGrid(
                 rows = GridCells.Fixed(3),
-                modifier = Modifier.height(240.dp),
+                modifier = Modifier.height(240.dp.grownForFontScale()),
                 state = podcastGridState,
                 flingBehavior = podcastFlingBehavior,
             ) {
@@ -1491,5 +1554,57 @@ fun ChartData(
                 flingBehavior = podcastFlingBehavior,
             )
         }
+    }
+}
+/**
+ * Fork: a fixed-height shelf grid made taller when the system font size is above 100%. Its rows are
+ * mostly two lines of text, so at a larger font (110% is common, and Samsung DeX starts there) the
+ * second line ran past the row and was cut off. The text is roughly 70% of each row, so that is the
+ * share that grows; at 100% or below nothing changes.
+ */
+@Composable
+private fun Dp.grownForFontScale(): Dp {
+    val fontScale = LocalDensity.current.fontScale
+    return if (fontScale <= 1f) this else this * (1f + (fontScale - 1f) * FONT_GROWN_SHARE)
+}
+
+private const val FONT_GROWN_SHARE = 0.7f
+
+// Fork: the developer's remote-config launch banners stay off in this build.
+private const val LAUNCH_BANNERS_ENABLED = false
+
+/**
+ * Fork: Home's mood chips drawn the way YouTube Music draws them — a rounded rectangle with a soft
+ * translucent fill and no outline, turning solid white with dark text once picked.
+ */
+@Composable
+private fun HomeMoodChip(
+    isSelected: Boolean,
+    text: String,
+    onClick: () -> Unit,
+) {
+    val container by animateColorAsState(
+        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f),
+        label = "homeMoodChipContainer",
+    )
+    val content by animateColorAsState(
+        targetValue = if (isSelected) Color.Black else MaterialTheme.colorScheme.onBackground,
+        label = "homeMoodChipContent",
+    )
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            Modifier
+                .padding(horizontal = 2.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(container)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = text,
+            style = typo().bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+            color = content,
+        )
     }
 }

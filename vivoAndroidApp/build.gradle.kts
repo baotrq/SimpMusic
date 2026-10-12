@@ -95,6 +95,7 @@ android {
 
     buildTypes {
         release {
+            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "false")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -105,6 +106,7 @@ android {
         debug {
             // No ".dev" suffix: vivo matches the exact package, and a debug build is how this is tried on a vivo phone.
             isMinifyEnabled = false
+            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "false")
         }
     }
     compileOptions {

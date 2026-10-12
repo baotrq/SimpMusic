@@ -1,12 +1,10 @@
 package com.maxrave.simpmusic.ui.screen.player.content.applemusic
 
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,30 +12,26 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.captionBar
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxrave.domain.manager.DataStoreManager
+import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
+import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.expect.ui.isLyricsBlurSupported
 import com.maxrave.simpmusic.ui.component.AppleMusicLyricPaddingX
 import com.maxrave.simpmusic.ui.component.LyricsView
@@ -46,12 +40,12 @@ import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
 import com.maxrave.simpmusic.viewModel.UIEvent
-import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.ai_translated
 import simpmusic.composeapp.generated.resources.line_synced
+import simpmusic.composeapp.generated.resources.no_lyrics_for_this_song
 import simpmusic.composeapp.generated.resources.lyrics_provider_betterlyrics
 import simpmusic.composeapp.generated.resources.lyrics_provider_lrc
 import simpmusic.composeapp.generated.resources.lyrics_provider_simpmusic
@@ -79,7 +73,10 @@ internal fun AppleMusicLyricsView(
     deviceVolumeController: DeviceVolumeController?,
     outputName: String?,
     onOpenOutput: () -> Unit,
+    panelDrag: AppleMusicPanelDrag,
     modifier: Modifier = Modifier,
+    // Fork: the shell has decided this song has no lyrics; say so until it slides back.
+    showNoLyrics: Boolean = false,
     dataStoreManager: DataStoreManager = koinInject(),
 ) {
     val localDensity = LocalDensity.current
@@ -93,69 +90,39 @@ internal fun AppleMusicLyricsView(
     val lyricsStyle by dataStoreManager.lyricsStyle.collectAsStateWithLifecycle(DataStoreManager.LYRICS_STYLE_CLASSIC)
     val rendererOwnsGutter = lyricsStyle == DataStoreManager.LYRICS_STYLE_APPLE_MUSIC && isLyricsBlurSupported()
 
-    // Apple hands the whole page to the lyrics once you stop touching it, and brings the transport
-    // back the moment you touch it again. rememberSaveable so a rotation does not yank the
-    // controls back into view. Fork: starts hidden — the page opens clean, a tap brings controls.
-    var showCluster by rememberSaveable { mutableStateOf(false) }
-    // Bumped on every interaction, and keyed into the timer below, so ANY touch restarts the
-    // countdown. Without it a scroll while the cluster is already shown leaves showCluster
-    // unchanged, the LaunchedEffect never restarts, and the controls vanish mid-gesture.
-    var interactionTick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(showCluster, interactionTick) {
-        if (showCluster) {
-            delay(CLUSTER_AUTO_HIDE_MS)
-            showCluster = false
-        }
-    }
+    // Fork: the big transport that a tap used to bring up over the lyrics is gone — the header's
+    // play/pause and its sideways swipe cover it. A swipe down slides the page back to the player,
+    // following the finger: the list's own pull past its top goes through the nested-scroll
+    // connection, everywhere else (header, gutters) through the drag detector on the page.
+    val pullDownToMain = rememberAppleMusicPullDownConnection(panelDrag)
 
-    // Scrolling the lyrics counts as reaching for the player, exactly like tapping does — and the
-    // scroll happens inside LyricsView's own LazyColumn, which owns a list state this file cannot
-    // see. A nested-scroll connection catches it on the way past without reaching in.
-    val scrollWakesControls =
-        remember {
-            object : NestedScrollConnection {
-                override fun onPreScroll(
-                    available: Offset,
-                    source: NestedScrollSource,
-                ): Offset {
-                    if (available.y != 0f) {
-                        showCluster = true
-                        interactionTick++
-                    }
-                    // Zero: this only observes. Consuming any of it would fight the list's scroll.
-                    return Offset.Zero
-                }
-            }
-        }
-
-    Column(modifier = modifier.fillMaxSize()) {
-        // statusBars + 20dp, not a bare status-bar offset: the grabber that
-        // NowPlayingContentAppleMusic draws above the view Crossfade floats over this column, and
-        // without the extra room the header's title slides underneath it.
+    Column(modifier = modifier.fillMaxSize().appleMusicDirectionalDrag(enabled = true, up = false, drag = panelDrag)) {
+        // Phones leave a small inset above the compact header; desktop keeps its panel controls.
         Spacer(
             modifier =
                 Modifier.height(
-                    with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() } + 20.dp,
+                    with(localDensity) { WindowInsets.statusBars.union(WindowInsets.captionBar).getTop(localDensity).toDp() } +
+                        if (getPlatform() == Platform.Desktop) APPLE_MUSIC_TOP_BAR_HEIGHT else 8.dp,
                 ),
         )
-        AppleMusicCompactHeader(state = state, actions = actions, typography = typography)
+        AppleMusicCompactHeader(state = state, actions = actions, typography = typography, swipeToChangeTrack = true)
 
         Box(
             modifier =
                 Modifier
                     .weight(1f)
-                    .nestedScroll(scrollWakesControls)
-                    // The lyric LINES consume their own taps to seek, so this only ever fires on
-                    // the gutter and the gaps between lines — which is exactly the "tap the page,
-                    // not a lyric" gesture. No ripple: this is a whole page, not a button.
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                    ) {
-                        showCluster = !showCluster
-                        interactionTick++
-                    },
+                    .nestedScroll(pullDownToMain),
         ) {
+            // Fork: a song change fades the old lyrics out and the new ones in, instead of the page
+            // blanking the moment the track changes and the lyrics popping back in when they load.
+            // Keyed on the lyrics themselves, so a translation arriving for the same song updates the
+            // page in place rather than fading it.
+            AnimatedContent(
+                targetState = lyricsData,
+                transitionSpec = { fadeIn(tween(LYRICS_SWAP_MS)) togetherWith fadeOut(tween(LYRICS_SWAP_MS)) },
+                label = "appleMusicLyricsSwap",
+                contentKey = { it?.lyrics },
+            ) { lyricsData ->
             if (lyricsData != null) {
                 // Transparent background: the page's artwork-tinted gradient is the backdrop,
                 // not LyricsView's own dark card color.
@@ -171,11 +138,8 @@ internal fun AppleMusicLyricsView(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            // The lines dissolve at both edges instead of being guillotined by
-                            // the header/cluster — applied from OUTSIDE the component.
-                            // Softer bottom fade than the top: a lyric line is ~54dp tall, and a
-                            // 44dp fade dissolved most of the last visible line.
-                            .appleMusicVerticalFadeEdges(topFade = 28.dp, bottomFade = 18.dp)
+                            // A short fade hides clipping without swallowing the larger blur zones.
+                            .appleMusicVerticalFadeEdges(topFade = 24.dp, bottomFade = 32.dp)
                             // Zero under the Apple Music renderer, which insets its own lines so
                             // its blur has margin to spill into; the full gutter under Classic,
                             // which insets nothing. Applied AFTER the fade so the fade still spans
@@ -228,16 +192,25 @@ internal fun AppleMusicLyricsView(
                 )
                 // Fork: the floating offset / vote / share / fullscreen buttons are gone.
             }
+            }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showNoLyrics && lyricsData == null,
+                enter = fadeIn(tween(LYRICS_SWAP_MS)),
+                exit = fadeOut(tween(LYRICS_SWAP_MS)),
+                modifier = Modifier.align(Alignment.Center),
+            ) {
+                Text(
+                    text = stringResource(Res.string.no_lyrics_for_this_song),
+                    style = typography.mainTitle,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                )
+            }
         }
 
-        // expand/shrink, not just fade: the Box above holds weight(1f), so removing the cluster
-        // from the layout is what lets the lyrics grow into the freed space — a fade alone would
-        // leave an empty band where the transport used to be.
-        androidx.compose.animation.AnimatedVisibility(
-            visible = showCluster,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
+        // Desktop only: there the cluster is just the Lyrics · Queue row, the way back to the
+        // player with a mouse. Android leaves the page to the lyrics, with room for the gesture bar.
+        if (getPlatform() == Platform.Desktop) {
             AppleMusicBottomCluster(
                 state = state,
                 actions = actions,
@@ -250,13 +223,17 @@ internal fun AppleMusicLyricsView(
                 outputName = outputName,
                 onOpenOutput = onOpenOutput,
             )
+        } else {
+            Spacer(
+                modifier =
+                    Modifier.height(with(localDensity) { WindowInsets.navigationBars.getBottom(localDensity).toDp() } + 12.dp),
+            )
         }
     }
 }
 
-// Long enough to read a line or two and reach for a control, short enough that the page clears
-// itself while you are just listening.
-private const val CLUSTER_AUTO_HIDE_MS = 8_000L
+// How long the old song's lyrics take to fade into the new song's.
+private const val LYRICS_SWAP_MS = 350
 
 /** The sync-type half of the caption: "Word by word", "Line Synced" or "Unsynced". Its own line. */
 @Composable

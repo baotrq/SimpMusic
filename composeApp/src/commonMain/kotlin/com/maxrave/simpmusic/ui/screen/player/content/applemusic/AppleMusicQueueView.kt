@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.captionBar
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -47,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,7 +59,9 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.domain.mediaservice.handler.QueueData
 import com.maxrave.domain.mediaservice.handler.RepeatState
+import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
+import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.DraggableItem
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.rememberDragDropState
@@ -99,6 +104,7 @@ internal fun AppleMusicQueueView(
     deviceVolumeController: DeviceVolumeController?,
     outputName: String?,
     onOpenOutput: () -> Unit,
+    panelDrag: AppleMusicPanelDrag,
     modifier: Modifier = Modifier,
     dataStoreManager: DataStoreManager = koinInject(),
     musicServiceHandler: MediaPlayerHandler = koinInject(),
@@ -142,14 +148,31 @@ internal fun AppleMusicQueueView(
             }
         }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    // Fork: a swipe down slides the queue back to the player, following the finger, as on Lyrics.
+    // While the list is at its top there is nothing for it to scroll down to, so the page claims a
+    // downward swipe first (intercept) instead of waiting for the list's overscroll — through the
+    // list alone the swipe often never reached the panel. Scrolled down, the list goes first again.
+    val pullDownToMain = rememberAppleMusicPullDownConnection(panelDrag)
+    val lazyListState = rememberLazyListState()
+
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .appleMusicDirectionalDrag(
+                    enabled = true,
+                    up = false,
+                    drag = panelDrag,
+                    intercept = !lazyListState.canScrollBackward,
+                ),
+    ) {
         // statusBars + 20dp, not a bare status-bar offset: the grabber that
         // NowPlayingContentAppleMusic draws above the view Crossfade floats over this column, and
         // without the extra room the header's title slides underneath it.
         Spacer(
             modifier =
                 Modifier.height(
-                    with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() } + 20.dp,
+                    with(localDensity) { WindowInsets.statusBars.union(WindowInsets.captionBar).getTop(localDensity).toDp() } + APPLE_MUSIC_TOP_BAR_HEIGHT,
                 ),
         )
         AppleMusicCompactHeader(state = state, actions = actions, typography = typography)
@@ -169,7 +192,6 @@ internal fun AppleMusicQueueView(
             modifier = Modifier.padding(bottom = 8.dp),
         )
 
-        val lazyListState = rememberLazyListState()
         // rememberDragDropState stores this lambda in remember(lazyListState), so it is frozen at
         // FIRST composition — capturing `offset` directly would keep using the offset from the
         // track that was playing back then and swap the wrong two rows after any track change.
@@ -211,6 +233,7 @@ internal fun AppleMusicQueueView(
             modifier =
                 Modifier
                     .weight(1f)
+                    .nestedScroll(pullDownToMain)
                     .appleMusicVerticalFadeEdges(topFade = QUEUE_TOP_FADE, bottomFade = QUEUE_BOTTOM_FADE),
         ) {
             LazyColumn(
@@ -301,6 +324,9 @@ internal fun AppleMusicQueueView(
             deviceVolumeController = deviceVolumeController,
             outputName = outputName,
             onOpenOutput = onOpenOutput,
+            // Fork: no Queue button on the phone — a swipe down is the way back. Desktop keeps the
+            // row, as it has no swipe.
+            showActionRow = getPlatform() == Platform.Desktop,
         )
     }
 }
