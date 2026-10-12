@@ -7,7 +7,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,10 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,10 +27,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -46,19 +40,9 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
 import com.maxrave.simpmusic.expect.ui.isLyricsBlurSupported
 import com.maxrave.simpmusic.ui.component.AppleMusicLyricPaddingX
-import com.maxrave.simpmusic.ui.component.LyricsOffsetFloatingControl
 import com.maxrave.simpmusic.ui.component.LyricsView
-import com.maxrave.simpmusic.ui.component.hasTiming
-import com.maxrave.simpmusic.ui.component.lyrics.ShareLyricsSheet
-import com.maxrave.simpmusic.ui.component.lyrics.toShareLyricsLines
-import com.maxrave.simpmusic.ui.icon.OpenInFull
-import com.maxrave.simpmusic.ui.icon.Share
-import com.maxrave.simpmusic.ui.icon.AvTimer
-import com.maxrave.simpmusic.ui.icon.SimpIcons
-import com.maxrave.simpmusic.ui.icon.ThumbsUpDown
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
-import com.maxrave.simpmusic.ui.screen.player.content.canVote
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
 import com.maxrave.simpmusic.viewModel.UIEvent
@@ -111,9 +95,8 @@ internal fun AppleMusicLyricsView(
 
     // Apple hands the whole page to the lyrics once you stop touching it, and brings the transport
     // back the moment you touch it again. rememberSaveable so a rotation does not yank the
-    // controls back into view.
-    var showCluster by rememberSaveable { mutableStateOf(true) }
-    var showShareSheet by rememberSaveable { mutableStateOf(false) }
+    // controls back into view. Fork: starts hidden — the page opens clean, a tap brings controls.
+    var showCluster by rememberSaveable { mutableStateOf(false) }
     // Bumped on every interaction, and keyed into the timer below, so ANY touch restarts the
     // countdown. Without it a scroll while the cluster is already shown leaves showCluster
     // unchanged, the LaunchedEffect never restarts, and the controls vanish mid-gesture.
@@ -243,58 +226,8 @@ internal fun AppleMusicLyricsView(
                         }
                     },
                 )
-                // Bottom-end, inside the list's own bottom fade so they sit over the dimmest
-                // lyrics rather than over a bright active line.
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showCluster,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.BottomEnd),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(end = 20.dp, bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        // End: the timing bar opens to the left of its button and widens this
-                        // column, which must not drag the buttons below it off the edge.
-                        horizontalAlignment = Alignment.End,
-                    ) {
-                        if (lyricsData.hasTiming()) {
-                            LyricsOffsetFloatingControl(
-                                offsetMs = state.lyricsOffsetMs.toInt(),
-                                onOffsetChange = actions.onLyricsOffsetChange,
-                                backdrop = null,
-                                // Adjusting counts as touching the page, or the cluster hides mid-tap.
-                                onInteraction = { interactionTick++ },
-                            ) { onClick ->
-                                AppleMusicFloatingCircleButton(icon = SimpIcons.AvTimer, onClick = onClick)
-                            }
-                        }
-                        // Only when the lyrics (or the translation) actually came from SimpMusic
-                        // Lyrics — the sole provider that accepts a vote. Classic and M3E have
-                        // always gated theirs; this one did not, so it invited a rating on
-                        // YouTube/LRCLIB/Spotify lyrics that had nowhere to go.
-                        if (lyricsData.canVote()) {
-                            AppleMusicFloatingCircleButton(icon = SimpIcons.ThumbsUpDown, onClick = { actions.onShowVoteDialog() })
-                        }
-                        AppleMusicFloatingCircleButton(icon = SimpIcons.Share, onClick = { showShareSheet = true })
-                        AppleMusicFloatingCircleButton(icon = SimpIcons.OpenInFull, onClick = { actions.onShowFullscreenLyrics() })
-                    }
-                }
+                // Fork: the floating offset / vote / share / fullscreen buttons are gone.
             }
-        }
-
-        if (showShareSheet && lyricsData != null) {
-            ShareLyricsSheet(
-                lines = lyricsData.toShareLyricsLines(),
-                songTitle = state.screenData.nowPlayingTitle,
-                artistName = state.screenData.artistName,
-                // The track's already-decoded artwork. A URL would still be loading at the moment
-                // the card is captured, and would come out blank.
-                artwork = state.screenData.bitmap,
-                seedColor = state.startColor.value,
-                initialLineIndex = state.currentLyricLineIndex,
-                onDismiss = { showShareSheet = false },
-            )
         }
 
         // expand/shrink, not just fade: the Box above holds weight(1f), so removing the cluster
@@ -324,25 +257,6 @@ internal fun AppleMusicLyricsView(
 // Long enough to read a line or two and reach for a control, short enough that the page clears
 // itself while you are just listening.
 private const val CLUSTER_AUTO_HIDE_MS = 8_000L
-
-@Composable
-private fun AppleMusicFloatingCircleButton(
-    icon: ImageVector,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier =
-            Modifier
-                .appleMusicPressInflate()
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.24f))
-                .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(imageVector = icon, contentDescription = "", tint = Color.White, modifier = Modifier.size(18.dp))
-    }
-}
 
 /** The sync-type half of the caption: "Word by word", "Line Synced" or "Unsynced". Its own line. */
 @Composable

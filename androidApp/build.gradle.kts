@@ -85,6 +85,10 @@ android {
 
     buildTypes {
         release {
+            // Fork: own package so it installs beside the official app; signed with the local
+            // debug key since this build is only ever sideloaded onto my own phone.
+            applicationIdSuffix = ".bao"
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

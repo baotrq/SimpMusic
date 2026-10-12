@@ -1,7 +1,6 @@
 package com.maxrave.simpmusic.ui.screen.player.content.applemusic
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
@@ -12,7 +11,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -69,7 +67,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
@@ -77,21 +74,14 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.maxrave.domain.mediaservice.handler.ControlState
 import com.maxrave.domain.mediaservice.handler.RepeatState
-import com.maxrave.domain.repository.ListenTogetherRepository
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
 import com.maxrave.simpmusic.extension.formatDuration
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
-import com.maxrave.simpmusic.ui.component.heartBurst
-import com.maxrave.simpmusic.ui.component.rememberHeartBurstState
 import com.maxrave.simpmusic.ui.component.rememberHolderPainter
-import com.maxrave.simpmusic.ui.icon.AddCircleOutline
-import com.maxrave.simpmusic.ui.icon.CheckCircle
 import com.maxrave.simpmusic.ui.icon.FastForward
 import com.maxrave.simpmusic.ui.icon.FastRewind
-import com.maxrave.simpmusic.ui.icon.Groups
-import com.maxrave.simpmusic.ui.icon.Headphones
 import com.maxrave.simpmusic.ui.icon.Lyrics
 import com.maxrave.simpmusic.ui.icon.MoreVert
 import com.maxrave.simpmusic.ui.icon.Pause
@@ -101,8 +91,6 @@ import com.maxrave.simpmusic.ui.icon.Repeat
 import com.maxrave.simpmusic.ui.icon.RepeatOne
 import com.maxrave.simpmusic.ui.icon.Shuffle
 import com.maxrave.simpmusic.ui.icon.SimpIcons
-import com.maxrave.simpmusic.ui.icon.Star
-import com.maxrave.simpmusic.ui.icon.StarBorder
 import com.maxrave.simpmusic.ui.icon.VolumeDown
 import com.maxrave.simpmusic.ui.icon.VolumeUp
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
@@ -114,7 +102,6 @@ import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.crossfading
 import simpmusic.composeapp.generated.resources.live_badge
 import kotlin.math.roundToLong
-import org.koin.compose.koinInject
 
 /** Which body the dock is currently showing. Held by the top-level Apple Music composable. */
 internal enum class AppleMusicView { MAIN, LYRICS, QUEUE }
@@ -332,63 +319,40 @@ internal fun AppleMusicGlyphButton(
 }
 
 /**
- * The ⊕ (YouTube-liked) / ☆ (favourite, with the heart-burst) / ⋯ (more sheet) trio — shared by
- * the MAIN title row and the LYRICS/QUEUE compact header. Fires the heart-burst on the tap that
- * likes, never on state, matching every other style's like button.
+ * Fork: ⊕ (YouTube-liked) and ☆ (favourite) removed — favourite still lives in the ⋯ sheet.
+ * [showPlayPause] puts a play/pause in their place on the LYRICS/QUEUE compact header; the MAIN
+ * title row leaves it off since the big transport is right below it.
  */
 @Composable
 internal fun AppleMusicHeaderActions(
     state: NowPlayingContentState,
     actions: NowPlayingContentActions,
     modifier: Modifier = Modifier,
+    showPlayPause: Boolean = false,
 ) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (state.isUserLoggedIn) {
-            // 40dp target around a 22dp glyph: a bare 22dp clickable is under half the Material
-            // minimum, on the row that gets tapped most.
+        if (showPlayPause) {
             Box(
                 modifier =
                     Modifier
                         .appleMusicPressInflate()
-                        .size(24.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .clickable { actions.onAddToYouTubeLiked() },
+                        .clickable { actions.onUIEvent(UIEvent.PlayPause) },
                 contentAlignment = Alignment.Center,
             ) {
-                Crossfade(targetState = state.likeStatus, label = "appleMusicYtLiked") { liked ->
+                Crossfade(targetState = state.controllerState.isPlaying, label = "appleMusicHeaderPlayPause") { isPlaying ->
                     Icon(
-                        imageVector = if (liked) SimpIcons.CheckCircle else SimpIcons.AddCircleOutline,
+                        imageVector = if (isPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
                         contentDescription = "",
                         tint = Color.White,
+                        modifier = Modifier.size(36.dp),
                     )
                 }
-            }
-        }
-        val likeBurst = rememberHeartBurstState()
-        Box(
-            modifier =
-                Modifier
-                    .appleMusicPressInflate()
-                    .size(32.dp)
-                    .heartBurst(likeBurst)
-                    .clip(CircleShape)
-                    .clickable {
-                        if (!state.controllerState.isLiked) likeBurst.fire()
-                        actions.onUIEvent(UIEvent.ToggleLike)
-                    },
-            contentAlignment = Alignment.Center,
-        ) {
-            Crossfade(targetState = state.controllerState.isLiked, label = "appleMusicFavorite") { liked ->
-                Icon(
-                    imageVector = if (liked) SimpIcons.Star else SimpIcons.StarBorder,
-                    contentDescription = "",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp),
-                )
             }
         }
         AppleMusicGlyphButton(icon = SimpIcons.MoreVert, onClick = { actions.onShowMoreSheet() })
@@ -450,7 +414,7 @@ internal fun AppleMusicCompactHeader(
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
-        AppleMusicHeaderActions(state = state, actions = actions)
+        AppleMusicHeaderActions(state = state, actions = actions, showPlayPause = true)
     }
 }
 
@@ -518,7 +482,7 @@ internal fun AppleMusicThinSlider(
     }
 }
 
-/** Elapsed time, the quality line (hidden when unknown), and the remaining time as "-m:ss". */
+/** Elapsed time, the "Crossfading" label while crossfading, and the remaining time as "-m:ss". */
 @Composable
 internal fun AppleMusicTimesRow(
     state: NowPlayingContentState,
@@ -592,14 +556,9 @@ internal fun AppleMusicTimesRow(
                     ),
                 label = "appleMusicSweepHead",
             )
-            val quality = state.audioQualityLabel
             val crossfadeLabelAlpha by animateFloatAsState(
                 targetValue = if (state.timelineState.isCrossfading) 1f else 0f,
                 label = "appleMusicCrossfadeLabelAlpha",
-            )
-            val qualityLabelAlpha by animateFloatAsState(
-                targetValue = if (!state.timelineState.isCrossfading && quality != null) 1f else 0f,
-                label = "appleMusicQualityLabelAlpha",
             )
             Box(modifier = Modifier.alpha(crossfadeLabelAlpha)) {
                 // Identical treatment to Classic and M3 Expressive: a highlight swept through the
@@ -626,39 +585,10 @@ internal fun AppleMusicTimesRow(
                     textAlign = TextAlign.Center,
                 )
             }
-            // The quality line: a small headphones glyph ahead of the stream's own figures,
-            // bare on the page and dimmer than the times either side of it. The figures change
-            // with the track and so crossfade in with it rather than snapping.
-            Crossfade(
-                targetState = quality,
-                animationSpec = tween(300),
-                label = "appleMusicQualityLabel",
-                modifier = Modifier.alpha(qualityLabelAlpha),
-            ) { label ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = SimpIcons.Headphones,
-                        contentDescription = null,
-                        tint = AppleMusicQualityLabel,
-                        modifier = Modifier.size(13.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    // orEmpty(), not label!!: the null check drives the alpha above rather than
-                    // guarding this branch. It also renders while alpha is 0, which keeps the slot
-                    // its height.
-                    Text(
-                        text = label.orEmpty(),
-                        style = typography.times.copy(color = AppleMusicQualityLabel),
-                        maxLines = 1,
-                    )
-                }
-            }
+            // Fork: the "259 kbps · 44.1 kHz" quality line that shared this slot is gone.
         }
     }
 }
-
-// The quality line sits a step below the times either side of it.
-private val AppleMusicQualityLabel = Color.White.copy(alpha = 0.45f)
 
 /** FastRewind(44dp) → Previous, Play/Pause(62dp, plain white — no container disc), FastForward(44dp) → Next. */
 @Composable
@@ -813,10 +743,8 @@ internal fun AppleMusicDockButton(
 }
 
 /**
- * Lyrics · [Output | Listen Together] · Queue. The capsule holds the two
- * answers to "where is this playing": which speaker (the output sheet, which is also where Cast
- * lives now) and which people (Listen Together). Joined by a hairline rather than a gap, so the
- * two read as one object.
+ * Lyrics · Queue. Fork: the [Output | Listen Together] capsule that sat between them is gone; the
+ * two buttons keep the positions they had beside it.
  */
 @Composable
 internal fun AppleMusicActionRow(
@@ -825,17 +753,11 @@ internal fun AppleMusicActionRow(
     lyricsAvailable: Boolean,
     activeColor: Color,
     activeContentColor: Color,
-    onOpenOutput: () -> Unit,
-    onOpenListenTogether: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Straight off the repository, like ListenTogetherIconButton: one boolean off a StateFlow is all
-    // the capsule needs, and a ViewModel for it would be built every time the player opens.
-    val listenTogether = koinInject<ListenTogetherRepository>()
-    val room by listenTogether.room.collectAsStateWithLifecycle()
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        // A quarter of the spare width at each end, the rest between. SpaceEvenly
-        // over the full row pushed the two glyphs out to the gutters, away from the capsule.
+        // A quarter of the spare width at each end, measured as if the old capsule were still
+        // there, so the two buttons sit where they always did.
         val content = DOCK_BUTTON_SIZE * 2 + CAPSULE_SEGMENT_WIDTH * 2 + 1.dp
         val edgeInset = ((maxWidth - content) / 4).coerceAtLeast(0.dp)
         Row(
@@ -854,36 +776,6 @@ internal fun AppleMusicActionRow(
                     onSelectView(if (viewState == AppleMusicView.LYRICS) AppleMusicView.MAIN else AppleMusicView.LYRICS)
                 },
             )
-            Row(
-                modifier =
-                    Modifier
-                        .height(DOCK_BUTTON_SIZE)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.12f)),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppleMusicCapsuleSegment(
-                    icon = SimpIcons.Headphones,
-                    // Headphones is a tall, narrow glyph and Groups a wide one; these are the sizes at
-                    // which the two read as a matched pair rather than one looking bigger.
-                    iconSize = 23.dp,
-                    highlighted = false,
-                    onClick = onOpenOutput,
-                )
-                Box(
-                    modifier =
-                        Modifier
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .background(Color.White.copy(alpha = 0.20f)),
-                )
-                AppleMusicCapsuleSegment(
-                    icon = SimpIcons.Groups,
-                    iconSize = 24.dp,
-                    highlighted = room.inRoom,
-                    onClick = onOpenListenTogether,
-                )
-            }
             AppleMusicDockButton(
                 icon = SimpIcons.QueueMusic,
                 active = viewState == AppleMusicView.QUEUE,
@@ -894,54 +786,6 @@ internal fun AppleMusicActionRow(
                 },
             )
         }
-    }
-}
-
-/**
- * One half of the capsule. Its highlight fills the segment edge to edge — a circle sized to the
- * glyph, as the dock buttons use, would stop the join reading as one object. The glyph swells on
- * press like every other control in this style; the segment itself cannot, or it would spill past
- * the capsule's rounded ends.
- */
-@Composable
-private fun AppleMusicCapsuleSegment(
-    icon: ImageVector,
-    iconSize: Dp,
-    highlighted: Boolean,
-    onClick: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val glyphScale by animateFloatAsState(
-        targetValue = if (pressed) 1.25f else 1f,
-        animationSpec = spring(dampingRatio = 0.45f, stiffness = 380f),
-        label = "appleMusicCapsuleGlyph",
-    )
-    val background by animateColorAsState(
-        targetValue = if (highlighted) Color.White.copy(alpha = 0.14f) else Color.Transparent,
-        animationSpec = tween(220),
-        label = "appleMusicCapsuleHighlight",
-    )
-    Box(
-        modifier =
-            Modifier
-                .width(CAPSULE_SEGMENT_WIDTH)
-                .fillMaxHeight()
-                .background(background)
-                .clickable(interactionSource = interactionSource, indication = LocalIndication.current, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (highlighted) Color.White else Color.White.copy(alpha = 0.85f),
-            modifier =
-                Modifier
-                    .graphicsLayer {
-                        scaleX = glyphScale
-                        scaleY = glyphScale
-                    }.size(iconSize),
-        )
     }
 }
 
@@ -982,13 +826,9 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
 }
 
 /**
- * Progress bar + times + transport + volume + action row + output caption — the fixed block every
- * Apple Music body (MAIN, LYRICS, QUEUE) renders at the bottom, identically. On Desktop only the
- * action row renders (no slider/transport/volume), matching the `Platform.Android` gate the other
- * two styles use.
- *
- * [outputName] names the device the sound leaves by ("maxrave's Phone", a Bluetooth headset, a
- * Cast receiver); the slot keeps its height while it is unknown, so nothing above it moves.
+ * Progress bar + times + transport + action row — the fixed block every Apple Music body (MAIN,
+ * LYRICS, QUEUE) renders at the bottom, identically. On Desktop only the action row renders (no
+ * slider/transport), matching the `Platform.Android` gate the other two styles use.
  */
 @Composable
 internal fun AppleMusicBottomCluster(
@@ -1007,13 +847,11 @@ internal fun AppleMusicBottomCluster(
 ) {
     val localDensity = LocalDensity.current
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = topPadding)) {
+        // Fork: no volume row and no output-name caption. deviceVolumeController, outputName and
+        // onOpenOutput are left in the signature, unused, so upstream merges stay small.
         if (getPlatform() == Platform.Android) {
             AppleMusicPlaybackControls(state = state, actions = actions, typography = typography)
-            Spacer(modifier = Modifier.height(18.dp))
-            deviceVolumeController?.let { controller ->
-                AppleMusicVolumeRow(controller = controller)
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+            Spacer(modifier = Modifier.height(28.dp))
         } else {
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -1023,36 +861,7 @@ internal fun AppleMusicBottomCluster(
             lyricsAvailable = state.screenData.lyricsData != null,
             activeColor = activePillContainer,
             activeContentColor = activePillContent,
-            onOpenOutput = onOpenOutput,
-            onOpenListenTogether = actions.onOpenListenTogether,
         )
-        Spacer(modifier = Modifier.height(14.dp))
-        // Crossfaded, since it changes on its own — a headset connecting renames the line under the
-        // user's thumb. Tappable: it names the output, so it opens the output sheet.
-        Crossfade(
-            targetState = outputName.orEmpty(),
-            animationSpec = tween(300),
-            label = "appleMusicOutputCaption",
-            modifier = Modifier.fillMaxWidth(),
-        ) { name ->
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = name,
-                    style = typography.footer,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(0.65f)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onOpenOutput,
-                            ),
-                )
-            }
-        }
         Spacer(
             modifier =
                 Modifier.height(
