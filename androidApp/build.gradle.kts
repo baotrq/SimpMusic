@@ -85,6 +85,13 @@ android {
 
     buildTypes {
         release {
+            // Fork: own package so it installs beside the official app; signed with the local
+            // debug key since this build is only ever sideloaded onto my own phone.
+            applicationIdSuffix = ".bao"
+            signingConfig = signingConfigs.getByName("debug")
+            // The unofficial-copy check would lock this personal build out: its package is not on
+            // the official list and its key is not the release key.
+            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "true")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -102,6 +109,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "false")
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
         }
@@ -214,6 +222,8 @@ sentry {
         includeDependenciesReport.set(false)
         includeSourceContext.set(false)
         includeNativeSources.set(false)
+        // FOSS ships no Sentry SDK: injected AppStartMetrics calls crash it at launch.
+        tracingInstrumentation.enabled.set(false)
     }
     telemetry.set(false)
 }

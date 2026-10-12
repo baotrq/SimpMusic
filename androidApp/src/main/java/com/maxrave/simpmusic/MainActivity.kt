@@ -14,8 +14,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.core.net.toUri
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
@@ -37,6 +40,7 @@ import com.maxrave.domain.mediaservice.handler.ToastType
 import com.maxrave.logger.Logger
 import com.maxrave.media3.di.setServiceActivitySession
 import com.maxrave.simpmusic.di.viewModelModule
+import com.maxrave.simpmusic.expect.ui.rememberDesktopModeScale
 import com.maxrave.simpmusic.service.rss.RssFeedNotifyWork
 import com.maxrave.simpmusic.service.test.notification.NotifyWork
 import com.maxrave.simpmusic.utils.ComposeResUtils
@@ -252,9 +256,14 @@ class MainActivity : AppCompatActivity() {
         }
         viewModel.getLocation()
 
-        if (!BuildConfig.DEBUG) viewModel.checkOfficialBuild(packageName, signingCertSha256())
+        if (!BuildConfig.DEBUG && !BuildConfig.SKIP_OFFICIAL_BUILD_CHECK) viewModel.checkOfficialBuild(packageName, signingCertSha256())
         setContent {
-            App(viewModel)
+            // Fork: in Samsung DeX everything is drawn a size up (see rememberDesktopModeScale).
+            val scale = rememberDesktopModeScale()
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density * scale, density.fontScale)) {
+                App(viewModel)
+            }
         }
     }
 

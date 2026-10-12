@@ -1,9 +1,7 @@
 package com.maxrave.simpmusic.ui.screen
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -17,16 +15,12 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -134,6 +128,7 @@ import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.VolumeOff
 import com.maxrave.simpmusic.ui.icon.VolumeUp
 import com.maxrave.simpmusic.ui.screen.player.content.toAudioQualityLabel
+import com.maxrave.simpmusic.ui.screen.player.content.applemusic.appleMusicTrackSwipe
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.SharedViewModel
@@ -225,7 +220,6 @@ fun MiniPlayer(
         label = "",
     )
 
-    val offsetX = remember { Animatable(initialValue = 0f) }
     val offsetY = remember { Animatable(0f) }
 
     var loading by rememberSaveable {
@@ -346,45 +340,11 @@ fun MiniPlayer(
                         Row(
                             modifier =
                                 Modifier
-                                    .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                                    .pointerInput(Unit) {
-                                        detectHorizontalDragGestures(
-                                            onDragStart = {
-                                            },
-                                            onHorizontalDrag = {
-                                                change: PointerInputChange,
-                                                dragAmount: Float,
-                                                ->
-                                                coroutineScope.launch {
-                                                    change.consume()
-                                                    offsetX.animateTo(offsetX.value + dragAmount * 2)
-                                                    Logger.w("MiniPlayer", "Dragged ${offsetX.value}")
-                                                }
-                                            },
-                                            onDragCancel = {
-                                                Logger.w("MiniPlayer", "Drag Cancelled")
-                                                coroutineScope.launch {
-                                                    if (offsetX.value > 200) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Previous)
-                                                    } else if (offsetX.value < -120) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Next)
-                                                    }
-                                                    offsetX.animateTo(0f)
-                                                }
-                                            },
-                                            onDragEnd = {
-                                                Logger.w("MiniPlayer", "Drag Ended")
-                                                coroutineScope.launch {
-                                                    if (offsetX.value > 200) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Previous)
-                                                    } else if (offsetX.value < -120) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Next)
-                                                    }
-                                                    offsetX.animateTo(0f)
-                                                }
-                                            },
-                                        )
-                                    },
+                                    .appleMusicTrackSwipe(
+                                        enabled = isVisible,
+                                        onNext = { if (controllerState.isNextAvailable) sharedViewModel.onUIEvent(UIEvent.Next) },
+                                        onPrevious = { if (controllerState.isPreviousAvailable) sharedViewModel.onUIEvent(UIEvent.SkipToPrevious) },
+                                    ),
                         ) {
                             Box(
                                 modifier =
@@ -427,62 +387,32 @@ fun MiniPlayer(
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
-                            AnimatedContent(
-                                targetState = songEntity,
+                            // The finger-driven row owns motion; metadata must not replay another slide.
+                            Box(
                                 modifier = Modifier.weight(1F).fillMaxHeight(),
                                 contentAlignment = Alignment.CenterStart,
-                                transitionSpec = {
-                                    // Compare the incoming number with the previous number.
-                                    if (targetState != initialState) {
-                                        // If the target number is larger, it slides up and fades in
-                                        // while the initial (smaller) number slides up and fades out.
-                                        (
-                                            slideInHorizontally { width ->
-                                                width
-                                            } + fadeIn()
-                                        ).togetherWith(
-                                            slideOutHorizontally { width -> +width } + fadeOut(),
-                                        )
-                                    } else {
-                                        // If the target number is smaller, it slides down and fades in
-                                        // while the initial number slides down and fades out.
-                                        (
-                                            slideInHorizontally { width ->
-                                                +width
-                                            } + fadeIn()
-                                        ).togetherWith(
-                                            slideOutHorizontally { width -> width } + fadeOut(),
-                                        )
-                                    }.using(
-                                        // Disable clipping since the faded slide-in/out should
-                                        // be displayed out of bounds.
-                                        SizeTransform(clip = false),
-                                    )
-                                },
-                            ) { target ->
+                            ) {
+                                val target = songEntity
                                 if (target != null) {
                                     Column(
                                         Modifier
-                                            .wrapContentHeight()
-                                            .align(Alignment.CenterVertically),
+                                            .wrapContentHeight(),
                                     ) {
                                         Text(
-                                            text = (songEntity?.title ?: "").toString(),
+                                            text = target.title,
                                             style = if (isFlat) typo().titleSmall else typo().labelSmall,
                                             color = textColor,
                                             maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
                                                     .wrapContentHeight(
                                                         align = Alignment.CenterVertically,
-                                                    ).basicMarquee(
-                                                        iterations = Int.MAX_VALUE,
-                                                        animationMode = MarqueeAnimationMode.Immediately,
-                                                    ).focusable(),
+                                                    ),
                                         )
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            androidx.compose.animation.AnimatedVisibility(visible = songEntity?.isExplicit == true) {
+                                            androidx.compose.animation.AnimatedVisibility(visible = target.isExplicit) {
                                                 ExplicitBadge(
                                                     modifier =
                                                         Modifier
@@ -492,19 +422,17 @@ fun MiniPlayer(
                                                 )
                                             }
                                             Text(
-                                                text = (songEntity?.artistName?.connectArtists() ?: ""),
+                                                text = target.artistName?.connectArtists() ?: "",
                                                 style = if (isFlat) typo().bodySmall.copy(fontSize = 10.sp) else typo().bodySmall,
                                                 maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                                 color = if (isFlat) MaterialTheme.colorScheme.onSurfaceVariant else textColor,
                                                 modifier =
                                                     Modifier
                                                         .weight(1f)
                                                         .wrapContentHeight(
                                                             align = Alignment.CenterVertically,
-                                                        ).basicMarquee(
-                                                            iterations = Int.MAX_VALUE,
-                                                            animationMode = MarqueeAnimationMode.Immediately,
-                                                        ).focusable(),
+                                                        ),
                                             )
                                         }
                                     }

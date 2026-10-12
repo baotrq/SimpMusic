@@ -37,6 +37,7 @@ expect fun LiquidGlassAppBottomNavigationBar(
     onOpenNowPlaying: () -> Unit = {},
     // False draws the same folding bar in the flat material (liquid glass turned off).
     liquidGlass: Boolean = true,
+    showMiniPlayer: Boolean = true,
     reloadDestinationIfNeeded: (KClass<*>) -> Unit = { _ -> },
 )
 

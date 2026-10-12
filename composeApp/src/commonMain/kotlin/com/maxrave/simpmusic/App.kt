@@ -1,6 +1,8 @@
 package com.maxrave.simpmusic
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -72,14 +74,17 @@ import com.maxrave.simpmusic.expect.currentOrientation
 import com.maxrave.simpmusic.expect.openUrl
 import com.maxrave.simpmusic.expect.ui.layerBackdrop
 import com.maxrave.simpmusic.expect.ui.rememberBackdrop
+import com.maxrave.simpmusic.expect.ui.rememberDesktopModeScale
 import com.maxrave.simpmusic.extension.copy
 import com.maxrave.simpmusic.ui.component.AppBottomNavigationBar
 import com.maxrave.simpmusic.ui.component.AppNavigationRail
 import com.maxrave.simpmusic.ui.component.LiquidGlassAppBottomNavigationBar
+import com.maxrave.simpmusic.ui.component.InWindowNowPlayingSheet
 import com.maxrave.simpmusic.ui.component.LocalAppDialogOpen
 import com.maxrave.simpmusic.ui.component.LocalNowPlayingOpen
 import com.maxrave.simpmusic.ui.component.LocalUserStarted
 import com.maxrave.simpmusic.ui.icon.ArrowForwardIos
+import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.AnalyticsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
@@ -109,6 +114,7 @@ import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.isAppLinkAvailable
 import com.maxrave.simpmusic.utils.libraryTabOf
 import com.maxrave.simpmusic.viewModel.SharedViewModel
+import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownTypography
 import dev.chrisbanes.haze.hazeSource
@@ -219,6 +225,10 @@ fun App(
     }
     LaunchedEffect(isShowNowPlaylistScreen) {
         if (isShowNowPlaylistScreen) userStarted = true
+    }
+    // Fork: tapping a song anywhere opens Now Playing straight away.
+    LaunchedEffect(Unit) {
+        BaseViewModel.nowPlayingOpenRequests.collect { isShowNowPlaylistScreen = true }
     }
 
     val hazeState =
@@ -485,6 +495,11 @@ fun App(
     }
     val isTablet = windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
     val isTabletLandscape = isTablet && currentOrientation() == Orientation.LANDSCAPE
+    // Fork: Samsung DeX (see rememberDesktopModeScale), where the player is hosted in-window.
+    val inDesktopMode = rememberDesktopModeScale() > 1f
+    // Fork: Android always uses the bottom bar, even in a wide window (DeX, a tablet, a phone on its
+    // side). Only the desktop app keeps the side rail.
+    val useNavigationRail = isTablet && getPlatform() != Platform.Android
 
     AppTheme(
         themeMode = themeMode,
@@ -526,11 +541,11 @@ fun App(
             containerColor =
                 if (isDesktopShell) desktopWindow else MaterialTheme.colorScheme.background,
             bottomBar = {
-                if (!isTablet) {
+                if (!useNavigationRail) {
                     AnimatedVisibility(
-                        isNavBarVisible,
-                        enter = fadeIn() + slideInHorizontally(),
-                        exit = fadeOut(),
+                        isNavBarVisible && !(getPlatform() == Platform.Android && isShowNowPlaylistScreen && !isTabletLandscape),
+                        enter = if (getPlatform() == Platform.Android) EnterTransition.None else fadeIn() + slideInHorizontally(),
+                        exit = if (getPlatform() == Platform.Android) ExitTransition.None else fadeOut(),
                     ) {
                         // On Android both materials go through the folding bar, which draws the mini
                         // player itself. Desktop keeps the always-open flat bar under its own one.
@@ -573,6 +588,7 @@ fun App(
                                     showAnalyticsTab = showAnalyticsTab,
                                     showMixForYouTab = showMixForYouTab,
                                     liquidGlass = isLiquidGlassEnabled == TRUE,
+                                    showMiniPlayer = !isShowNowPlaylistScreen,
                                 ) { klass ->
                                     viewModel.reloadDestination(klass)
                                 }
@@ -594,7 +610,7 @@ fun App(
                     Modifier
                         .fillMaxSize()
                         .then(
-                            if (isLiquidGlassEnabled == TRUE && !isTablet) {
+                            if (isLiquidGlassEnabled == TRUE && !useNavigationRail) {
                                 Modifier.layerBackdrop(backdrop)
                             } else {
                                 Modifier
@@ -604,7 +620,7 @@ fun App(
                     Row(
                         Modifier.fillMaxSize(),
                     ) {
-                        if (isTablet && !isInFullscreen) {
+                        if (useNavigationRail && !isInFullscreen) {
                             AppNavigationRail(
                                 navController = navController,
                                 showAnalyticsTab = showAnalyticsTab,
@@ -642,7 +658,7 @@ fun App(
                                         // capsule ignored it was exactly the nested-flag split that kept
                                         // the capsule see-through.
                                         if ((isLiquidGlassEnabled == TRUE || getPlatform() == Platform.Desktop) &&
-                                            isTablet &&
+                                            useNavigationRail &&
                                             !isInFullscreen
                                         ) {
                                             Modifier.layerBackdrop(backdrop)
@@ -679,7 +695,7 @@ fun App(
                                     Modifier
                                         .padding(innerPadding)
                                         .align(Alignment.BottomCenter),
-                                visible = isShowMiniPlayer && isTablet && !isInFullscreen,
+                                visible = isShowMiniPlayer && useNavigationRail && !isInFullscreen && !isShowNowPlaylistScreen,
                                 enter = fadeIn() + slideInHorizontally(),
                                 exit = fadeOut(),
                             ) {
@@ -784,7 +800,27 @@ fun App(
                     }
                 }
 
-                if (isShowNowPlaylistScreen && !isTabletLandscape) {
+                // Fork: in Samsung DeX the player is drawn inside the app's own window, sliding up
+                // over it. The phone's bottom sheet is a separate window, and in DeX that window
+                // covered the app window's title bar — its X and minimise buttons with it.
+                if (inDesktopMode && !isTabletLandscape) {
+                    if (isShowNowPlaylistScreen) {
+                        InWindowNowPlayingSheet(onDismiss = { isShowNowPlaylistScreen = false }) { dismiss ->
+                            ForceDarkContent {
+                                Box(Modifier.fillMaxSize().background(Color.Black)) {
+                                    NowPlayingScreenContent(
+                                        navController = navController,
+                                        sharedViewModel = viewModel,
+                                        isExpanded = true,
+                                        dismissIcon = SimpIcons.KeyboardArrowDown,
+                                    ) {
+                                        dismiss()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (isShowNowPlaylistScreen && !isTabletLandscape) {
                     ForceDarkContent {
                         NowPlayingScreen(
                             navController = navController,

@@ -3,6 +3,7 @@ package com.maxrave.simpmusic.viewModel
 import androidx.lifecycle.viewModelScope
 import com.maxrave.common.SELECTED_LANGUAGE
 import com.maxrave.domain.data.entities.SearchHistory
+import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.searchResult.albums.AlbumsResult
 import com.maxrave.domain.data.model.searchResult.artists.ArtistsResult
 import com.maxrave.domain.data.model.searchResult.playlists.PlaylistsResult
@@ -13,6 +14,7 @@ import com.maxrave.domain.data.type.SearchResultType
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.repository.HomeRepository
 import com.maxrave.domain.repository.SearchRepository
+import com.maxrave.domain.repository.SongRepository
 import com.maxrave.domain.utils.Resource
 import com.maxrave.domain.utils.toQueryList
 import com.maxrave.logger.LogLevel
@@ -92,7 +94,21 @@ class SearchViewModel(
     private val dataStoreManager: DataStoreManager,
     private val searchRepository: SearchRepository,
     private val homeRepository: HomeRepository,
+    private val songRepository: SongRepository,
 ) : BaseViewModel() {
+    /**
+     * Fork: the songs played most recently, newest first, for the row at the top of the search
+     * landing — YouTube Music shows the same row there. Re-read each time the landing shows.
+     */
+    private val _recentSongs: MutableStateFlow<List<SongEntity>> = MutableStateFlow(emptyList())
+    val recentSongs: StateFlow<List<SongEntity>> get() = _recentSongs.asStateFlow()
+
+    fun loadRecentSongs() {
+        viewModelScope.launch {
+            _recentSongs.value = runCatching { songRepository.getRecentSong(RECENT_SONG_COUNT, 0) }.getOrDefault(emptyList())
+        }
+    }
+
     private val _searchScreenUIState = MutableStateFlow<SearchScreenUIState>(SearchScreenUIState.Empty)
     val searchScreenUIState: StateFlow<SearchScreenUIState> get() = _searchScreenUIState.asStateFlow()
 
@@ -516,3 +532,5 @@ class SearchViewModel(
         }
     }
 }
+// How many recently played songs the search landing offers.
+private const val RECENT_SONG_COUNT = 15

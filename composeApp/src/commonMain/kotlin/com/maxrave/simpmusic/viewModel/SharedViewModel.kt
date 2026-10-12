@@ -74,6 +74,7 @@ import com.maxrave.simpmusic.expect.ui.toByteArray
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.decodePromos
+import com.maxrave.simpmusic.utils.isEnglishOrVietnamese
 import com.maxrave.simpmusic.utils.shownPromoIds
 import com.maxrave.simpmusic.utils.withShownPromo
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
@@ -226,6 +227,17 @@ class SharedViewModel(
     val controllerState: StateFlow<ControlState> = _controllerState
     private val _getVideo: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val getVideo: StateFlow<Boolean> = _getVideo
+
+    // Fork: the Song / Video switch on the Apple Music player. Song by default: a music video plays
+    // with its cover until the listener picks Video, and that pick then holds for every following
+    // track until the app is next started. Held here rather than in the player screen so closing
+    // and reopening the player keeps it.
+    private val _playerShowsVideo = MutableStateFlow(false)
+    val playerShowsVideo: StateFlow<Boolean> = _playerShowsVideo.asStateFlow()
+
+    fun setPlayerShowsVideo(showVideo: Boolean) {
+        _playerShowsVideo.value = showVideo
+    }
 
     private var _timeline =
         MutableStateFlow<TimeLine>(
@@ -1241,6 +1253,13 @@ class SharedViewModel(
                     },
             )
 
+        // Fork: English and Vietnamese lyrics are never shown translated, whichever provider sent the
+        // translation (YouTube's captions bring their own).
+        if (isTranslatedLyrics && _nowPlayingScreenData.value.lyricsData?.lyrics?.isEnglishOrVietnamese() == true) {
+            Logger.d(tag, "Lyrics are English or Vietnamese, dropping the translation for $videoId")
+            return
+        }
+
         if (isTranslatedLyrics && lyricsProvider != LyricsProvider.AI) {
             // Skip sync validation for AI translations — timestamps are copied programmatically
             val originalLyrics = _nowPlayingScreenData.value.lyricsData?.lyrics
@@ -1703,6 +1722,8 @@ class SharedViewModel(
         videoId: String,
         lyrics: Lyrics,
     ) {
+        // Fork: nothing to fetch for English or Vietnamese lyrics — they are never translated.
+        if (lyrics.isEnglishOrVietnamese()) return
         val translationLanguage =
             dataStoreManager.translationLanguage.first()
         lyricsCanvasRepository.getSimpMusicTranslatedLyrics(videoId, translationLanguage).collectLatest { response ->
@@ -1756,6 +1777,8 @@ class SharedViewModel(
         lyrics: Lyrics,
     ) {
         Logger.d(tag, "Get AI Translation Lyrics for $videoId")
+        // Fork: no AI call for English or Vietnamese lyrics — they are never translated.
+        if (lyrics.isEnglishOrVietnamese()) return
         if (dataStoreManager.useAITranslation.first() == TRUE &&
             dataStoreManager.aiApiKey.first().isNotEmpty() &&
             dataStoreManager.enableTranslateLyric.first() == FALSE

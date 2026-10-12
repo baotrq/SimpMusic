@@ -66,6 +66,22 @@
     <string name="good_afternoon">Good Afternoon</string>
     <string name="good_evening">Good Evening</string>
     <string name="good_night">Good Night</string>
+    <string name="greeting_morning_1">Good morning, %1$s</string>
+    <string name="greeting_morning_2">Rise and shine, %1$s</string>
+    <string name="greeting_morning_3">Coffee and a playlist, %1$s?</string>
+    <string name="greeting_morning_4">Fresh day, fresh tracks, %1$s</string>
+    <string name="greeting_afternoon_1">Good afternoon, %1$s</string>
+    <string name="greeting_afternoon_2">Afternoon groove, %1$s?</string>
+    <string name="greeting_afternoon_3">Need a midday boost, %1$s?</string>
+    <string name="greeting_afternoon_4">Keep it going, %1$s</string>
+    <string name="greeting_evening_1">Good evening, %1$s</string>
+    <string name="greeting_evening_2">Time to unwind, %1$s</string>
+    <string name="greeting_evening_3">Welcome back, %1$s</string>
+    <string name="greeting_evening_4">Golden-hour tunes, %1$s?</string>
+    <string name="greeting_night_1">Still up, %1$s?</string>
+    <string name="greeting_night_2">Late-night vibes, %1$s</string>
+    <string name="greeting_night_3">Night owl mode, %1$s</string>
+    <string name="greeting_night_4">Can\'t sleep, %1$s?</string>
     <string name="quick_picks">Quick picks</string>
     <string name="this_song_is_not_available">This song is not available</string>
     <string name="in_charts">in Charts</string>
@@ -822,6 +838,8 @@
     <string name="share_lyrics_background">Background</string>
     <string name="share_lyrics_permission_denied">Storage permission is needed to save the image</string>
     <string name="share_lyrics_no_lyrics">This song has no lyrics to share</string>
+    <string name="no_lyrics_for_this_song">No lyrics for this song</string>
+    <string name="recent_searches">Recent searches</string>
     <string name="wrapped" translatable="false">Wrapped</string>
     <string name="wrapped_year" translatable="false">Wrapped %1$s</string>
     <string name="wrapped_tap_to_begin">Tap to begin</string>

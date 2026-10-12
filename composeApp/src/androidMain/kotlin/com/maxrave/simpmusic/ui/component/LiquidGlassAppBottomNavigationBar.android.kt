@@ -78,6 +78,7 @@ actual fun LiquidGlassAppBottomNavigationBar(
     showMixForYouTab: Boolean,
     onOpenNowPlaying: () -> Unit,
     liquidGlass: Boolean,
+    showMiniPlayer: Boolean,
     reloadDestinationIfNeeded: (KClass<*>) -> Unit,
 ) {
     val layer = rememberGraphicsLayer()
@@ -98,10 +99,10 @@ actual fun LiquidGlassAppBottomNavigationBar(
     //
     // Fixing the copy in App.kt did nothing here, because with liquid glass on it is THIS file
     // that draws the mini player.
-    val isShowMiniPlayer by remember {
+    val isShowMiniPlayer by remember(showMiniPlayer) {
         derivedStateOf {
             val item = nowPlayingData?.mediaItem
-            item != null && item != GenericMediaItem.EMPTY
+            showMiniPlayer && item != null && item != GenericMediaItem.EMPTY
         }
     }
 

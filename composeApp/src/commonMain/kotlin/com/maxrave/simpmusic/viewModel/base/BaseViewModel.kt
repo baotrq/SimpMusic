@@ -14,8 +14,11 @@ import com.maxrave.domain.utils.isRadioQueueId
 import com.maxrave.logger.LogLevel
 import com.maxrave.logger.Logger
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -128,6 +131,8 @@ abstract class BaseViewModel :
         type: String,
         index: Int? = null,
     ) {
+        // Fork: every place a tap starts playback lands here, so this is where the player opens.
+        _nowPlayingOpenRequests.tryEmit(Unit)
         viewModelScope.launch {
             mediaPlayerHandler.loadMediaItem(
                 anyTrack = anyTrack,
@@ -173,5 +178,15 @@ abstract class BaseViewModel :
                 }
             }
         }
+    }
+
+    companion object {
+        private val _nowPlayingOpenRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+        /**
+         * Fork: fires each time a tap starts a song (any screen, any view model), so the app can
+         * open Now Playing right away instead of leaving the user on the list with a mini player.
+         */
+        val nowPlayingOpenRequests: SharedFlow<Unit> = _nowPlayingOpenRequests.asSharedFlow()
     }
 }

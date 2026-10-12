@@ -1,6 +1,5 @@
 package com.maxrave.simpmusic.ui.component
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
@@ -11,64 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.maxrave.simpmusic.Platform
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.theme.typo
-import kotlin.math.abs
 
-/**
- * Apple Music renders EVERY lyric line at the same size — what separates the line being sung from
- * the rest is focus, not scale: the active line is opaque and sharp, its neighbours dim and
- * progressively blurred with distance, as if the page had a shallow depth of field.
- *
- * That is the whole trick, and it is why the style is gated on blur support: without the blur the
- * lines merely fade, which the app's Classic renderer already does better by changing size too.
- */
-// The DISTANCE rule is AMLL's (resolveBlurLevel in base/index.ts): the sung line is exempt
-// outright, and lines already sung carry a +1 so the page behind the singer recedes faster than
-// the page ahead — you are meant to read forward, not back.
-//
-// The MAGNITUDE is not AMLL's. Theirs is `min(5, (1 + distance) * 0.8)` in CSS px, sized for the
-// font its host happens to set; at 32sp that lands around 1.6dp one line out, which is invisible.
-// These numbers come from measuring the reference screenshot instead — its text measures ~68px on
-// a 920px-wide capture, i.e. 32pt, the same size used here, so the blur radii transfer directly:
-//
-//     one line out   ~6px  -> 2.8pt    three out  ~20px -> 9.3pt
-//     two out       ~12px  -> 5.6pt    four out   ~28px -> 13pt
-//
-// Expressed against the font size rather than in fixed dp, so changing the type size keeps the
-// depth of field proportional.
-private const val BLUR_PER_LINE_EM = 0.095f
-private const val BLUR_MAX_EM = 0.45f
-// AMLL's resolveOpacity returns a flat 1 for unsung lines, but the reference screenshots plainly
-// fade with distance — the line under the sung one sits at roughly half, the next at a third, and
-// beyond that they all but vanish. AMLL is reproducing Apple, not defining it, and on this point
-// the screenshots win.
-//
-// Blur and this work together rather than either doing the job alone: blur alone leaves far lines
-// as bright smears, fade alone leaves them sharp and readable when they should not be.
-private const val ACTIVE_LINE_ALPHA = 1f
-// Measured off the same screenshot: one line out still reads clearly, two is noticeably dimmer,
-// and past three they level off — blur is doing most of the work by then, so driving opacity any
-// harder just turns the far lines black.
-private const val ALPHA_FALLOFF_PER_LINE = 0.25f
-private const val MIN_LINE_ALPHA = 0.25f
-
-// Before the FIRST line is due — an intro, a long instrumental opening — there is no sung line for
-// anything to be near, so distance is meaningless and every line is equally "not yet". They are
-// dimmed uniformly and NOT blurred: blur means "far from where we are in the song", and during an
-// intro nowhere is where we are. It also has to stay readable, since this is exactly when someone
-// glances down to see what is coming. One flat value, deliberately not the distance falloff, or
-// the top of the sheet would read as the active line by being the brightest thing on it.
+// Keep inactive lyrics readable anywhere in the viewport. Their grey text already distinguishes
+// them from the current lyric; focus no longer depends on distance from the playing line.
 private const val PRE_ROLL_LINE_ALPHA = 0.6f
 
 // The unsung REMAINDER of the line currently being sung — "ce" in "dan|ce". It has to be clearly
@@ -154,18 +104,9 @@ internal val AppleMusicActiveLineGlow = Shadow(color = Color.White, offset = Off
 // word to flare, and lighting the whole line instead just makes it look smudged — the sung line is
 // marked by being WHITE against grey, and that is all.
 
-/**
- * Depth-of-field treatment for one lyric line. [distanceFromCurrent] is signed line distance from
- * the line being sung; its magnitude drives both blur and dimming.
- *
- * Both values are animated rather than applied outright, so the focus glides down the page with
- * the song instead of snapping — the same reason [LyricsView] animates its scroll rather than
- * jumping.
- */
+/** Animate lyric emphasis independently of the fixed viewport blur zones. */
 @Composable
 fun Modifier.appleMusicLyricFocus(
-    distanceFromCurrent: Int,
-    blurEnabled: Boolean,
     hasActiveLine: Boolean = true,
     // An unsynced sheet has no sung line and never will have one, so every line IS the sung line:
     // full opacity, no blur. Deliberately NOT folded into [hasActiveLine], which is false in two
@@ -173,71 +114,17 @@ fun Modifier.appleMusicLyricFocus(
     // where a sung line is coming and PRE_ROLL_LINE_ALPHA is dimmer on purpose.
     allLinesCurrent: Boolean = false,
 ): Modifier {
-    // Signed: negative means this line has already been sung. AMLL adds one to that side so the
-    // page behind the singer recedes faster than the page ahead of it.
-    val distance =
-        when {
-            distanceFromCurrent < 0 -> abs(distanceFromCurrent) + 1
-            else -> distanceFromCurrent
-        }
-    val fontSizeDp = with(LocalDensity.current) { AppleMusicLyricFontSize.toDp() }
-    val targetBlur: Dp =
-        if (!blurEnabled || allLinesCurrent || !hasActiveLine || distanceFromCurrent == 0) {
-            0.dp
-        } else {
-            fontSizeDp * (distance * BLUR_PER_LINE_EM).coerceAtMost(BLUR_MAX_EM)
-        }
-    val targetAlpha =
-        when {
-            // Ahead of the [hasActiveLine] branch, because an unsynced sheet satisfies both and
-            // wants the opposite answer: every line is the sung line, so every line is fully lit.
-            allLinesCurrent -> ACTIVE_LINE_ALPHA
-            // Checked before the distance test: the caller passes distance 0 for every line while
-            // no line is active, and 0 otherwise means "this is the sung line". Read in the other
-            // order, the whole sheet would take the sung line's full opacity during an intro.
-            !hasActiveLine -> PRE_ROLL_LINE_ALPHA
-            distanceFromCurrent == 0 -> ACTIVE_LINE_ALPHA
-            else -> (1f - distance * ALPHA_FALLOFF_PER_LINE).coerceAtLeast(MIN_LINE_ALPHA)
-        }
+    val targetAlpha = if (allLinesCurrent || hasActiveLine) 1f else PRE_ROLL_LINE_ALPHA
 
-    val blurRadius by animateDpAsState(targetValue = targetBlur, animationSpec = tween(400), label = "appleMusicLyricBlur")
     val lineAlpha by animateFloatAsState(targetValue = targetAlpha, animationSpec = tween(400), label = "appleMusicLyricAlpha")
 
-    // alpha BEFORE blur: blurring an already-faded line keeps the two effects independent, whereas
-    // fading a blurred layer washes the blur out into a flat smear.
-    return this
-        .alpha(lineAlpha)
-        .then(
-            if (blurRadius > 0.dp) {
-                // Unbounded, NOT the default, on Android. blur(radius) alone uses
-                // BlurredEdgeTreatment.Rectangle, which clips the blur to the line's own bounds —
-                // so the softened glyphs get sliced off square at the edges and the line reads as a
-                // smudged block rather than an out-of-focus word. Unbounded lets the blur bleed
-                // past the bounds, which is what makes it look like depth of field.
-                //
-                // Desktop cannot have that. Each line is a LazyColumn item and skiko clips an item
-                // to its own bounds, so the part Unbounded deliberately paints outside gets sliced
-                // off at the item boundary — a hard horizontal tear across the line below the one
-                // being sung. Rectangle keeps every pixel inside the item, which is what that clip
-                // wants. The trade is softer-looking edges, only on lines already out of focus.
-                val edge =
-                    if (getPlatform() == Platform.Desktop) {
-                        BlurredEdgeTreatment.Rectangle
-                    } else {
-                        BlurredEdgeTreatment.Unbounded
-                    }
-                Modifier.blur(blurRadius, edge)
-            } else {
-                Modifier
-            },
-        )
+    return this.alpha(lineAlpha)
 }
 
 /**
  * One line-synced lyric line, Apple Music style: same size for every line (the Classic renderer
  * swaps headlineLarge/headlineMedium instead), white, aligned to its text direction, with the translation underneath.
- * Focus is applied by the caller through [appleMusicLyricFocus] so the blur wraps the whole line
- * including its translation.
+ * Emphasis is applied by the caller through [appleMusicLyricFocus] to the lyric and translation.
  */
 @Composable
 fun AppleMusicLyricsLineItem(
