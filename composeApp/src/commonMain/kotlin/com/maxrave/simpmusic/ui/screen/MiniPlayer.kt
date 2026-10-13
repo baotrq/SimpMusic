@@ -467,6 +467,8 @@ fun MiniPlayer(
                         // this one and springing it back.
                         HorizontalPager(
                             state = trackPager,
+                            // A gap between songs, so the next one reads as its own card sliding in.
+                            pageSpacing = 24.dp,
                             userScrollEnabled = isVisible && queueTracks.size > 1,
                             key = { idx -> "mini_${queueTracks.getOrNull(idx)?.videoId}_$idx" },
                         ) { page ->

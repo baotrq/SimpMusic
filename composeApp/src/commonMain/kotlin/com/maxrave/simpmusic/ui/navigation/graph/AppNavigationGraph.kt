@@ -1,5 +1,6 @@
 package com.maxrave.simpmusic.ui.navigation.graph
 
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -9,6 +10,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.maxrave.simpmusic.ui.navigation.destination.home.AnalyticsDestination
@@ -42,17 +46,20 @@ fun AppNavigationGraph(
     NavHost(
         navController,
         startDestination = startDestination,
+        // Fork: a carousel. Between tabs the page comes in from the side of the tab being moved to
+        // (by tab order); elsewhere opening a page brings it in from the right and going back
+        // takes it out to the right. Everything used to slide in from the left, both ways.
         enterTransition = {
-            fadeIn() + slideInHorizontally { -it }
+            fadeIn(initialAlpha = SLIDE_FADE) + slideInHorizontally { it * slideDirection(pop = false) }
         },
         exitTransition = {
-            fadeOut() + slideOutHorizontally { it }
+            fadeOut(targetAlpha = SLIDE_FADE) + slideOutHorizontally { -it * slideDirection(pop = false) }
         },
         popEnterTransition = {
-            fadeIn() + slideInHorizontally { -it }
+            fadeIn(initialAlpha = SLIDE_FADE) + slideInHorizontally { it * slideDirection(pop = true) }
         },
         popExitTransition = {
-            fadeOut() + slideOutHorizontally { it }
+            fadeOut(targetAlpha = SLIDE_FADE) + slideOutHorizontally { -it * slideDirection(pop = true) }
         },
     ) {
         // Bottom bar destinations
@@ -147,4 +154,26 @@ fun AppNavigationGraph(
             },
         )
     }
+}
+
+// How faded a page is at the far end of its slide: a light fade, so the edge reads softly.
+private const val SLIDE_FADE = 0.5f
+
+// Position of a destination in the tab bar, or null for a page that is not a tab.
+private fun NavDestination.tabIndex(): Int? =
+    when {
+        hasRoute(HomeDestination::class) -> 0
+        hasRoute(MixForYouDestination::class) -> 1
+        hasRoute(AnalyticsDestination::class) -> 2
+        hasRoute(LibraryDestination::class) -> 3
+        hasRoute(SearchDestination::class) -> 4
+        else -> null
+    }
+
+// 1 when the incoming page arrives from the right, -1 from the left.
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.slideDirection(pop: Boolean): Int {
+    val from = initialState.destination.tabIndex()
+    val to = targetState.destination.tabIndex()
+    if (from != null && to != null && from != to) return if (to > from) 1 else -1
+    return if (pop) -1 else 1
 }
