@@ -142,6 +142,16 @@ abstract class BaseViewModel :
         }
     }
 
+    /**
+     * Fork: a tap on the song that is already loaded opens Now Playing on it instead of restarting
+     * it. Returns true when it did, so the caller skips building a new queue.
+     */
+    fun openIfNowPlaying(videoId: String?): Boolean {
+        if (videoId.isNullOrEmpty() || mediaPlayerHandler.nowPlayingState.value.mediaItem.mediaId != videoId) return false
+        _nowPlayingOpenRequests.tryEmit(Unit)
+        return true
+    }
+
     fun shufflePlaylist(firstPlayIndex: Int = 0) {
         mediaPlayerHandler.shufflePlaylist(firstPlayIndex)
     }

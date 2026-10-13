@@ -1322,6 +1322,7 @@ fun QuickPicks(
                 if (it != null) {
                     QuickPicksItem(
                         onClick = {
+                            if (viewModel.openIfNowPlaying(it.videoId)) return@QuickPicksItem
                             val firstQueue: Track = it.toTrack()
                             viewModel.setQueueData(
                                 QueueData.Data(

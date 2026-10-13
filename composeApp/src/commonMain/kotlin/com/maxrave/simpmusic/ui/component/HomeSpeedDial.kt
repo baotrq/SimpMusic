@@ -216,7 +216,7 @@ private fun SpeedDialTile(
             error = rememberHolderPainter(),
             contentDescription = content.title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.playerOrigin(thumbnail).fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         )
         // The title sits on a dark fade at the bottom of the cover, as on YouTube Music.
         Box(

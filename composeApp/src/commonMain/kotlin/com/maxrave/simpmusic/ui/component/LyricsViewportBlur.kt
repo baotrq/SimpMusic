@@ -15,53 +15,73 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
-/** Fixed focus zones: scrolling moves the words through the blur, never the blur through the words. */
+/**
+ * Fixed focus zones: scrolling moves the words through the blur, never the blur through the words.
+ * The bottom third blurs progressively, clear at its top edge and 6dp at the bottom, by crossfading
+ * three copies of the lyrics (clear, 3dp, 6dp). The top fades into the 3dp copy while scrolled.
+ */
 @Composable
 internal fun Modifier.lyricsViewportBlur(enabled: Boolean, topBlurred: Boolean): Modifier {
     if (!enabled) return this
     val source = rememberGraphicsLayer()
-    val blurred = rememberGraphicsLayer()
+    val soft = rememberGraphicsLayer()
+    val strong = rememberGraphicsLayer()
     val topAmount by animateFloatAsState(if (topBlurred) 1f else 0f, tween(200), label = "lyricsTopBlur")
     val rowHeight = with(LocalDensity.current) { AppleMusicLyricLineHeight.toDp() } + AppleMusicLyricGap
     return drawWithCache {
         val viewportHeight = size.height.coerceAtLeast(1f)
-        val top = (rowHeight.toPx() * 1.5f).coerceAtMost(size.height * 0.3f)
-        val bottom = (rowHeight.toPx() * 2f).coerceAtMost(size.height * 0.4f)
-        val clearStops = buildList {
+        val top = (rowHeight.toPx() * 1.5f).coerceAtMost(size.height * 0.3f) / viewportHeight
+        val bottomStart = 2f / 3f
+        // Each stop: (position, clear weight, 3dp weight, 6dp weight); the three always sum to 1.
+        val stops = buildList {
             for (i in 0..24) {
                 val t = i / 24f
-                val smooth = t * t * (3f - 2f * t)
-                add(top / viewportHeight * t to Color.Black.copy(alpha = 1f - topAmount * (1f - smooth)))
+                val clear = 1f - topAmount * (1f - t * t * (3f - 2f * t))
+                add(listOf(top * t, clear, 1f - clear, 0f))
             }
             for (i in 0..24) {
                 val t = i / 24f
-                val smooth = t * t * (3f - 2f * t)
-                add(1f - bottom / viewportHeight * (1f - t) to Color.Black.copy(alpha = 1f - smooth))
+                // 0 = clear, 1 = 3dp, 2 = 6dp: blur strength rises smoothly toward the bottom edge.
+                val level = 2f * t * t * (3f - 2f * t)
+                add(
+                    listOf(
+                        bottomStart + (1f - bottomStart) * t,
+                        (1f - level).coerceAtLeast(0f),
+                        (1f - abs(level - 1f)).coerceAtLeast(0f),
+                        (level - 1f).coerceAtLeast(0f),
+                    ),
+                )
             }
         }
-        val clearMask = Brush.verticalGradient(colorStops = clearStops.toTypedArray())
-        val blurMask = Brush.verticalGradient(
-            colorStops = clearStops.map { (stop, color) -> stop to color.copy(alpha = 1f - color.alpha) }.toTypedArray(),
-        )
+        fun mask(weight: Int) =
+            Brush.verticalGradient(colorStops = stops.map { it[0] to Color.Black.copy(alpha = it[weight]) }.toTypedArray())
+        val clearMask = mask(1)
+        val softMask = mask(2)
+        val strongMask = mask(3)
         val paint = Paint()
-        blurred.renderEffect = BlurEffect(3.dp.toPx(), 3.dp.toPx(), TileMode.Decal)
+        soft.renderEffect = BlurEffect(3.dp.toPx(), 3.dp.toPx(), TileMode.Decal)
+        strong.renderEffect = BlurEffect(6.dp.toPx(), 6.dp.toPx(), TileMode.Decal)
         onDrawWithContent {
             source.record { this@onDrawWithContent.drawContent() }
-            blurred.record { drawLayer(source) }
+            soft.record { drawLayer(source) }
+            strong.record { drawLayer(source) }
             drawIntoCanvas { canvas ->
-                canvas.saveLayer(Rect(Offset.Zero, size), paint)
-                drawLayer(source)
-                drawRect(clearMask, blendMode = BlendMode.DstIn)
-                canvas.restore()
-                canvas.saveLayer(Rect(Offset.Zero, size), paint)
-                drawLayer(blurred)
-                drawRect(blurMask, blendMode = BlendMode.DstIn)
-                canvas.restore()
+                fun masked(layer: GraphicsLayer, brush: Brush) {
+                    canvas.saveLayer(Rect(Offset.Zero, size), paint)
+                    drawLayer(layer)
+                    drawRect(brush, blendMode = BlendMode.DstIn)
+                    canvas.restore()
+                }
+                masked(source, clearMask)
+                masked(soft, softMask)
+                masked(strong, strongMask)
             }
         }
     }

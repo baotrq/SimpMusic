@@ -450,6 +450,7 @@ fun Content.homeCardAspectRatio(): Float {
 }
 
 internal fun Content.playRadio(viewModel: BaseViewModel) {
+    if (viewModel.openIfNowPlaying(videoId)) return
     val firstQueue: Track = toTrack()
     viewModel.setQueueData(
         QueueData.Data(
@@ -806,7 +807,6 @@ fun QuickPicksItem(
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
-                        .playerOrigin(data.thumbnails.lastOrNull()?.url)
                         .align(Alignment.CenterVertically)
                         .size(44.dp)
                         .clip(
@@ -933,7 +933,6 @@ fun HomeItemSong(
                     contentScale = ContentScale.Crop,
                     modifier =
                         Modifier
-                            .playerOrigin(thumb)
                             .then(if (fillMaxWidth) Modifier.fillMaxWidth().aspectRatio(1f) else Modifier.size(160.dp))
                             .clip(
                                 RoundedCornerShape(10.dp),
@@ -1038,7 +1037,6 @@ fun HomeItemVideo(
                     contentScale = ContentScale.Crop,
                     modifier =
                         Modifier
-                            .playerOrigin(thumb)
                             .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.height(160.dp))
                             .aspectRatio(16f / 9f)
                             .clip(
@@ -1274,7 +1272,6 @@ fun ItemVideoChart(
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
-                        .playerOrigin(thumb)
                         .align(Alignment.CenterHorizontally)
                         .width(280.dp)
                         .height(160.dp)
@@ -1496,7 +1493,6 @@ fun ItemTrackChart(
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
-                        .playerOrigin(thumb)
                         .align(Alignment.CenterVertically)
                         .size(50.dp)
                         .clip(
@@ -1607,6 +1603,7 @@ fun MoodAndGenresContentItem(
                                 feedbackTokens = null,
                                 resultType = null,
                             )
+                        if (homeViewModel.openIfNowPlaying(songVideoId)) return@HomeItemContentPlaylist
                         homeViewModel.setQueueData(
                             QueueData.Data(
                                 listTracks = arrayListOf(track),
