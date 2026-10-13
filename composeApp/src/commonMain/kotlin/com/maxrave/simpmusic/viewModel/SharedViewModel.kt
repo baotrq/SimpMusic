@@ -126,6 +126,9 @@ import kotlin.reflect.KClass
 // so the ask comes back after an update - same policy as OPEN_APP_TIME.
 const val FOOTGUNS_STAR_KEY = "footguns_starred"
 
+// Bump when the translation prompt changes; see aiTranslationCacheKey.
+private const val AI_TRANSLATION_PROMPT_VERSION = "#p2"
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class SharedViewModel(
     private val dataStoreManager: DataStoreManager,
@@ -1328,7 +1331,7 @@ class SharedViewModel(
                     viewModelScope.launch {
                         lyricsCanvasRepository.removeTranslatedLyrics(
                             videoId,
-                            dataStoreManager.translationLanguage.first(),
+                            aiTranslationCacheKey(),
                         )
                         log("Removed out-of-sync translated lyrics for $videoId")
                         val simpMusicLyricsId = lyrics.simpMusicLyrics?.id
@@ -1772,6 +1775,10 @@ class SharedViewModel(
         }
     }
 
+    // Fork: AI translations are saved under the language plus a prompt version, so changing the
+    // prompt makes every song translate again once instead of keeping the old wording forever.
+    private suspend fun aiTranslationCacheKey(): String = dataStoreManager.translationLanguage.first() + AI_TRANSLATION_PROMPT_VERSION
+
     private suspend fun getAITranslationLyrics(
         videoId: String,
         lyrics: Lyrics,
@@ -1787,7 +1794,7 @@ class SharedViewModel(
                 lyricsCanvasRepository
                     .getSavedTranslatedLyrics(
                         videoId,
-                        dataStoreManager.translationLanguage.first(),
+                        aiTranslationCacheKey(),
                     ).firstOrNull()
             if (savedTranslatedLyrics != null) {
                 Logger.d(tag, "Get Saved Translated Lyrics")
@@ -1820,7 +1827,7 @@ class SharedViewModel(
                                 lyricsCanvasRepository.insertTranslatedLyrics(
                                     TranslatedLyricsEntity(
                                         videoId = videoId,
-                                        language = dataStoreManager.translationLanguage.first(),
+                                        language = aiTranslationCacheKey(),
                                         error = false,
                                         lines = data.lines,
                                         syncType = data.syncType,

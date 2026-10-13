@@ -142,6 +142,15 @@ internal object MiniPlayerAnchor {
         return if (p < 1f) 0f else 1f
     }
 
+    /** How far below its place the player's controls block starts when the player grows from the bar. */
+    var controlsSlidePx = 0f
+
+    /** The controls block's offset at the current progress: rides in with the frame. */
+    fun controlsOffset(): Float {
+        val p = progress?.invoke() ?: return 0f
+        return if (openOrigin != null) 0f else controlsSlidePx * p
+    }
+
     /** Alpha for the bar's own cover: hidden while the travelling cover is away from it. */
     fun barCoverAlpha(): Float {
         val p = progress?.invoke() ?: return 1f
