@@ -83,7 +83,6 @@ import com.maxrave.simpmusic.ui.component.AppNavigationRail
 import com.maxrave.simpmusic.ui.component.LiquidGlassAppBottomNavigationBar
 import com.maxrave.simpmusic.ui.component.InWindowNowPlayingSheet
 import com.maxrave.simpmusic.ui.component.MiniPlayerAnchor
-import com.maxrave.simpmusic.ui.component.PlayerOrigins
 import com.maxrave.simpmusic.ui.component.LocalAppDialogOpen
 import com.maxrave.simpmusic.ui.component.LocalNowPlayingOpen
 import com.maxrave.simpmusic.ui.component.LocalUserStarted
@@ -233,10 +232,6 @@ fun App(
     // Fork: tapping a song anywhere opens Now Playing straight away.
     LaunchedEffect(Unit) {
         BaseViewModel.nowPlayingOpenRequests.collect {
-            // Fork: grow the player out of the song cover that was tapped, when there is one.
-            if (!isShowNowPlaylistScreen && getPlatform() == Platform.Android) {
-                MiniPlayerAnchor.openOrigin = PlayerOrigins.pick()
-            }
             isShowNowPlaylistScreen = true
         }
     }
@@ -541,18 +536,6 @@ fun App(
                 Modifier
                     // Fork: nothing under the in-window player is drawn while it covers the window.
                     .graphicsLayer { alpha = if (MiniPlayerAnchor.coversApp) 0f else 1f }
-                    // Fork: where each press lands, so a song started by it can open the player out
-                    // of the cover it was made on (PlayerOrigins). Observes only, consumes nothing.
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                if (event.type == PointerEventType.Press) {
-                                    event.changes.firstOrNull()?.let { PlayerOrigins.press(it.position) }
-                                }
-                            }
-                        }
-                    }
                     .pointerInput(Unit) {
                         awaitPointerEventScope {
                             while (!userStarted) {

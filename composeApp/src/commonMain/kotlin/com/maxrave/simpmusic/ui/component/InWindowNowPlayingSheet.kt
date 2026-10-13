@@ -56,16 +56,7 @@ import com.maxrave.simpmusic.expect.ui.PlatformBackdrop
 import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.withFrameNanos
-import kotlin.math.abs
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onVisibilityChanged
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -94,12 +85,6 @@ internal object MiniPlayerAnchor {
     /** Where the open player draws its cover, and from which URL (Apple Music style only), or null. */
     var playerArt by mutableStateOf<Rect?>(null)
     var playerArtUrl by mutableStateOf<String?>(null)
-
-    /**
-     * Set when a tap on a song's cover elsewhere in the app opened the player: it grows out of that
-     * cover instead of the bar. Cleared once open, so closing still lands on the bar.
-     */
-    var openOrigin by mutableStateOf<PlayerOrigins.Origin?>(null)
 
     /** A finger is on the mini player: the player is built, hidden, ahead of the tap. */
     var pressed by mutableStateOf(false)
@@ -148,7 +133,7 @@ internal object MiniPlayerAnchor {
     /** The controls block's offset at the current progress: rides in with the frame. */
     fun controlsOffset(): Float {
         val p = progress?.invoke() ?: return 0f
-        return if (openOrigin != null) 0f else controlsSlidePx * p
+        return controlsSlidePx * p
     }
 
     /** Alpha for the bar's own cover: hidden while the travelling cover is away from it. */
@@ -164,87 +149,6 @@ private const val SHEET_STIFFNESS = Spring.StiffnessLow
 
 // Frames to let a player that was not built ahead finish building before it starts to grow.
 private const val BUILD_FRAMES = 4
-
-/**
- * Fork: song covers across the app, so a tap that starts a song can open the player out of the
- * cover it was made on. Each cover registers its on-screen bounds while composed; the app records
- * where the last press landed, and [pick] matches the two when a song starts.
- */
-internal object PlayerOrigins {
-    class Origin(
-        val bounds: Rect,
-        val url: String?,
-        val cornerFraction: Float,
-    )
-
-    internal class Entry(
-        var url: String?,
-        var cornerFraction: Float,
-    ) {
-        var coordinates: LayoutCoordinates? = null
-        var visible = false
-
-        // Read at tap time, never stored: a stored rectangle goes stale the moment its list scrolls.
-        val bounds: Rect
-            get() = coordinates?.takeIf { visible && it.isAttached }?.boundsInRoot() ?: Rect.Zero
-    }
-
-    // Main thread only: written from layout callbacks and pointer input, read from the UI.
-    private val entries = mutableSetOf<Entry>()
-    private var lastPress: Offset? = null
-    private var lastPressAt: TimeMark? = null
-
-    fun register(entry: Entry) {
-        entries += entry
-    }
-
-    fun unregister(entry: Entry) {
-        entries -= entry
-    }
-
-    fun press(position: Offset) {
-        lastPress = position
-        lastPressAt = TimeSource.Monotonic.markNow()
-    }
-
-    /**
-     * The cover the last press was made on, if that press was recent: the cover containing it, or
-     * else the cover of the row it was in. A row keeps its cover at its start, so that is the
-     * nearest cover to the left of the press; the next column's covers peeking in at the right edge
-     * of a list (Quick picks) are only a fallback, or a tap on a long title would pick them.
-     */
-    fun pick(): Origin? {
-        val press = lastPress ?: return null
-        if ((lastPressAt?.elapsedNow() ?: return null) > PRESS_MAX_AGE) return null
-        val shown = entries.map { it to it.bounds }.filter { (_, b) -> b.width > 0f && b.height > 0f }
-        val row = shown.filter { (_, b) -> press.y in b.top..b.bottom }
-        val hit =
-            shown.filter { (_, b) -> b.contains(press) }.minByOrNull { (_, b) -> b.width * b.height }
-                ?: row.filter { (_, b) -> b.right <= press.x }.maxByOrNull { (_, b) -> b.right }
-                ?: row.minByOrNull { (_, b) -> abs(press.x - b.left) }
-        return hit?.let { (entry, b) -> Origin(b, entry.url, entry.cornerFraction) }
-    }
-
-    private val PRESS_MAX_AGE = 1500.milliseconds
-}
-
-/** Registers this cover so a tap that starts its song can open the player out of it. */
-@Composable
-internal fun Modifier.playerOrigin(
-    url: String?,
-    cornerFraction: Float = 0.06f,
-): Modifier {
-    val entry = remember { PlayerOrigins.Entry(url, cornerFraction) }
-    entry.url = url
-    entry.cornerFraction = cornerFraction
-    DisposableEffect(entry) {
-        PlayerOrigins.register(entry)
-        onDispose { PlayerOrigins.unregister(entry) }
-    }
-    // Only covers actually on screen count: lists keep some off-screen items built, not drawn.
-    return onGloballyPositioned { entry.coordinates = it }
-        .onVisibilityChanged(minFractionVisible = 0.01f) { entry.visible = it }
-}
 
 /**
  * The player inside the app's window. It grows out of the mini player and shrinks back into it,
@@ -274,8 +178,6 @@ internal fun InWindowNowPlayingSheet(
     val travelPx = { (MiniPlayerAnchor.bounds?.top ?: heightPx).coerceAtLeast(1f) }
     val settle: (Boolean, Float) -> Unit = { dismiss, velocity ->
         animationJob?.cancel()
-        // Closing always lands on the bar, whatever the player grew out of.
-        if (dismiss) MiniPlayerAnchor.openOrigin = null
         animationJob =
             scope.launch {
                 if (dragging) position.snapTo(dragPosition)
@@ -285,7 +187,7 @@ internal fun InWindowNowPlayingSheet(
                     spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = SHEET_STIFFNESS),
                     initialVelocity = velocity,
                 )
-                if (dismiss) currentOnDismiss() else MiniPlayerAnchor.openOrigin = null
+                if (dismiss) currentOnDismiss()
             }
     }
     // Composed before it opened (a finger on the bar built it ahead of the tap), or only now.
@@ -323,7 +225,6 @@ internal fun InWindowNowPlayingSheet(
         onDispose {
             MiniPlayerAnchor.coversApp = false
             MiniPlayerAnchor.progress = null
-            MiniPlayerAnchor.openOrigin = null
         }
     }
     val dismiss = { settle(true, 0f) }
@@ -374,24 +275,18 @@ internal fun InWindowNowPlayingSheet(
     ) {
         // Where the player's frame sits at progress p: the full window at 0, the mini player at 1.
         fun frameAt(p: Float): Pair<Rect, Float> {
-            MiniPlayerAnchor.openOrigin?.let { cover ->
-                val radius = cover.cornerFraction * minOf(cover.bounds.width, cover.bounds.height)
-                return lerp(Rect(0f, 0f, widthPx, heightPx), cover.bounds, p) to lerp(0f, radius, p)
-            }
             val origin =
                 MiniPlayerAnchor.bounds?.takeIf { it.height > 0f }
                     ?: Rect(0f, heightPx, widthPx, heightPx * 2)
             return lerp(Rect(0f, 0f, widthPx, heightPx), origin, p) to lerp(0f, origin.height / 2, p)
         }
-        val fromCover = MiniPlayerAnchor.openOrigin
         // The frame is a layer moved to the frame's corner and clipped to its outline: a rounded
         // outline clip is native to the renderer, where a drawn Path clip over the whole player
         // tripled its frame time. Fully open, nothing is clipped at all. It starts out as the bar
         // itself (the bar's colour, title and artist, while the real bar hides) and turns into the
         // player as it grows.
         val barColor = MaterialTheme.colorScheme.surfaceContainer
-        // The bar's own look only when growing out of the bar.
-        if (backdrop != null && fromCover == null) {
+        if (backdrop != null) {
             GlassFrame(backdrop, progress) { p -> frameAt(p) }
         }
         Box(
@@ -434,19 +329,18 @@ internal fun InWindowNowPlayingSheet(
             ) {
                 content(dismiss)
             }
-            if (fromCover == null) BarFace(barAlpha = { ((progress() - 0.7f) / 0.3f).coerceIn(0f, 1f) })
+            BarFace(barAlpha = { ((progress() - 0.7f) / 0.3f).coerceIn(0f, 1f) })
         }
 
-        // The cover travelling to the player's cover spot from the bar, or from the cover that was
-        // tapped. Re-laid out at its in-between rectangle each frame, so a wide video thumbnail
+        // The cover travelling to the player's cover spot from the bar. Re-laid out at its in-between rectangle each frame, so a wide video thumbnail
         // reshapes into the square cover instead of being stretched.
         val target = MiniPlayerAnchor.playerArt
-        val from = fromCover?.bounds ?: MiniPlayerAnchor.artBounds
-        // A tapped cover is the new song, so its own image; otherwise the player's own cover image
-        // (same request, so same cache entry and pixels), so handing over changes nothing.
-        val playerUrl = MiniPlayerAnchor.playerArtUrl.takeIf { fromCover == null }
-        val url = fromCover?.url ?: playerUrl ?: MiniPlayerAnchor.artUrl
-        val fromCorner = fromCover?.cornerFraction ?: MiniPlayerAnchor.artCornerFraction
+        val from = MiniPlayerAnchor.artBounds
+        // The player's own cover image (same request, so same cache entry and pixels), so handing
+        // over changes nothing.
+        val playerUrl = MiniPlayerAnchor.playerArtUrl
+        val url = playerUrl ?: MiniPlayerAnchor.artUrl
+        val fromCorner = MiniPlayerAnchor.artCornerFraction
         if (target != null && from != null && url != null && target.width > 0f) {
             val cornerShape =
                 remember(from, fromCorner) {
