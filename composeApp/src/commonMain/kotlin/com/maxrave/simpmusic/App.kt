@@ -136,7 +136,7 @@ import org.koin.compose.koinInject
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.do_not_show_again
-import simpmusic.composeapp.generated.resources.download
+import simpmusic.composeapp.generated.resources.github
 import simpmusic.composeapp.generated.resources.good_night
 import simpmusic.composeapp.generated.resources.notification
 import simpmusic.composeapp.generated.resources.settings
@@ -865,11 +865,12 @@ fun App(
                                 onClick = {
                                     shouldShowUpdateDialog = false
                                     viewModel.showedUpdateDialog = false
-                                    openUrl("https://simpmusic.org/download")
+                                    // Fork: never install — just open upstream's release notes to see what to merge.
+                                    openUrl("https://github.com/maxrave-dev/SimpMusic/releases/tag/${response.tagName}")
                                 },
                             ) {
                                 Text(
-                                    stringResource(Res.string.download),
+                                    stringResource(Res.string.github),
                                     style = typo().bodySmall,
                                 )
                             }

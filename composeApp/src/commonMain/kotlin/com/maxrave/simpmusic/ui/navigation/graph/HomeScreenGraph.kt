@@ -6,7 +6,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.maxrave.simpmusic.ui.navigation.destination.home.AppLogDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.CreditDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherSettingsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.MoodDestination
@@ -20,18 +19,11 @@ import com.maxrave.simpmusic.ui.screen.home.NotificationScreen
 import com.maxrave.simpmusic.ui.screen.home.RecentlySongsScreen
 import com.maxrave.simpmusic.ui.screen.home.SettingScreen
 import com.maxrave.simpmusic.ui.screen.other.AppLogScreen
-import com.maxrave.simpmusic.ui.screen.other.CreditScreen
 
 fun NavGraphBuilder.homeScreenGraph(
     innerPadding: PaddingValues,
     navController: NavController,
 ) {
-    composable<CreditDestination> {
-        CreditScreen(
-            paddingValues = innerPadding,
-            navController = navController,
-        )
-    }
     composable<AppLogDestination> {
         AppLogScreen(
             paddingValues = innerPadding,

@@ -1,6 +1,7 @@
 [versions]
 # App version
-version-name = "2.3.0"
+# Fork: first three numbers = upstream release merged in; fourth = my rebuild on top of it
+version-name = "2.3.0.1"
 version-code = "60"
 
 android = "9.4.1"

@@ -213,6 +213,9 @@ compose.desktop {
                     libs.versions.version.name
                         .get()
                         .removeSuffix("-hf")
+                        .split('.')
+                        .take(3)
+                        .joinToString(".")
                 iconFile.set(rootDir.resolve("composeApp/icon/circle_app_icon.ico"))
             }
             linux {
@@ -221,6 +224,9 @@ compose.desktop {
                     libs.versions.version.name
                         .get()
                         .removeSuffix("-hf")
+                        .split('.')
+                        .take(3)
+                        .joinToString(".")
                 iconFile.set(rootDir.resolve("composeApp/icon/circle_app_icon.png"))
             }
         }
