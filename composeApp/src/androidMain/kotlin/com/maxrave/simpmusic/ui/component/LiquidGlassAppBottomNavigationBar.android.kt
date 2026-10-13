@@ -157,6 +157,9 @@ actual fun LiquidGlassAppBottomNavigationBar(
         currentBackStackEntry?.destination?.let { current ->
             Logger.d(TAG, "LiquidGlassAppBottomNavigationBar: current route: ${current.route}")
             isInSearchDestination = current.hasRoute(SearchDestination::class)
+            // Back retraces the tabs (see selectTab), so the highlight follows the back stack, not
+            // only taps. Screens opened inside a tab match no tab and leave it as it is.
+            bottomNavScreens.find { current.hasRoute(it.destination::class) }?.let { selectedIndex = it.ordinal }
         }
     }
 
@@ -179,37 +182,46 @@ actual fun LiquidGlassAppBottomNavigationBar(
         }
     }
 
+    // Fork: tabs stack on each other instead of resetting to Home, so the back swipe retraces the
+    // tabs the user visited (Library -> Search -> back -> Library). A tab already on the stack is
+    // popped back to rather than pushed again, so each tab appears once; the screens popped off are
+    // saved, and re-entering their tab restores them, as the old popUpTo(start) + saveState did.
     fun selectTab(index: Int) {
         val screen = bottomNavScreens.find { it.ordinal == index } ?: return
-        if (selectedIndex == index) {
-            if (currentBackStackEntry?.destination?.hierarchy?.any {
-                    it.hasRoute(screen.destination::class)
-                } == true
-            ) {
-                reloadDestinationIfNeeded(screen.destination::class)
-            } else {
-                navController.navigate(screen.destination)
-            }
-        } else {
-            selectedIndex = index
+        selectedIndex = index
+        if (currentBackStackEntry?.destination?.hierarchy?.any {
+                it.hasRoute(screen.destination::class)
+            } == true
+        ) {
+            reloadDestinationIfNeeded(screen.destination::class)
+        } else if (!navController.popBackStack(screen.destination, inclusive = false, saveState = true)) {
             navController.navigate(screen.destination) {
-                popUpTo(navController.graph.startDestinationId) {
-                    saveState = true
-                }
                 launchSingleTop = true
                 restoreState = true
             }
         }
     }
 
-    // The folded bar is one circle holding the selected tab; tapping it opens the bar again.
+    // The folded bar is one circle holding the selected tab; tapping it opens the bar again. On
+    // Search (where the bar folds by itself) it is a Home button instead: one tap goes Home.
     val collapsedCircle: @Composable () -> Unit = {
         val selectedScreen = bottomNavScreens.find { it.ordinal == selectedIndex } ?: BottomNavScreen.Home
         Box(
-            modifier = Modifier.fillMaxSize().clickable(enabled = !isExpanded) { isExpanded = true },
+            modifier =
+                Modifier.fillMaxSize().clickable(enabled = !isExpanded) {
+                    when {
+                        isInSearchDestination -> selectTab(BottomNavScreen.Home.ordinal)
+                        // Fork: on Home the circle scrolls back to the top (as re-tapping the tab does),
+                        // and the bar unfolds by itself once there.
+                        selectedIndex == BottomNavScreen.Home.ordinal -> selectTab(BottomNavScreen.Home.ordinal)
+                        else -> isExpanded = true
+                    }
+                },
             contentAlignment = Alignment.Center,
         ) {
-            if (liquidGlass) {
+            if (isInSearchDestination) {
+                BottomNavScreen.Home.icon()
+            } else if (liquidGlass) {
                 selectedScreen.icon()
             } else {
                 // The flat bar marks its selected tab in primary, and this circle is that tab.

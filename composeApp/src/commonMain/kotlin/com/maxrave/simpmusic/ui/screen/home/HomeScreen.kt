@@ -276,6 +276,8 @@ fun HomeScreen(
     val scrollState = rememberLazyListState()
     val isScrollingUp by scrollState.isScrollingUp()
     val accountInfo by viewModel.accountInfo.collectAsStateWithLifecycle()
+    // Fork: which greeting the top bar shows, picked once per visit to Home (see HomeTopAppBar).
+    val greetingSeed = rememberSaveable { Random.nextInt(Int.MAX_VALUE) }
     val homeData by viewModel.homeItemList.collectAsStateWithLifecycle()
     val newRelease by viewModel.newRelease.collectAsStateWithLifecycle()
     val chart by viewModel.chart.collectAsStateWithLifecycle()
@@ -400,7 +402,9 @@ fun HomeScreen(
     }
     LaunchedEffect(key1 = reloadDestination) {
         if (reloadDestination == HomeDestination::class) {
-            if (scrollState.firstVisibleItemIndex > 1) {
+            // Fork: any scroll goes back to the top first (it used to need two items scrolled past,
+            // so a short scroll refreshed instead); only a tap already at the top refreshes.
+            if (scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 0) {
                 Logger.w("HomeScreen", "scrollState.firstVisibleItemIndex: ${scrollState.firstVisibleItemIndex}")
                 scrollState.animateScrollToItem(0)
                 sharedViewModel.reloadDestinationDone()
@@ -1028,7 +1032,10 @@ fun HomeScreen(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    HomeTopAppBar(navController, accountName = accountInfo?.first)
+                    // Fork: the greeting is picked out here (greetingSeed), not inside the bar: this
+                    // AnimatedVisibility drops the bar whenever Home scrolls down, and anything picked
+                    // inside it was picked again when it came back.
+                    HomeTopAppBar(navController, accountName = accountInfo?.first, greetingSeed = greetingSeed)
                 }
                 AnimatedVisibility(
                     visible = !isScrollingUp,
@@ -1113,6 +1120,8 @@ fun HomeTopAppBar(
     navController: NavController,
     // Fork: the signed-in account's name; its first word is who the greeting addresses.
     accountName: String? = null,
+    // Fork: picks which greeting shows; chosen by the caller so it outlives the bar.
+    greetingSeed: Int = 0,
 ) {
     val hour =
         remember {
@@ -1137,7 +1146,7 @@ fun HomeTopAppBar(
             in 18..23 -> EVENING_GREETINGS
             else -> NIGHT_GREETINGS
         }
-    val greetingIndex = remember(greetings) { Random.nextInt(greetings.size) }
+    val greetingIndex = greetingSeed.mod(greetings.size)
     TopAppBar(
         windowInsets =
             TopAppBarDefaults.windowInsets.exclude(

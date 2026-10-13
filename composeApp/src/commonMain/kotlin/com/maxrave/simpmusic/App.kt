@@ -37,6 +37,7 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -80,6 +82,8 @@ import com.maxrave.simpmusic.ui.component.AppBottomNavigationBar
 import com.maxrave.simpmusic.ui.component.AppNavigationRail
 import com.maxrave.simpmusic.ui.component.LiquidGlassAppBottomNavigationBar
 import com.maxrave.simpmusic.ui.component.InWindowNowPlayingSheet
+import com.maxrave.simpmusic.ui.component.MiniPlayerAnchor
+import com.maxrave.simpmusic.ui.component.PlayerOrigins
 import com.maxrave.simpmusic.ui.component.LocalAppDialogOpen
 import com.maxrave.simpmusic.ui.component.LocalNowPlayingOpen
 import com.maxrave.simpmusic.ui.component.LocalUserStarted
@@ -228,7 +232,13 @@ fun App(
     }
     // Fork: tapping a song anywhere opens Now Playing straight away.
     LaunchedEffect(Unit) {
-        BaseViewModel.nowPlayingOpenRequests.collect { isShowNowPlaylistScreen = true }
+        BaseViewModel.nowPlayingOpenRequests.collect {
+            // Fork: grow the player out of the song cover that was tapped, when there is one.
+            if (!isShowNowPlaylistScreen && getPlatform() == Platform.Android) {
+                MiniPlayerAnchor.openOrigin = PlayerOrigins.pick()
+            }
+            isShowNowPlaylistScreen = true
+        }
     }
 
     val hazeState =
@@ -528,22 +538,39 @@ fun App(
             // Watches for userStarted without consuming anything. Dialogs and sheets are windows or
             // layers of their own, so a press inside one (closing the update dialog, say) does not count.
             modifier =
-                Modifier.pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (!userStarted) {
-                            val type = awaitPointerEvent(PointerEventPass.Initial).type
-                            if (type == PointerEventType.Press || type == PointerEventType.Scroll) {
-                                userStarted = true
+                Modifier
+                    // Fork: nothing under the in-window player is drawn while it covers the window.
+                    .graphicsLayer { alpha = if (MiniPlayerAnchor.coversApp) 0f else 1f }
+                    // Fork: where each press lands, so a song started by it can open the player out
+                    // of the cover it was made on (PlayerOrigins). Observes only, consumes nothing.
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Press) {
+                                    event.changes.firstOrNull()?.let { PlayerOrigins.press(it.position) }
+                                }
                             }
                         }
                     }
-                },
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (!userStarted) {
+                                val type = awaitPointerEvent(PointerEventPass.Initial).type
+                                if (type == PointerEventType.Press || type == PointerEventType.Scroll) {
+                                    userStarted = true
+                                }
+                            }
+                        }
+                    },
             containerColor =
                 if (isDesktopShell) desktopWindow else MaterialTheme.colorScheme.background,
             bottomBar = {
                 if (!useNavigationRail) {
                     AnimatedVisibility(
-                        isNavBarVisible && !(getPlatform() == Platform.Android && isShowNowPlaylistScreen && !isTabletLandscape),
+                        // Fork: stays up under the player (drawn in-window, on top of it), so the player
+                        // shrinks back onto a bar already in place instead of the bar popping in after.
+                        isNavBarVisible,
                         enter = if (getPlatform() == Platform.Android) EnterTransition.None else fadeIn() + slideInHorizontally(),
                         exit = if (getPlatform() == Platform.Android) ExitTransition.None else fadeOut(),
                     ) {
@@ -588,7 +615,9 @@ fun App(
                                     showAnalyticsTab = showAnalyticsTab,
                                     showMixForYouTab = showMixForYouTab,
                                     liquidGlass = isLiquidGlassEnabled == TRUE,
-                                    showMiniPlayer = !isShowNowPlaylistScreen,
+                                    // Kept under the in-window player too; only the tablet's side
+                                    // panel replaces it.
+                                    showMiniPlayer = !(isShowNowPlaylistScreen && isTabletLandscape),
                                 ) { klass ->
                                     viewModel.reloadDestination(klass)
                                 }
@@ -796,36 +825,6 @@ fun App(
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-
-                // Fork: in Samsung DeX the player is drawn inside the app's own window, sliding up
-                // over it. The phone's bottom sheet is a separate window, and in DeX that window
-                // covered the app window's title bar — its X and minimise buttons with it.
-                if (inDesktopMode && !isTabletLandscape) {
-                    if (isShowNowPlaylistScreen) {
-                        InWindowNowPlayingSheet(onDismiss = { isShowNowPlaylistScreen = false }) { dismiss ->
-                            ForceDarkContent {
-                                Box(Modifier.fillMaxSize().background(Color.Black)) {
-                                    NowPlayingScreenContent(
-                                        navController = navController,
-                                        sharedViewModel = viewModel,
-                                        isExpanded = true,
-                                        dismissIcon = SimpIcons.KeyboardArrowDown,
-                                    ) {
-                                        dismiss()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (isShowNowPlaylistScreen && !isTabletLandscape) {
-                    ForceDarkContent {
-                        NowPlayingScreen(
-                            navController = navController,
-                        ) {
-                            isShowNowPlaylistScreen = false
                         }
                     }
                 }
@@ -1074,5 +1073,53 @@ fun App(
                 }
             },
         )
+        // Fork: outside the Scaffold so the player draws above its bottom bar, which stays
+        // composed underneath (see the bottomBar block).
+        // Fork: in Samsung DeX the player is drawn inside the app's own window, sliding up
+        // over it. The phone's bottom sheet is a separate window, and in DeX that window
+        // covered the app window's title bar — its X and minimise buttons with it.
+        // Phones use it too: creating the sheet's window cost ~100ms before anything moved.
+        if ((inDesktopMode || getPlatform() == Platform.Android) && !isTabletLandscape) {
+            // Also composed while a finger is on the mini player, built ahead of the tap, and while a
+            // drag let go short of opening sinks back into the bar (see MiniPlayerAnchor).
+            if (isShowNowPlaylistScreen || MiniPlayerAnchor.pressed || MiniPlayerAnchor.returning) {
+                InWindowNowPlayingSheet(
+                    onDismiss = { isShowNowPlaylistScreen = false },
+                    open = isShowNowPlaylistScreen,
+                    backdrop = backdrop.takeIf { isLiquidGlassEnabled == TRUE },
+                ) { dismiss ->
+                    ForceDarkContent {
+                        Box(Modifier.fillMaxSize().background(Color.Black)) {
+                            // The player takes 5-6 frames to build. Start the slide on the
+                            // black page and build it two frames later, mid-slide, so a tap
+                            // answers at once.
+                            var showContent by remember { mutableStateOf(false) }
+                            LaunchedEffect(Unit) {
+                                repeat(2) { withFrameNanos { } }
+                                showContent = true
+                            }
+                            if (showContent) {
+                                NowPlayingScreenContent(
+                                    navController = navController,
+                                    sharedViewModel = viewModel,
+                                    isExpanded = true,
+                                    dismissIcon = SimpIcons.KeyboardArrowDown,
+                                ) {
+                                    dismiss()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (isShowNowPlaylistScreen && !isTabletLandscape) {
+            ForceDarkContent {
+                NowPlayingScreen(
+                    navController = navController,
+                ) {
+                    isShowNowPlaylistScreen = false
+                }
+            }
+        }
     }
 }

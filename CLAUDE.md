@@ -1012,6 +1012,14 @@ if (getPlatform() == Platform.Android) {
   - **`ignoredFlavors.set(setOf("foss"))` in that block never excluded anything**: the project has no product flavors — Full/FOSS is the `isFullBuild` property — so the plugin has always run on the FOSS release variant.
   - **An un-obfuscated Sentry class name in a release stack trace means the class is not in the APK.** R8 renames every class it has (the Full build turns `AppStartMetrics` into `io.sentry.android.core.performance.g`); a reference to a missing class keeps its original name.
 
+- **Fork: the phone player grows out of the mini player, YouTube Music style (2026-10-13)**: on Android (outside tablet landscape) the player is no longer a `ModalBottomSheet` but `InWindowNowPlayingSheet`, the DeX path, drawn in the app's own window above the Scaffold (moved out of its content so the bottom bar, which stays composed underneath, cannot draw over it). Creating the sheet's window cost ~100 ms before anything moved. Everything is driven by one progress value (0 open, 1 the bar) and shared through `MiniPlayerAnchor` in `InWindowNowPlayingSheet.kt`.
+  - **The frame is a layer clipped to its outline, never a drawn `Path` clip**: a `clipPath` over the whole player tripled its frame time even when fully open (~31 ms vs ~11 ms measured with `dumpsys gfxinfo framestats`). Fully open, nothing is clipped. The page stays in its final place and the frame uncovers it; only the frame and the travelling cover move.
+  - **Built before it moves**: a finger on the bar composes the player hidden (`MiniPlayerAnchor.pressed`), so the build happens during the tap. A drag up on the bar moves the frame directly (`dragFraction`) and a release either opens with the drag's velocity or sinks back (`returning`). The real bar hides the moment the frame leaves it; the frame starts as a recorded copy of the bar's contents (`barFace`) on its glass (`GlassFrame`, which must use a corner-based shape: Kyant's lens rejects any other `Shape` with `UnsupportedOperationException`).
+  - **The cover travels as its own image** (laid out per frame, not scaled, so a 16:9 thumbnail reshapes instead of stretching) and swaps for the player's identical cover only once fully landed; crossfading while it was still closing in drew a visible double image. The Apple Music style shows a plain cover on a solid page during the motion, and its mesh spreads out from the cover over 0.9 s after landing. Canvas, video and animated artwork start only once open: a `SurfaceView` ignores Compose clip, alpha and translation.
+  - **Songs tapped anywhere open from their own cover**: covers in the shared item components carry `Modifier.playerOrigin(url)`; App records each press, and when `loadMediaItem` asks for the player, `PlayerOrigins.pick()` takes the cover containing the press or else the nearest one to its left in the same row (Quick picks' next column peeks in on the right). Positions are read at tap time and only from covers `onVisibilityChanged` reports on screen. A player not built ahead waits 4 frames before growing.
+  - **While the player fully covers the window, the Scaffold is drawn at alpha 0** (`coversApp`), so the app underneath costs nothing.
+  - Also in this round: back on Lyrics/Queue returns to the player; the Apple Music style keeps its controls over a Spotify canvas; the mini bar's cover and title are a `HorizontalPager` over the queue (sync rules from `ArtworkPagerLogic`); the folded Home circle scrolls Home to the top; tab switches retrace with the back gesture instead of resetting to Home; an unknown length reads `––:––`. Navigation slides as a carousel (`AppNavigationGraph.slideDirection`): between tabs by tab order, elsewhere opening comes in from the right and back leaves to the right (every transition used to slide in from the left).
+
 ## 🔄 CLAUDE.md Auto-Update Rule (MANDATORY)
 
 After completing any of the following types of changes, the AI agent **MUST** update this CLAUDE.md file:
@@ -1036,6 +1044,6 @@ After completing any of the following types of changes, the AI agent **MUST** up
 
 *This document helps AI Agents quickly understand the SimpMusic project. Update regularly when there are major changes to architecture or structure.*
 
-**Last updated**: 2026-10-11
+**Last updated**: 2026-10-13
 **Project version**: Check latest release on GitHub
 **Maintained by**: maxrave-dev and contributors
