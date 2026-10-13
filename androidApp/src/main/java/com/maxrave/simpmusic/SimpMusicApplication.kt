@@ -18,8 +18,10 @@ import coil3.request.crossfade
 import com.maxrave.common.AppIdentity
 import com.maxrave.data.di.loader.loadAllModules
 import com.maxrave.domain.manager.DataStoreManager
+import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.di.viewModelModule
+import com.maxrave.simpmusic.led.LedStripSync
 import com.maxrave.simpmusic.service.backup.AutoBackupScheduler
 import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +34,7 @@ import okio.FileSystem
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import org.koin.core.component.inject
 import org.koin.core.context.loadKoinModules
 import org.koin.core.context.startKoin
@@ -84,6 +87,9 @@ class SimpMusicApplication :
         applicationScope.launch {
             autoBackupScheduler.observeAndSchedule()
         }
+
+        // Car LED strip follows the artwork colour; idle unless enabled in Settings → LED strip.
+        LedStripSync.start(this, dataStoreManager, get<MediaPlayerHandler>())
 
         CaocConfig.Builder
             .create()

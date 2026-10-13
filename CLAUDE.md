@@ -1023,6 +1023,11 @@ if (getPlatform() == Platform.Android) {
 
 - **Fork: AI lyric translation fixed and reworded, pinyin lights up (2026-10-13)**: the Gemini default model was `gemini-2.0-flash`, which Google retired (absent from the key's models list), so every translation request failed and `getAITranslationLyrics` only logged it; the default is now `gemini-2.5-flash` (`gemini-flash-latest` and the 3.x flash models answered 503 "high demand" when tested). The system prompt now asks for natural, singable lines with one consistent voice (anh/em for Vietnamese). AI translations are cached under `language + AI_TRANSLATION_PROMPT_VERSION` (`"#p2"`, `SharedViewModel`), so bumping it re-translates every song once. In rich-synced lines the romanized reading is built word by word with each original word's timing (`romanizedLine`) and lights up with the original through the shared `RichSyncWordsRow`. Also: the Apple Music lyrics button sits beside Queue (`SimpIcons.Lyrics`) with a small ⌃ hint under the transport, and the controls block rises in as the player grows from the bar (`MiniPlayerAnchor.controlsOffset`).
 
+- **Fork: car LED strip follows the artwork colour (2026-10-14, Android only)**: Settings → LED strip (the first group on Android) drives a BLE `LEDDMX-…` controller, the one the "LED LAMP" app's LED DMX mode uses, with the dominant saturated hue of the playing song's artwork. Code is `composeApp/src/androidMain/.../led/` (`LedStripSync`, `VividColor`) plus `expect/ui/LedStripSettings`; started from `SimpMusicApplication`; settings are plain `DataStoreManager.getString/putString` keys, so `core` is untouched. Protocol was read off the phone's HCI snoop log: write-without-response to FFE0/FFE1, colour `7B FF 07 RR GG BB 00 FF BF`, brightness `7B FF 01 LL PP 00 FF FF BF` (PP = %, LL = PP×32/100), power `7B FF 04 0x …`, handshake `2A 02 A1 23 45 67 56 02 AF`. The controller accepts LED LAMP connected at the same time.
+  - **This controller's quirks, each found by laptop tests (Python `bleak`) rather than guessed — re-test before changing any of them**: it flickers on mid-range colour values, so every colour is sent with its strongest channel at FF and brightness goes through the brightness command, never by scaling the colour; brightness byte LL = 00 (under 4 %) makes it jump bright, so 4 % is the floor; it has only 32 brightness levels and no fade of its own, so a "fade through dark" transition was built, tested six ways and removed — every variant looked stepped.
+  - Song changes walk the hue wheel in fixed steps (2.5° every 33 ms, whiteness eased in perceptually), never on a timer, so a slow Bluetooth write slows the walk instead of making it jump. Its blue LED is strong: full white `FF FF FF` looks bluish, which is why grey covers map to a warm white.
+- **Gradle daemon heap raised to 10 GB (2026-10-14)**: at `-Xmx5120m` the R8 step of `assembleRelease` thrashed in GC and never finished; at 10 GB a release build takes ~3 min. `autoUploadProguardMapping` is off in the fork, so builds never upload mappings to upstream's Sentry.
+
 ## 🔄 CLAUDE.md Auto-Update Rule (MANDATORY)
 
 After completing any of the following types of changes, the AI agent **MUST** update this CLAUDE.md file:
@@ -1047,6 +1052,6 @@ After completing any of the following types of changes, the AI agent **MUST** up
 
 *This document helps AI Agents quickly understand the SimpMusic project. Update regularly when there are major changes to architecture or structure.*
 
-**Last updated**: 2026-10-13
+**Last updated**: 2026-10-14
 **Project version**: Check latest release on GitHub
 **Maintained by**: maxrave-dev and contributors
