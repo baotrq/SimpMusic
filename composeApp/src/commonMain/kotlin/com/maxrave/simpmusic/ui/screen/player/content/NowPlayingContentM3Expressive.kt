@@ -854,7 +854,7 @@ internal fun ColumnScope.ExpressivePlaybackControls(
         )
     }
     // Time row — same math and negative guard as Classic
-    // (formatDuration renders any negative as NA:NA).
+    // (formatDuration renders any negative as --:--).
     Row(
         Modifier
             .fillMaxWidth()

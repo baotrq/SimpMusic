@@ -28,7 +28,6 @@ import simpmusic.composeapp.generated.resources.intro
 import simpmusic.composeapp.generated.resources.month_s_ago
 import simpmusic.composeapp.generated.resources.music_off_topic
 import simpmusic.composeapp.generated.resources.live_badge
-import simpmusic.composeapp.generated.resources.na_na
 import simpmusic.composeapp.generated.resources.newer_first
 import simpmusic.composeapp.generated.resources.older_first
 import simpmusic.composeapp.generated.resources.outro
@@ -119,7 +118,8 @@ fun TimeLine.lengthLabel(): String = if (isLive) stringResource(Res.string.live_
 
 @Composable
 fun formatDuration(duration: Long): String {
-    if (duration < 0L) return stringResource(Res.string.na_na)
+    // Fork: an unknown length reads as "––:––" (en dashes; hyphens looked too short), not "NA:NA".
+    if (duration < 0L) return "\u2013\u2013:\u2013\u2013"
     val minutes: Long = TimeUnit.MINUTES.convert(duration, TimeUnit.MILLISECONDS)
     val seconds: Long = (
         TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS) -

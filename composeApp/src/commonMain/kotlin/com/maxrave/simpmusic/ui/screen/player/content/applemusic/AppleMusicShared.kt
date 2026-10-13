@@ -815,7 +815,7 @@ internal fun AppleMusicTimesRow(
         } else {
             state.timelineState.current.coerceAtLeast(0L)
         }
-    // Clamp BEFORE formatDuration — it renders any negative as "NA:NA", and the remaining time
+    // Clamp BEFORE formatDuration — it renders any negative as "--:--", and the remaining time
     // must never show that at the end of a track whose length IS known. An UNKNOWN length is
     // exactly what that string is for, so null deliberately takes the negative path below.
     val remainingMs = knownTotal?.let { (it - elapsedMs).coerceAtLeast(0L) }
@@ -833,7 +833,7 @@ internal fun AppleMusicTimesRow(
                 textAlign = TextAlign.Left,
             )
             Text(
-                // No leading "-" when the length is unknown: "-NA:NA" reads as a negative amount of
+                // No leading "-" when the length is unknown: "---:--" reads as a negative amount of
                 // nothing. formatDuration's own out-of-range string is the app's established way to
                 // say "no value here".
                 text =

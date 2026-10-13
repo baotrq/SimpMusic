@@ -292,6 +292,7 @@ fun SongFullWidthItems(
                                 contentScale = ContentScale.FillWidth,
                                 modifier =
                                     Modifier
+                                        .playerOrigin(thumb)
                                         .fillMaxSize()
                                         .clip(RoundedCornerShape(4.dp)),
                             )
@@ -452,6 +453,7 @@ fun SuggestItems(
                             contentScale = ContentScale.FillWidth,
                             modifier =
                                 Modifier
+                                    .playerOrigin(thumb)
                                     .wrapContentHeight()
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(4.dp)),

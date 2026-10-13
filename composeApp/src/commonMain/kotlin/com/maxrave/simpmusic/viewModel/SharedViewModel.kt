@@ -395,7 +395,7 @@ class SharedViewModel(
                     // player's own duration, and only -1 ("not known yet") when neither has one.
                     //
                     // Writing -1 whenever metadata is missing — which this did at first — makes
-                    // every radio track and every first-time track flash NA:NA on the clock until
+                    // every radio track and every first-time track flash --:-- on the clock until
                     // the container is parsed, because those rows have no durationSeconds stored.
                     // Asking the player before giving up covers exactly that case: on a normal
                     // track change it usually already knows.
@@ -465,12 +465,12 @@ class SharedViewModel(
 
                             SimpleMediaState.Ended -> {
                                 // Park at the end of the track rather than at -1. The only formatter
-                                // for these fields renders any negative as "NA:NA", and nothing here
+                                // for these fields renders any negative as "--:--", and nothing here
                                 // is guaranteed to follow: at the end of the queue the player simply
                                 // stays ended, so a -1 written here stays on screen. Worse, the
                                 // Progress branch below ignores negative values and the Loading
                                 // branch restores `total` without touching `current`, which is how
-                                // the player ends up showing a correct duration next to "NA:NA".
+                                // the player ends up showing a correct duration next to "--:--".
                                 _timeline.update {
                                     it.copy(
                                         current = it.total.coerceAtLeast(0L),

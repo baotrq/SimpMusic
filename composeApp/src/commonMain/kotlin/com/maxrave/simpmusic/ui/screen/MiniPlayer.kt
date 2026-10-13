@@ -21,6 +21,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -80,7 +82,25 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import com.maxrave.simpmusic.ui.component.MiniPlayerAnchor
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlin.math.abs
+import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
+import com.maxrave.simpmusic.ui.screen.player.ArtworkSeekAction
+import com.maxrave.simpmusic.ui.screen.player.computeSeekAction
+import com.maxrave.simpmusic.ui.screen.player.deriveOrderIndex
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -128,7 +148,6 @@ import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.VolumeOff
 import com.maxrave.simpmusic.ui.icon.VolumeUp
 import com.maxrave.simpmusic.ui.screen.player.content.toAudioQualityLabel
-import com.maxrave.simpmusic.ui.screen.player.content.applemusic.appleMusicTrackSwipe
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.SharedViewModel
@@ -153,6 +172,7 @@ fun MiniPlayer(
     modifier: Modifier,
     backdrop: PlatformBackdrop,
     sharedViewModel: SharedViewModel = koinInject(),
+    mediaPlayerHandler: MediaPlayerHandler = koinInject(),
     onClose: () -> Unit,
     onClick: () -> Unit,
     onOpenFullscreenLyrics: () -> Unit = {},
@@ -176,6 +196,8 @@ fun MiniPlayer(
     // the Android card below.
     val useGlassSurface = isLiquidGlassEnabled == DataStoreManager.TRUE || getPlatform() == Platform.Desktop
     val luminance = rememberGlassLuminance(layer, enabled = useGlassSurface && isVisible)
+    // Fork: the in-window player's glass frame grows out of this bar at its brightness.
+    LaunchedEffect(luminance, isVisible) { if (isVisible) MiniPlayerAnchor.glassLuminance = luminance }
 
     val isDarkTheme = LocalIsDarkTheme.current
     val textColor by animateColorAsState(
@@ -261,6 +283,57 @@ fun MiniPlayer(
         job4.join()
     }
 
+    LaunchedEffect(songEntity, isVisible) {
+        if (isVisible) {
+            MiniPlayerAnchor.artUrl = songEntity?.thumbnails
+        }
+    }
+
+    // Fork: the bar's queue pager, kept in step with the player both ways — the same rules as the
+    // Now Playing artwork pager (ArtworkPagerLogic), cut down to what a bar needs.
+    val queueState by sharedViewModel.getQueueDataState().collectAsStateWithLifecycle()
+    val queueTracks = queueState?.data?.listTracks ?: emptyList()
+    val nowPlayingId = sharedViewModel.nowPlayingState.collectAsStateWithLifecycle().value?.track?.videoId
+    val orderIndex =
+        remember(queueTracks, nowPlayingId) {
+            deriveOrderIndex(queueTracks, nowPlayingId, mediaPlayerHandler.currentOrderIndex())
+        }
+    val trackPager =
+        rememberPagerState(initialPage = orderIndex.coerceAtLeast(0), pageCount = { queueTracks.size.coerceAtLeast(1) })
+    val pagerDragged by trackPager.interactionSource.collectIsDraggedAsState()
+    // A real finger swipe waiting to become a track change; programmatic scrolls never set it.
+    var pendingSwipe by remember { mutableStateOf(false) }
+    LaunchedEffect(pagerDragged) { if (pagerDragged) pendingSwipe = true }
+    // Player → pager: follow track changes made anywhere else.
+    LaunchedEffect(orderIndex) {
+        if (!pagerDragged && orderIndex in queueTracks.indices && orderIndex != trackPager.currentPage) {
+            pendingSwipe = false
+            if (abs(orderIndex - trackPager.currentPage) <= 1) trackPager.animateScrollToPage(orderIndex) else trackPager.scrollToPage(orderIndex)
+        }
+    }
+    // Pager → player: a swipe that settles on another page plays it.
+    val latestOrderIndex by rememberUpdatedState(orderIndex)
+    LaunchedEffect(trackPager) {
+        snapshotFlow { trackPager.settledPage }
+            .distinctUntilChanged()
+            .collect { settled ->
+                if (!pendingSwipe) return@collect
+                pendingSwipe = false
+                if (settled !in queueTracks.indices || settled == latestOrderIndex) return@collect
+                when (val action = computeSeekAction(settled, latestOrderIndex)) {
+                    ArtworkSeekAction.Next -> sharedViewModel.onUIEvent(UIEvent.Next)
+                    ArtworkSeekAction.Previous -> sharedViewModel.onUIEvent(UIEvent.SkipToPrevious)
+                    is ArtworkSeekAction.Skip -> mediaPlayerHandler.playMediaItemInMediaSource(action.index)
+                    ArtworkSeekAction.NoOp -> Unit
+                }
+            }
+    }
+    LaunchedEffect(queueTracks.size) {
+        if (queueTracks.isNotEmpty() && trackPager.currentPage >= queueTracks.size) {
+            runCatching { trackPager.scrollToPage(queueTracks.lastIndex) }
+        }
+    }
+
     if (getPlatform() == Platform.Android) {
         // One shape for both the Card and the clip below. They must not diverge: the clip wraps
         // the Card's own background draw, so the larger radius wins and silently becomes the
@@ -293,16 +366,45 @@ fun MiniPlayer(
                         },
                     ).then(
                         Modifier
-                            .clip(miniPlayerShape)
+                            // Fork: the player grows out of these bounds, and is built while a finger
+                            // is down here so it is ready before it starts to move. Hidden while the
+                            // player is growing out of it, which takes its place.
+                            .graphicsLayer { alpha = MiniPlayerAnchor.barAlpha() }
+                            .onGloballyPositioned { coords ->
+                                if (isVisible && coords.size.height > 0) MiniPlayerAnchor.bounds = coords.boundsInRoot()
+                            }.pointerInput(Unit) {
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    MiniPlayerAnchor.pressed = true
+                                    do {
+                                        val event = awaitPointerEvent(PointerEventPass.Final)
+                                    } while (event.changes.any { it.pressed })
+                                    MiniPlayerAnchor.pressed = false
+                                }
+                            }.clip(miniPlayerShape)
                             .offset { IntOffset(0, offsetY.value.roundToInt()) }
                             .clickable(
                                 onClick = onClick,
                             ).pointerInput(Unit) {
+                                // Fork: dragging up pulls the player out of the bar under the finger;
+                                // let go, it opens or sinks back by distance and speed. Down still closes.
+                                var upwardDrag = 0f
+                                var tracker = VelocityTracker()
+                                val travel = { (MiniPlayerAnchor.bounds?.top ?: 1f).coerceAtLeast(1f) }
                                 detectVerticalDragGestures(
                                     onDragStart = {
+                                        upwardDrag = 0f
+                                        tracker = VelocityTracker()
                                     },
                                     onVerticalDrag = { change: PointerInputChange, dragAmount: Float ->
-                                        if (offsetY.value + dragAmount > 0) {
+                                        tracker.addPosition(change.uptimeMillis, change.position)
+                                        if (offsetY.value == 0f && upwardDrag + dragAmount < 0f) {
+                                            change.consume()
+                                            upwardDrag += dragAmount
+                                            MiniPlayerAnchor.dragFraction = (1f + upwardDrag / travel()).coerceIn(0f, 1f)
+                                        } else if (offsetY.value + dragAmount > 0) {
+                                            // Pulling down closes the bar: no player to build.
+                                            MiniPlayerAnchor.pressed = false
                                             coroutineScope.launch {
                                                 change.consume()
                                                 offsetY.animateTo(offsetY.value + 2 * dragAmount)
@@ -311,12 +413,26 @@ fun MiniPlayer(
                                         }
                                     },
                                     onDragCancel = {
+                                        if (MiniPlayerAnchor.dragFraction != null) {
+                                            MiniPlayerAnchor.dragFraction = null
+                                            MiniPlayerAnchor.returning = true
+                                        }
                                         coroutineScope.launch {
                                             offsetY.animateTo(0f)
                                         }
                                     },
                                     onDragEnd = {
                                         Logger.w("MiniPlayer", "Drag Ended")
+                                        MiniPlayerAnchor.dragFraction?.let { fraction ->
+                                            val velocity = tracker.calculateVelocity().y
+                                            MiniPlayerAnchor.dragFraction = null
+                                            if (velocity < -800f || (fraction < 0.7f && velocity < 800f)) {
+                                                MiniPlayerAnchor.releaseVelocity = velocity / travel()
+                                                onClick()
+                                            } else {
+                                                MiniPlayerAnchor.returning = true
+                                            }
+                                        }
                                         coroutineScope.launch {
                                             if (offsetY.value > 70) {
                                                 onClose()
@@ -328,7 +444,16 @@ fun MiniPlayer(
                             },
                     ),
         ) {
-            Box(modifier = Modifier.fillMaxHeight()) {
+            // Fork: recorded so the growing player can draw these exact pixels as its starting face.
+            val barFace = rememberGraphicsLayer()
+            LaunchedEffect(barFace, isVisible) { if (isVisible) MiniPlayerAnchor.barFace = barFace }
+            Box(
+                modifier =
+                    Modifier.fillMaxHeight().drawWithContent {
+                        barFace.record { this@drawWithContent.drawContent() }
+                        drawLayer(barFace)
+                    },
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
@@ -337,103 +462,122 @@ fun MiniPlayer(
                 ) {
                     Spacer(modifier = Modifier.size(8.dp))
                     Box(modifier = Modifier.weight(1F)) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .appleMusicTrackSwipe(
-                                        enabled = isVisible,
-                                        onNext = { if (controllerState.isNextAvailable) sharedViewModel.onUIEvent(UIEvent.Next) },
-                                        onPrevious = { if (controllerState.isPreviousAvailable) sharedViewModel.onUIEvent(UIEvent.SkipToPrevious) },
-                                    ),
-                        ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(40.dp)
-                                        .align(Alignment.CenterVertically),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (isFlat) {
-                                    // Progress rides a ring around the artwork: wavy while playing, flat when paused.
-                                    val ringStroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }, cap = StrokeCap.Round)
-                                    CircularWavyProgressIndicator(
-                                        progress = { animatedProgress },
-                                        modifier = Modifier.fillMaxSize(),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        stroke = ringStroke,
-                                        trackStroke = ringStroke,
-                                        // A raw 0/1, never a tweened value: the node animates amplitude
-                                        // itself and drops new targets mid-animation (see WavySeekBar).
-                                        amplitude = { p -> if (p > 0f && isPlaying) 1f else 0f },
-                                    )
+                        // Fork: the cover and title are pages of the queue, so a swipe drags the next
+                        // song in under the finger (as the player's artwork does) instead of nudging
+                        // this one and springing it back.
+                        HorizontalPager(
+                            state = trackPager,
+                            userScrollEnabled = isVisible && queueTracks.size > 1,
+                            key = { idx -> "mini_${queueTracks.getOrNull(idx)?.videoId}_$idx" },
+                        ) { page ->
+                            val isCurrent = page == orderIndex || queueTracks.isEmpty()
+                            val pageTrack = queueTracks.getOrNull(page)
+                            val pageThumb =
+                                if (isCurrent) songEntity?.thumbnails else pageTrack?.thumbnails?.lastOrNull()?.url
+                            val pageTitle = if (isCurrent) songEntity?.title.orEmpty() else pageTrack?.title.orEmpty()
+                            val pageArtist =
+                                if (isCurrent) {
+                                    songEntity?.artistName?.connectArtists().orEmpty()
+                                } else {
+                                    pageTrack?.artists?.joinToString { it.name }.orEmpty()
                                 }
-                                AsyncImage(
-                                    model =
-                                        ImageRequest
-                                            .Builder(LocalPlatformContext.current)
-                                            .data(songEntity?.thumbnails)
-                                            .crossfade(550)
-                                            .build(),
-                                    placeholder = rememberHolderPainter(),
-                                    error = rememberHolderPainter(),
-                                    contentDescription = null,
-                                    // Crop in the circle: FillWidth would leave bands around a 16:9 video thumbnail.
-                                    contentScale = if (isFlat) ContentScale.Crop else ContentScale.FillWidth,
+                            val pageExplicit = if (isCurrent) songEntity?.isExplicit == true else pageTrack?.isExplicit == true
+                            Row {
+                                Box(
                                     modifier =
                                         Modifier
-                                            .size(if (isFlat) 26.dp else 40.dp)
-                                            .clip(if (isFlat) CircleShape else RoundedCornerShape(4.dp)),
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            // The finger-driven row owns motion; metadata must not replay another slide.
-                            Box(
-                                modifier = Modifier.weight(1F).fillMaxHeight(),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                val target = songEntity
-                                if (target != null) {
-                                    Column(
-                                        Modifier
-                                            .wrapContentHeight(),
-                                    ) {
-                                        Text(
-                                            text = target.title,
-                                            style = if (isFlat) typo().titleSmall else typo().labelSmall,
-                                            color = textColor,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .wrapContentHeight(
-                                                        align = Alignment.CenterVertically,
-                                                    ),
+                                            .size(40.dp)
+                                            .align(Alignment.CenterVertically),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (isFlat && isCurrent) {
+                                        // Progress rides a ring around the artwork: wavy while playing, flat when paused.
+                                        val ringStroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }, cap = StrokeCap.Round)
+                                        CircularWavyProgressIndicator(
+                                            progress = { animatedProgress },
+                                            modifier = Modifier.fillMaxSize(),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            stroke = ringStroke,
+                                            trackStroke = ringStroke,
+                                            // A raw 0/1, never a tweened value: the node animates amplitude
+                                            // itself and drops new targets mid-animation (see WavySeekBar).
+                                            amplitude = { p -> if (p > 0f && isPlaying) 1f else 0f },
                                         )
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            androidx.compose.animation.AnimatedVisibility(visible = target.isExplicit) {
-                                                ExplicitBadge(
-                                                    modifier =
-                                                        Modifier
-                                                            .size(20.dp)
-                                                            .padding(end = 4.dp)
-                                                            .weight(1f),
-                                                )
-                                            }
+                                    }
+                                    AsyncImage(
+                                        model =
+                                            ImageRequest
+                                                .Builder(LocalPlatformContext.current)
+                                                .data(pageThumb)
+                                                .crossfade(550)
+                                                .build(),
+                                        placeholder = rememberHolderPainter(),
+                                        error = rememberHolderPainter(),
+                                        contentDescription = null,
+                                        // Crop in the circle: FillWidth would leave bands around a 16:9 video thumbnail.
+                                        contentScale = if (isFlat) ContentScale.Crop else ContentScale.FillWidth,
+                                        modifier =
+                                            Modifier
+                                                .size(if (isFlat) 26.dp else 40.dp)
+                                                // Fork: the player's cover flies out of here; hidden while it is away.
+                                                .onGloballyPositioned { coords ->
+                                                    if (isCurrent && isVisible && coords.size.width > 0) {
+                                                        MiniPlayerAnchor.artBounds = coords.boundsInRoot()
+                                                        MiniPlayerAnchor.artCornerFraction = if (isFlat) 0.5f else 0.1f
+                                                    }
+                                                }.graphicsLayer { alpha = if (isCurrent) MiniPlayerAnchor.barCoverAlpha() else 1f }
+                                                .clip(if (isFlat) CircleShape else RoundedCornerShape(4.dp)),
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                // The finger-driven row owns motion; metadata must not replay another slide.
+                                Box(
+                                    modifier = Modifier.weight(1F).fillMaxHeight(),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    run {
+                                        Column(
+                                            Modifier
+                                                .wrapContentHeight(),
+                                        ) {
                                             Text(
-                                                text = target.artistName?.connectArtists() ?: "",
-                                                style = if (isFlat) typo().bodySmall.copy(fontSize = 10.sp) else typo().bodySmall,
+                                                text = pageTitle,
+                                                style = if (isFlat) typo().titleSmall else typo().labelSmall,
+                                                color = textColor,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
-                                                color = if (isFlat) MaterialTheme.colorScheme.onSurfaceVariant else textColor,
                                                 modifier =
                                                     Modifier
-                                                        .weight(1f)
+                                                        .fillMaxWidth()
                                                         .wrapContentHeight(
                                                             align = Alignment.CenterVertically,
                                                         ),
                                             )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                androidx.compose.animation.AnimatedVisibility(visible = pageExplicit) {
+                                                    ExplicitBadge(
+                                                        modifier =
+                                                            Modifier
+                                                                .size(20.dp)
+                                                                .padding(end = 4.dp)
+                                                                .weight(1f),
+                                                    )
+                                                }
+                                                Text(
+                                                    text = pageArtist,
+                                                    style = if (isFlat) typo().bodySmall.copy(fontSize = 10.sp) else typo().bodySmall,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = if (isFlat) MaterialTheme.colorScheme.onSurfaceVariant else textColor,
+                                                    modifier =
+                                                        Modifier
+                                                            .weight(1f)
+                                                            .wrapContentHeight(
+                                                                align = Alignment.CenterVertically,
+                                                            ),
+                                                )
+                                            }
                                         }
                                     }
                                 }

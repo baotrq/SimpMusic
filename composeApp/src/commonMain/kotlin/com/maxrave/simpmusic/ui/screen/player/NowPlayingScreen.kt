@@ -522,7 +522,10 @@ fun NowPlayingScreenContent(
     LaunchedEffect(key1 = showHideJob) {
         if (!showHideJob) {
             delay(5000)
-            if (mainScrollState.value == 0) showHideControlLayout = false
+            // Fork: the Apple Music style keeps its controls over a Spotify canvas at all times.
+            if (mainScrollState.value == 0 && nowPlayingStyle != DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC) {
+                showHideControlLayout = false
+            }
             showHideJob = true
         }
     }
@@ -658,7 +661,9 @@ fun NowPlayingScreenContent(
             },
             onToggleControls = {
                 showHideJob = true
-                showHideControlLayout = !showHideControlLayout
+                // Fork: in the Apple Music style a tap can only show the controls, never hide them.
+                showHideControlLayout =
+                    nowPlayingStyle == DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC || !showHideControlLayout
             },
             onNavigateToArtist = {
                 val song = sharedViewModel.nowPlayingState.value?.songEntity
