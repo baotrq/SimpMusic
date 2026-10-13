@@ -91,6 +91,7 @@ import com.maxrave.simpmusic.extension.animateScrollAndAnchorItemTop
 import com.maxrave.simpmusic.extension.animateScrollAndCentralizeItem
 import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.parseRichSyncWords
+import com.maxrave.simpmusic.extension.WordTiming
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
 import com.maxrave.simpmusic.viewModel.SharedViewModel
@@ -675,6 +676,23 @@ fun LyricsView(
                                         result
                                     }
 
+                                // Fork: the reading romanized word by word, each word keeping its
+                                // original's timing, so it can light up along with the original.
+                                val romanizedLine =
+                                    if (romanizedWords == null || parsedLine == null) {
+                                        null
+                                    } else {
+                                        remember(parsedLine, romanizationLanguages, japaneseDictionaryReady) {
+                                            val readings =
+                                                parsedLine.words.mapNotNull { word ->
+                                                    romanizer.romanize(word.text, romanizationLanguages)?.let { WordTiming(it, word.startTimeMs) }
+                                                }
+                                            readings.takeIf { it.isNotEmpty() }?.let {
+                                                ParsedRichSyncLine(it, parsedLine.lineStartTimeMs, parsedLine.lineEndTimeMs)
+                                            }
+                                        }
+                                    }
+
                                 if (parsedLine != null) {
                                     // Reused verbatim by BOTH styles: word-by-word highlighting is
                                     // already what Apple does with a rich-synced line, so there is
@@ -684,6 +702,7 @@ fun LyricsView(
                                         parsedLine = parsedLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
+                                        romanizedLine = romanizedLine,
                                         currentTimeMs = current.current - lyricsOffsetMs,
                                         isCurrent = index == currentLineIndex,
                                         customFontSize = if (appleStyle) AppleMusicLyricFontSize else null,
@@ -966,6 +985,9 @@ fun RichSyncLyricsLineItem(
     // Static text under a line that lights up word by word. Keeping it out of the FlowRow above is
     // deliberate: the wipe is driven by per-word timings this row does not have and must not fake.
     romanizedWords: String? = null,
+    // Fork: the reading romanized word by word, each word carrying its original's timing — when
+    // present it lights up along with the original instead of [romanizedWords] sitting static.
+    romanizedLine: ParsedRichSyncLine? = null,
     currentTimeMs: Long,
     isCurrent: Boolean,
     customFontSize: TextUnit? = null,
@@ -1011,50 +1033,43 @@ fun RichSyncLyricsLineItem(
 
         // Word order follows the original; subtitles share its edge but keep their own reading direction.
         CompositionLocalProvider(LocalLayoutDirection provides lineDirection) {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement =
-                    if (wrappedLineSpacing > 0.dp) Arrangement.spacedBy(wrappedLineSpacing) else Arrangement.Center,
-            ) {
-                parsedLine.words.forEachIndexed { index, wordTiming ->
-                    // Calculate word end time (start time of next word or line end time)
-                    // If last word and lineEndTimeMs is invalid (Long.MAX_VALUE), estimate based on previous word duration
-                    val wordEndTimeMs =
-                        if (index < parsedLine.words.size - 1) {
-                            parsedLine.words[index + 1].startTimeMs
-                        } else if (parsedLine.lineEndTimeMs == Long.MAX_VALUE || parsedLine.lineEndTimeMs <= wordTiming.startTimeMs) {
-                            // Estimate: use previous word duration or default 500ms
-                            if (index > 0 && parsedLine.words[index - 1].startTimeMs < wordTiming.startTimeMs) {
-                                val prevWordDuration = wordTiming.startTimeMs - parsedLine.words[index - 1].startTimeMs
-                                wordTiming.startTimeMs + prevWordDuration
-                            } else {
-                                wordTiming.startTimeMs + 500L // Default 500ms if no reference
-                            }
-                        } else {
-                            parsedLine.lineEndTimeMs
-                        }
-                    AnimatedWord(
-                        word = wordTiming.text,
-                        lineDirection = lineDirection,
-                        wordIndex = index,
-                        wordStartTimeMs = wordTiming.startTimeMs,
-                        wordEndTimeMs = wordEndTimeMs,
-                        currentTimeMs = currentTimeMs,
-                        playheadMs = playhead,
-                        isActive = isCurrent && index == currentWordIndex,
-                        isPast = isCurrent && index < currentWordIndex,
-                        isCurrent = isCurrent,
-                        customFontSize = customFontSize,
-                        glow = glow,
-                        isLastWord = index == parsedLine.words.lastIndex,
-                        pendingColorOverride = pendingColorOverride,
-                    )
-                }
-            }
+            RichSyncWordsRow(
+                parsedLine = parsedLine,
+                currentWordIndex = currentWordIndex,
+                lineDirection = lineDirection,
+                currentTimeMs = currentTimeMs,
+                playhead = playhead,
+                isCurrent = isCurrent,
+                customFontSize = customFontSize,
+                glow = glow,
+                pendingColorOverride = pendingColorOverride,
+                wrappedLineSpacing = wrappedLineSpacing,
+            )
         }
 
-        if (romanizedWords != null) {
+        if (romanizedLine != null) {
+            // Fork: the reading lights up with the original, word for word, in the sub-line size.
+            val romanizedWordIndex by remember(romanizedLine.words, isCurrent) {
+                derivedStateOf {
+                    if (!isCurrent) return@derivedStateOf -1
+                    romanizedLine.words.indexOfLast { it.startTimeMs <= playhead.value }
+                }
+            }
+            CompositionLocalProvider(LocalLayoutDirection provides lineDirection) {
+                RichSyncWordsRow(
+                    parsedLine = romanizedLine,
+                    currentWordIndex = romanizedWordIndex,
+                    lineDirection = lineDirection,
+                    currentTimeMs = currentTimeMs,
+                    playhead = playhead,
+                    isCurrent = isCurrent,
+                    customFontSize = (translatedStyleOverride ?: typo().bodyMedium).fontSize,
+                    glow = glow?.let { it.copy(blurRadius = it.blurRadius / 2) },
+                    pendingColorOverride = pendingColorOverride,
+                    wrappedLineSpacing = 0.dp,
+                )
+            }
+        } else if (romanizedWords != null) {
             LyricText(
                 text = romanizedWords,
                 alignmentText = originalWords,
@@ -1076,6 +1091,64 @@ fun RichSyncLyricsLineItem(
         }
 
         Spacer(modifier = Modifier.height(customPadding))
+    }
+}
+
+/** One rich-synced row: each word lights up on its own timing (the original, or its romanized reading). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RichSyncWordsRow(
+    parsedLine: ParsedRichSyncLine,
+    currentWordIndex: Int,
+    lineDirection: LayoutDirection,
+    currentTimeMs: Long,
+    playhead: State<Long>,
+    isCurrent: Boolean,
+    customFontSize: TextUnit?,
+    glow: Shadow?,
+    pendingColorOverride: Color?,
+    wrappedLineSpacing: Dp,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement =
+            if (wrappedLineSpacing > 0.dp) Arrangement.spacedBy(wrappedLineSpacing) else Arrangement.Center,
+    ) {
+        parsedLine.words.forEachIndexed { index, wordTiming ->
+            // Calculate word end time (start time of next word or line end time)
+            // If last word and lineEndTimeMs is invalid (Long.MAX_VALUE), estimate based on previous word duration
+            val wordEndTimeMs =
+                if (index < parsedLine.words.size - 1) {
+                    parsedLine.words[index + 1].startTimeMs
+                } else if (parsedLine.lineEndTimeMs == Long.MAX_VALUE || parsedLine.lineEndTimeMs <= wordTiming.startTimeMs) {
+                    // Estimate: use previous word duration or default 500ms
+                    if (index > 0 && parsedLine.words[index - 1].startTimeMs < wordTiming.startTimeMs) {
+                        val prevWordDuration = wordTiming.startTimeMs - parsedLine.words[index - 1].startTimeMs
+                        wordTiming.startTimeMs + prevWordDuration
+                    } else {
+                        wordTiming.startTimeMs + 500L // Default 500ms if no reference
+                    }
+                } else {
+                    parsedLine.lineEndTimeMs
+                }
+            AnimatedWord(
+                word = wordTiming.text,
+                lineDirection = lineDirection,
+                wordIndex = index,
+                wordStartTimeMs = wordTiming.startTimeMs,
+                wordEndTimeMs = wordEndTimeMs,
+                currentTimeMs = currentTimeMs,
+                playheadMs = playhead,
+                isActive = isCurrent && index == currentWordIndex,
+                isPast = isCurrent && index < currentWordIndex,
+                isCurrent = isCurrent,
+                customFontSize = customFontSize,
+                glow = glow,
+                isLastWord = index == parsedLine.words.lastIndex,
+                pendingColorOverride = pendingColorOverride,
+            )
+        }
     }
 }
 

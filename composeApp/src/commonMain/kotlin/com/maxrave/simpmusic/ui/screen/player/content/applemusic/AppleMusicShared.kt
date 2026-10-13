@@ -98,9 +98,9 @@ import com.maxrave.simpmusic.extension.formatDuration
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
 import com.maxrave.simpmusic.ui.component.rememberHolderPainter
+import com.maxrave.simpmusic.ui.icon.KeyboardArrowUp
 import com.maxrave.simpmusic.ui.icon.FastForward
 import com.maxrave.simpmusic.ui.icon.FastRewind
-import com.maxrave.simpmusic.ui.icon.KeyboardArrowUp
 import com.maxrave.simpmusic.ui.icon.Lyrics
 import com.maxrave.simpmusic.ui.icon.MoreVert
 import com.maxrave.simpmusic.ui.icon.Pause
@@ -1182,29 +1182,21 @@ internal fun AppleMusicBottomCluster(
             // above it does not jump when they arrive a moment after the track starts.
             val hasLyrics = state.screenData.lyricsData != null
             val pillAlpha by animateFloatAsState(if (hasLyrics) 1f else 0f, label = "appleMusicLyricsPill")
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            // Fork: a small ⌃ hinting that a swipe up opens the lyrics (the button for them sits beside
+            // Queue in the title row). A tap on it opens them too.
+            Icon(
+                imageVector = SimpIcons.KeyboardArrowUp,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.5f),
                 modifier =
                     Modifier
                         .align(Alignment.CenterHorizontally)
                         .alpha(pillAlpha)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.14f))
                         .clickable(enabled = hasLyrics, onClick = onOpenLyrics)
-                        .padding(start = 12.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
-            ) {
-                Icon(
-                    imageVector = SimpIcons.KeyboardArrowUp,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = stringResource(Res.string.lyrics),
-                    style = typography.times.copy(color = Color.White.copy(alpha = 0.85f)),
-                )
-            }
+                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                        .size(24.dp),
+            )
         }
         if (showActionRow) {
             AppleMusicActionRow(

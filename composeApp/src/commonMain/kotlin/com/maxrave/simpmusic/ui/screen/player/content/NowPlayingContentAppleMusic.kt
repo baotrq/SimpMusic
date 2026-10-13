@@ -113,6 +113,7 @@ import com.maxrave.simpmusic.ui.icon.Fullscreen
 import com.maxrave.simpmusic.ui.icon.Headphones
 import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 import com.maxrave.simpmusic.ui.icon.MoreVert
+import com.maxrave.simpmusic.ui.icon.Lyrics
 import com.maxrave.simpmusic.ui.icon.QueueMusic
 import com.maxrave.simpmusic.ui.icon.Replay5
 import com.maxrave.simpmusic.ui.icon.SimpIcons
@@ -851,10 +852,14 @@ private fun AppleMusicMainView(
         ) {
             // Hung from the bottom of the page. Whatever height is left above it and below the
             // artwork is the mesh continuing the artwork's own colours.
+            // Fork: when the player grows out of the mini player this block (title, artist, transport,
+            // lyric line) rises in with it.
+            MiniPlayerAnchor.controlsSlidePx = with(localDensity) { CONTROLS_RISE.toPx() }
             Column(
                 modifier =
                     Modifier
                         .alpha(controlsAlpha)
+                        .graphicsLayer { translationY = MiniPlayerAnchor.controlsOffset() }
                         .onGloballyPositioned { coords ->
                             bottomContentHeightDp =
                                 with(localDensity) { coords.size.height.toDp().value.toInt() }
@@ -865,6 +870,7 @@ private fun AppleMusicMainView(
                     actions = actions,
                     typography = typography,
                     onOpenQueue = { onSelectView(AppleMusicView.QUEUE) },
+                    onOpenLyrics = { onSelectView(AppleMusicView.LYRICS) },
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AppleMusicLyricStrip(
@@ -1190,6 +1196,8 @@ internal fun AppleMusicMainTitleRow(
     typography: AppleMusicTypography,
     // Fork: MAIN puts Queue here, beside ⋯, in place of the dock row under the transport.
     onOpenQueue: (() -> Unit)? = null,
+    // Fork: and Lyrics beside Queue (a swipe up opens them too).
+    onOpenLyrics: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
@@ -1224,6 +1232,15 @@ internal fun AppleMusicMainTitleRow(
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
+        if (onOpenLyrics != null) {
+            AppleMusicGlyphButton(
+                icon = SimpIcons.Lyrics,
+                onClick = onOpenLyrics,
+                // Dimmed, not hidden, until the song's lyrics are known: the page still opens.
+                tint = Color.White.copy(alpha = if (state.screenData.lyricsData != null) 1f else 0.4f),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+        }
         if (onOpenQueue != null) {
             AppleMusicGlyphButton(icon = SimpIcons.QueueMusic, onClick = onOpenQueue)
             Spacer(modifier = Modifier.width(12.dp))
@@ -1850,6 +1867,9 @@ private val VERSION_SWITCH_HEIGHT = 36.dp
 // short enough for this cap to bite.
 private const val ARTWORK_MAX_HEIGHT_FRACTION = 0.62f
 private const val EFFECTS_IN_MS = 900
+
+// How far below its place the controls block starts when the player grows out of the mini player.
+private val CONTROLS_RISE = 160.dp
 private const val EFFECTS_DELAY_MS = 150
 
 // A 3:4 animated artwork runs under the title row by design; this only stops a landscape window
