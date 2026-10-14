@@ -41,6 +41,7 @@ import com.maxrave.media3.di.setServiceActivitySession
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.expect.ui.rememberDesktopModeScale
 import com.maxrave.simpmusic.service.test.notification.NotifyWork
+import com.maxrave.simpmusic.update.ForkUpdater
 import com.maxrave.simpmusic.utils.ComposeResUtils
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.viewModel.SharedViewModel
@@ -117,6 +118,8 @@ class MainActivity : AppCompatActivity() {
         loadKoinModules(viewModelModule)
         VersionManager.initialize()
         checkForUpdate()
+        // Fork: offer newer personal bao- builds; once per launch, not on every recreate.
+        if (savedInstanceState == null) ForkUpdater.checkOnLaunch(this)
         if (viewModel.recreateActivity.value || viewModel.isServiceRunning) {
             viewModel.activityRecreateDone()
         } else {
