@@ -24,6 +24,7 @@ import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.led.LedStripSync
 import com.maxrave.simpmusic.playbacksync.PlaybackSync
+import com.maxrave.simpmusic.playbacksync.SettingsSync
 import com.maxrave.simpmusic.service.backup.AutoBackupScheduler
 import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
 import kotlinx.coroutines.CoroutineScope
@@ -97,6 +98,8 @@ class SimpMusicApplication :
         PlaybackSync.start(
             Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)?.takeIf { it.isNotBlank() } ?: Build.MODEL,
         )
+        // AI and translation settings, encrypted, through the same server.
+        SettingsSync.start()
 
         // Car LED strip follows the artwork colour; idle unless enabled in Settings → LED strip.
         LedStripSync.start(this, dataStoreManager, get<MediaPlayerHandler>())

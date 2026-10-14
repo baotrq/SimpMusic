@@ -4,6 +4,9 @@ import com.maxrave.domain.data.model.browse.album.Track
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 class PlaybackSyncTest {
     @Test
@@ -39,5 +42,22 @@ class PlaybackSyncTest {
         val decoded = json.decodeFromString<PlaybackSnapshot>(json.encodeToString(PlaybackSnapshot.serializer(), snapshot))
         assertEquals(snapshot, decoded)
         assertEquals("abc_123", decoded.track?.videoId)
+    }
+
+    @Test
+    fun settingsSealOnlyOpenWithTheSameKey() {
+        val plain = """{"ai_gemini_api_key":"sk-test","translation_language":"vi"}"""
+        val sealed = seal(plain, "key-a")
+        assertNotEquals(plain, sealed)
+        assertEquals(plain, open(sealed, "key-a"))
+        assertFailsWith<Exception> { open(sealed, "key-b") }
+    }
+
+    @Test
+    fun translationKeyKeepsCaseAndFitsTheServer() {
+        val upper = translationKey("AbC_-12xYz9", "zh-Hans#p2")
+        val lower = translationKey("abc_-12xyz9", "zh-Hans#p2")
+        assertNotEquals(upper, lower)
+        assertTrue(Regex("^[a-z0-9_-]{1,64}$").matches(upper), upper)
     }
 }

@@ -72,6 +72,7 @@ import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.getDownloadFolderPath
 import com.maxrave.simpmusic.expect.ui.toByteArray
 import com.maxrave.simpmusic.getPlatform
+import com.maxrave.simpmusic.playbacksync.SettingsSync
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.decodePromos
 import com.maxrave.simpmusic.utils.isEnglishOrVietnamese
@@ -1789,6 +1790,13 @@ class SharedViewModel(
                     LyricsProvider.AI,
                 )
             } else {
+                // Fork: another device may already have paid for this translation.
+                val shared = SettingsSync.fetchTranslation(videoId, aiTranslationCacheKey())
+                if (shared != null) {
+                    lyricsCanvasRepository.insertTranslatedLyrics(shared)
+                    updateLyrics(videoId, 0, shared.toLyrics(), true, LyricsProvider.AI)
+                    return
+                }
                 // Convert RICH_SYNCED to LINE_SYNCED before sending to AI
                 // AI should only work with line-level or plain lyrics
                 val lyricsForAi =
@@ -1816,6 +1824,7 @@ class SharedViewModel(
                                         syncType = data.syncType,
                                     ),
                                 )
+                                data.lines?.let { SettingsSync.shareTranslation(videoId, aiTranslationCacheKey(), it, data.syncType) }
                                 updateLyrics(
                                     videoId,
                                     0,
