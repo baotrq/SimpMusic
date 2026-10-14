@@ -108,8 +108,8 @@ object PlaybackSync : KoinComponent {
     private val handler: MediaPlayerHandler by inject()
     private val songRepository: SongRepository by inject()
 
-    private val json = Json { ignoreUnknownKeys = true }
-    private val client by lazy { HttpClient(CIO) { install(HttpTimeout) { requestTimeoutMillis = 15_000 } } }
+    internal val json = Json { ignoreUnknownKeys = true }
+    internal val client by lazy { HttpClient(CIO) { install(HttpTimeout) { requestTimeoutMillis = 15_000 } } }
 
     // Main: the player's position is read on its own thread.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -276,15 +276,21 @@ object PlaybackSync : KoinComponent {
         }.onFailure { Logger.w(TAG, "Upload failed: ${it.message}") }
     }
 
-    /** The snapshot URL and key, or null until both are set. HTTPS only: the key travels in a header. */
-    private suspend fun endpoint(): Pair<String, String>? {
+    /** The snapshot URL and key, or null until both are set. */
+    private suspend fun endpoint(): Pair<String, String>? = server()?.let { (url, secret) -> "$url/playback" to secret }
+
+    /**
+     * The sync server's base URL and key, or null until both are set. HTTPS only: the key travels in a
+     * header. Shared with [SettingsSync], which stores its own objects beside the snapshot.
+     */
+    internal suspend fun server(): Pair<String, String>? {
         val url = dataStore.getString(KEY_URL).first()?.trim()?.trimEnd('/')
         val secret = dataStore.getString(KEY_SECRET).first()?.trim()
         if (url.isNullOrEmpty() || secret.isNullOrEmpty() || !url.startsWith("https://")) return null
-        return "$url/playback" to secret
+        return url to secret
     }
 
-    private suspend fun deviceId(): String =
+    internal suspend fun deviceId(): String =
         dataStore.getString(KEY_DEVICE_ID).first()
             ?: List(16) { Random.nextInt(16).toString(16) }.joinToString("").also { dataStore.putString(KEY_DEVICE_ID, it) }
 }

@@ -30,6 +30,11 @@ Use **Test connection** to check both.
   an app that was still running keeps its own song, and Home shows "Continue from <phone>" on top
   instead: tap it to play from there, or ✕ to hide it.
 - Only the last upload is kept. Whichever phone played last wins.
+- Sign-ins (YouTube, Spotify, Discord, Last.fm) and the AI API key with its provider, model, base URL
+  and headers are kept the same on every phone. Preferences stay per phone. They are encrypted on the
+  phone with a key derived from the sync key, so the server only stores ciphertext. Each app open
+  picks up the newest change. Sync only adds: signing out on one phone does not sign the other out.
+- Lyrics translated by the AI are shared too, so a song is only paid for once across phones.
 
 ## Security
 
