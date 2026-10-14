@@ -124,6 +124,7 @@ import com.maxrave.simpmusic.extension.displayString
 import com.maxrave.simpmusic.extension.isTwoLetterCode
 import com.maxrave.simpmusic.extension.isValidProxyHost
 import com.maxrave.simpmusic.getPlatform
+import com.maxrave.simpmusic.playbacksync.PlaybackSyncSettingItems
 import com.maxrave.simpmusic.ui.component.ActionButton
 import com.maxrave.simpmusic.ui.component.AmbientThemeGlow
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
@@ -363,6 +364,8 @@ import simpmusic.composeapp.generated.resources.play_explicit_content
 import simpmusic.composeapp.generated.resources.play_explicit_content_description
 import simpmusic.composeapp.generated.resources.play_video_for_video_track_instead_of_audio_only
 import simpmusic.composeapp.generated.resources.playback
+import simpmusic.composeapp.generated.resources.playback_sync
+import simpmusic.composeapp.generated.resources.playback_sync_footer
 import simpmusic.composeapp.generated.resources.player_cache
 import simpmusic.composeapp.generated.resources.preferred_audio_language
 import simpmusic.composeapp.generated.resources.preferred_audio_language_message
@@ -716,6 +719,12 @@ fun SettingScreen(
                             ),
                         onClick = { showLoginSyncDialog = true },
                     )
+                }
+                SettingGroup(
+                    title = stringResource(Res.string.playback_sync),
+                    footer = { Text(stringResource(Res.string.playback_sync_footer), style = typo().bodySmall) },
+                ) {
+                    PlaybackSyncSettingItems()
                 }
                 SettingGroup(title = stringResource(Res.string.user_interface)) {
                     val themeModeLabels =

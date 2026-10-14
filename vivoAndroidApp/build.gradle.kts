@@ -38,6 +38,8 @@ android {
             libs.versions.version.name
                 .get()
         vectorDrawables.useSupportLibrary = true
+        // Fork updater off: it fetches bao- builds, which are not this package.
+        buildConfigField("long", "BAO_COMMIT_TIME", "0L")
         multiDexEnabled = true
 
         @Suppress("UnstableApiUsage")

@@ -1,6 +1,7 @@
 package com.maxrave.simpmusic.viewModel
 
 import androidx.lifecycle.viewModelScope
+import com.maxrave.common.Config
 import com.maxrave.common.SELECTED_LANGUAGE
 import com.maxrave.common.SUPPORTED_LANGUAGE
 import com.maxrave.domain.data.entities.SongEntity
@@ -10,9 +11,14 @@ import com.maxrave.domain.data.model.home.chart.Chart
 import com.maxrave.domain.data.model.mood.Mood
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.manager.DataStoreManager.Values.TRUE
+import com.maxrave.domain.mediaservice.handler.PlaylistType
+import com.maxrave.domain.mediaservice.handler.QueueData
+import com.maxrave.domain.mediaservice.handler.SimpleMediaState
 import com.maxrave.domain.repository.HomeRepository
 import com.maxrave.domain.utils.Resource
 import com.maxrave.logger.Logger
+import com.maxrave.simpmusic.playbacksync.PlaybackSnapshot
+import com.maxrave.simpmusic.playbacksync.PlaybackSync
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,6 +34,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.music_video
 import simpmusic.composeapp.generated.resources.new_release
@@ -357,7 +364,40 @@ class HomeViewModel(
         homeJob?.cancel()
     }
 
+    /** Fork: plays the queue another phone uploaded, from the song and position it stopped at. */
+    fun continueFromOtherDevice(snapshot: PlaybackSnapshot) {
+        val track = snapshot.track ?: return
+        PlaybackSync.markHandled(snapshot)
+        val type = snapshot.playlistType?.let { name -> PlaylistType.entries.find { it.name == name } }
+        // A local playlist id names a row in the other phone's database, not this one's.
+        val isLocal = type == PlaylistType.LOCAL_PLAYLIST
+        setQueueData(
+            QueueData.Data(
+                listTracks = ArrayList(snapshot.tracks),
+                firstPlayedTrack = track,
+                playlistId = snapshot.playlistId.takeUnless { isLocal },
+                playlistName = snapshot.playlistName,
+                playlistType = if (isLocal) PlaylistType.PLAYLIST else type ?: PlaylistType.PLAYLIST,
+                continuation = snapshot.continuation,
+            ),
+        )
+        loadMediaItem(track, Config.PLAYLIST_CLICK, snapshot.index)
+        if (snapshot.positionMs < SKIP_SEEK_BELOW_MS) return
+        viewModelScope.launch {
+            val landed =
+                withTimeoutOrNull(20_000) {
+                    mediaPlayerHandler.nowPlaying.first { it?.mediaId == track.videoId }
+                    mediaPlayerHandler.simpleMediaState.first { it is SimpleMediaState.Ready || it is SimpleMediaState.Progress }
+                    mediaPlayerHandler.player.seekTo(snapshot.positionMs)
+                }
+            if (landed == null) Logger.w("PlaybackSync", "Track did not start in time, playing from the beginning")
+        }
+    }
+
     companion object {
+        /** A song only seconds in simply starts over. */
+        private const val SKIP_SEEK_BELOW_MS = 3_000L
+
         // Home params
         const val HOME_PARAMS_RELAX = "ggM8SgQIBxADSgQIBRABSgQICRABSgQIChABSgQIDRABSgQICBABSgQIBBABSgQIDhABSgQIAxABSgQIBhAB"
         const val HOME_PARAMS_SLEEP = "ggM8SgQIBxABSgQIBRADSgQICRABSgQIChABSgQIDRABSgQICBABSgQIBBABSgQIDhABSgQIAxABSgQIBhAB"

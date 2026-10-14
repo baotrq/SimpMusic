@@ -7,6 +7,18 @@ val isFullBuild: Boolean =
         false
     }
 
+// Fork: commit time of this build. The in-app updater offers a bao- release only when the release's
+// commit is newer than this, so a build never offers itself.
+val gitCommitTime: Long =
+    runCatching {
+        providers
+            .exec { commandLine("git", "log", "-1", "--format=%ct") }
+            .standardOutput.asText
+            .get()
+            .trim()
+            .toLong()
+    }.getOrDefault(0L)
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.sentry.gradle)
@@ -31,6 +43,8 @@ android {
             libs.versions.version.name
                 .get()
         vectorDrawables.useSupportLibrary = true
+        // 0 turns the fork updater off; only the personal release build sets it.
+        buildConfigField("long", "BAO_COMMIT_TIME", "0L")
         multiDexEnabled = true
 
         @Suppress("UnstableApiUsage")
@@ -92,6 +106,7 @@ android {
             // The unofficial-copy check would lock this personal build out: its package is not on
             // the official list and its key is not the release key.
             buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "true")
+            buildConfigField("long", "BAO_COMMIT_TIME", "${gitCommitTime}L")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.database.CursorWindow
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import androidx.work.Configuration
 import androidx.work.WorkManager
@@ -22,6 +23,7 @@ import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.led.LedStripSync
+import com.maxrave.simpmusic.playbacksync.PlaybackSync
 import com.maxrave.simpmusic.service.backup.AutoBackupScheduler
 import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
 import kotlinx.coroutines.CoroutineScope
@@ -87,6 +89,14 @@ class SimpMusicApplication :
         applicationScope.launch {
             autoBackupScheduler.observeAndSchedule()
         }
+
+        // Playback sync: on a fresh start, opens on another phone's newer song; then uploads what this
+        // phone plays. startKoin already created the player handler, but its launch restore is posted
+        // to SERVICE_SCOPE (Dispatchers.Main, not .immediate), so it reaches LaunchRestoreGate only
+        // after onCreate returns — by then this has set the gate. Keep it inside onCreate.
+        PlaybackSync.start(
+            Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)?.takeIf { it.isNotBlank() } ?: Build.MODEL,
+        )
 
         // Car LED strip follows the artwork colour; idle unless enabled in Settings → LED strip.
         LedStripSync.start(this, dataStoreManager, get<MediaPlayerHandler>())
