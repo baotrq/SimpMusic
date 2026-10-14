@@ -214,7 +214,8 @@ sentry {
             }
         authToken.set(token ?: "")
         includeProguardMapping.set(true)
-        autoUploadProguardMapping.set(true)
+        // Fork: personal sideloaded builds never upload mappings to upstream's Sentry project.
+        autoUploadProguardMapping.set(false)
     } else {
         includeProguardMapping.set(false)
         autoUploadProguardMapping.set(false)

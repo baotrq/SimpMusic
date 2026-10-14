@@ -1014,4 +1014,16 @@
     <string name="log_stack_trace_lines">Stack trace · %1$s lines</string>
     <string name="log_hide_stack_trace">Hide stack trace</string>
     <string name="log_export_failed">Could not export the log</string>
-</resources>
+    <string name="led_strip">LED strip</string>
+    <string name="led_strip_sync">Sync LED strip with album art</string>
+    <string name="led_strip_sync_info">Sets a Bluetooth LED strip (LEDDMX controllers, as used by the LED LAMP app) to the vivid colour of the song\'s artwork.</string>
+    <string name="led_strip_device">Strip</string>
+    <string name="led_strip_not_selected">Not selected. Tap to search</string>
+    <string name="led_strip_brightness">Brightness</string>
+    <string name="led_strip_status_connecting">Waiting for the strip</string>
+    <string name="led_strip_status_connected">Connected</string>
+    <string name="led_strip_status_no_permission">Bluetooth permission needed. Tap to allow</string>
+    <string name="led_strip_searching">Searching for strips…</string>
+    <string name="led_strip_none_found">No strips found yet. Make sure the strip is powered on.</string>
+    <string name="led_strip_bluetooth_off">Bluetooth is off</string>
+    <string name="led_strip_choose">Choose your LED strip</string></resources>

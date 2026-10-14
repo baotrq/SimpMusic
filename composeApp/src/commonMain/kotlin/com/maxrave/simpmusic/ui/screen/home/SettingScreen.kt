@@ -110,6 +110,7 @@ import com.maxrave.domain.repository.ImportProgress
 import com.maxrave.domain.utils.LocalResource
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.Platform
+import com.maxrave.simpmusic.expect.ui.LedStripSettingItems
 import com.maxrave.simpmusic.expect.ui.LoginSyncDialog
 import com.maxrave.simpmusic.expect.ui.filePickerResult
 import com.maxrave.simpmusic.expect.ui.fileSaverResult
@@ -318,6 +319,7 @@ import simpmusic.composeapp.generated.resources.login_sync_section
 import simpmusic.composeapp.generated.resources.lrclib
 import simpmusic.composeapp.generated.resources.lyrics
 import simpmusic.composeapp.generated.resources.lyrics_style
+import simpmusic.composeapp.generated.resources.led_strip
 import simpmusic.composeapp.generated.resources.lyrics_offset
 import simpmusic.composeapp.generated.resources.lyrics_offset_invalid
 import simpmusic.composeapp.generated.resources.lyrics_offset_message
@@ -684,10 +686,20 @@ fun SettingScreen(
                         },
                 )
                 // Above every section, and inside item 0 rather than an item of its own, for the
-                // glow reason above.
+                // glow reason above. The car LED strip comes first on Android; whichever group is
+                // first is the one the pinned bar measures.
+                val ledStripFirst = getPlatform() == Platform.Android
+                if (ledStripFirst) {
+                    SettingGroup(
+                        title = stringResource(Res.string.led_strip),
+                        modifier = Modifier.onSizeChanged { devicesGroupHeightPx = it.height },
+                    ) {
+                        LedStripSettingItems()
+                    }
+                }
                 SettingGroup(
                     title = stringResource(Res.string.login_sync_section),
-                    modifier = Modifier.onSizeChanged { devicesGroupHeightPx = it.height },
+                    modifier = if (ledStripFirst) Modifier else Modifier.onSizeChanged { devicesGroupHeightPx = it.height },
                 ) {
                     SettingItem(
                         title =
