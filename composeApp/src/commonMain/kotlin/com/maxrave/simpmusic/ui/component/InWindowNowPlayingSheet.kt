@@ -73,6 +73,9 @@ internal object MiniPlayerAnchor {
     var artUrl by mutableStateOf<String?>(null)
     var artCornerFraction = 0.1f
 
+    /** The bar's corner radius in px, or null for a pill (half its height). */
+    var barCornerPx: Float? = null
+
     /** The bar's glass brightness, so a glass frame growing out of it matches it. */
     var glassLuminance by mutableStateOf<State<Float>?>(null)
 
@@ -147,6 +150,11 @@ internal object MiniPlayerAnchor {
 // first few frames and then stopped hard, which read as a snap rather than one glide.
 private const val SHEET_STIFFNESS = Spring.StiffnessLow
 
+// The spring ends once within this much progress of its target and jumps the rest. The default
+// (0.01) is 1% of the frame's travel, ~20px on a phone: the frame snapped the last bit into the bar.
+private val sheetSpring =
+    spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = SHEET_STIFFNESS, visibilityThreshold = 0.0002f)
+
 // Frames to let a player that was not built ahead finish building before it starts to grow.
 private const val BUILD_FRAMES = 4
 
@@ -184,7 +192,7 @@ internal fun InWindowNowPlayingSheet(
                 dragging = false
                 position.animateTo(
                     if (dismiss) 1f else 0f,
-                    spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = SHEET_STIFFNESS),
+                    sheetSpring,
                     initialVelocity = velocity,
                 )
                 if (dismiss) currentOnDismiss()
@@ -213,7 +221,7 @@ internal fun InWindowNowPlayingSheet(
     LaunchedEffect(MiniPlayerAnchor.returning) {
         if (MiniPlayerAnchor.returning && !open) {
             animationJob?.cancel()
-            position.animateTo(1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = SHEET_STIFFNESS))
+            position.animateTo(1f, sheetSpring)
             MiniPlayerAnchor.returning = false
         }
     }
@@ -278,7 +286,7 @@ internal fun InWindowNowPlayingSheet(
             val origin =
                 MiniPlayerAnchor.bounds?.takeIf { it.height > 0f }
                     ?: Rect(0f, heightPx, widthPx, heightPx * 2)
-            return lerp(Rect(0f, 0f, widthPx, heightPx), origin, p) to lerp(0f, origin.height / 2, p)
+            return lerp(Rect(0f, 0f, widthPx, heightPx), origin, p) to lerp(0f, MiniPlayerAnchor.barCornerPx ?: (origin.height / 2), p)
         }
         // The frame is a layer moved to the frame's corner and clipped to its outline: a rounded
         // outline clip is native to the renderer, where a drawn Path clip over the whole player
