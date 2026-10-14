@@ -121,6 +121,8 @@ import com.maxrave.simpmusic.extension.isScrollingUp
 import com.maxrave.simpmusic.extension.rgbFactor
 import com.maxrave.simpmusic.extension.ultraThinBarStyle
 import com.maxrave.simpmusic.getPlatform
+import com.maxrave.simpmusic.playbacksync.ContinueFromDeviceSlot
+import com.maxrave.simpmusic.playbacksync.PlaybackSync
 import com.maxrave.simpmusic.ui.component.BlogPromoDialog
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.DropdownButton
@@ -309,6 +311,9 @@ fun HomeScreen(
     // Home's own lifecycle: RESUMED only while it is the screen in front (not mid-transition to another
     // tab, not behind a system prompt). On Desktop STARTED means its window is showing.
     val homeLifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    // Fork: what another phone played last, offered on top of Home (fetched below, whenever Home comes
+    // to the front). A fresh start loads it outright instead, so this covers an app that kept running.
+    val remotePlayback by PlaybackSync.remote.collectAsStateWithLifecycle()
     // The language part of the BCP 47 tag: Android's Locale.language still reports the legacy "in"
     // for Indonesian and "iw" for Hebrew, while the config is keyed "id" and "he".
     val language = Locale.current.toLanguageTag().substringBefore('-')
@@ -398,6 +403,8 @@ fun HomeScreen(
     val onRefresh: () -> Unit = {
         isRefreshing = true
         viewModel.getHomeItemList(params)
+        // Fork: re-check the other phone's song too, so the card turns up without leaving Home.
+        coroutineScope.launch { PlaybackSync.refreshRemote() }
         Logger.w("HomeScreen", "onRefresh")
     }
     LaunchedEffect(key1 = reloadDestination) {
@@ -590,6 +597,7 @@ fun HomeScreen(
         homeLifecycle.isAtLeast(
             if (getPlatform() == Platform.Desktop) Lifecycle.State.STARTED else Lifecycle.State.RESUMED,
         )
+    LaunchedEffect(homeInFront) { if (homeInFront) PlaybackSync.refreshRemote() }
     val promoBlocked = otherDialogOpen || nowPlayingOpen || !homeInFront
     // It draws only once the banner has gone a moment unblocked since it was decided. The wait belongs
     // to that banner, so nothing left over from before it arrived can let it through early: it never
@@ -817,6 +825,13 @@ fun HomeScreen(
                                             url = accountInfo?.second ?: "",
                                         )
                                         Spacer(Modifier.height(8.dp))
+                                    }
+                                    if (index == 0) {
+                                        ContinueFromDeviceSlot(
+                                            snapshot = remotePlayback,
+                                            onContinue = viewModel::continueFromOtherDevice,
+                                            onDismiss = PlaybackSync::markHandled,
+                                        )
                                     }
                                     if (item.title == stringResource(Res.string.quick_picks)) {
                                         AnimatedVisibility(
