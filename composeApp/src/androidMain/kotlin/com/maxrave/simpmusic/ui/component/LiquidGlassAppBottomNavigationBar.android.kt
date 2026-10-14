@@ -65,6 +65,10 @@ private const val BAR_MORPH_MS = 300
 private val BarEdgePadding = 16.dp
 private val SearchGap = 12.dp
 private val SearchSize = 56.dp
+// Fork: from this width (DeX full screen, a tablet, a phone on its side) the mini player sits in
+// the bar's row instead of stretching across a whole row above it.
+private val InlineMinWidth = 840.dp
+private val InlineMiniPlayerMaxWidth = 560.dp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -170,11 +174,6 @@ actual fun LiquidGlassAppBottomNavigationBar(
     // Flat: the bar's own 16dp side edges, so the two line up, and its 8dp gaps.
     val miniPlayerPadding = if (liquidGlass) 12.dp else 16.dp
     val miniPlayerGap = if (liquidGlass) 12.dp else 8.dp
-    val constraintSet =
-        remember(isShowMiniPlayer, isExpanded, liquidGlass) {
-            decoupledConstraints(isShowMiniPlayer, isExpanded, miniPlayerPadding, miniPlayerGap)
-        }
-
     LaunchedEffect(isScrolledToTop) {
         Logger.d(TAG, "isScrolledToTop: $isScrolledToTop")
         if (!isInSearchDestination) {
@@ -253,6 +252,24 @@ actual fun LiquidGlassAppBottomNavigationBar(
                 liquidGlassTabBarWidth(barTabs.size, capsuleBudget)
             } else {
                 flatTabBarWidth(barTabs.size, capsuleBudget)
+            }
+        val inline = maxWidth >= InlineMinWidth
+        val toolbarWidth = capsuleWidth + SearchGap + SearchSize
+        val constraintSet =
+            if (inline) {
+                val miniCard =
+                    minOf(InlineMiniPlayerMaxWidth, maxWidth - BarEdgePadding * 2 - toolbarWidth - SearchGap)
+                val parentWidth = maxWidth
+                remember(isShowMiniPlayer, isExpanded, parentWidth, toolbarWidth, miniCard, miniPlayerPadding) {
+                    inlineConstraints(
+                        isShowMiniPlayer, isExpanded, parentWidth, if (isExpanded) toolbarWidth else CollapsedBarSize,
+                        miniCard, miniPlayerPadding,
+                    )
+                }
+            } else {
+                remember(isShowMiniPlayer, isExpanded, liquidGlass) {
+                    decoupledConstraints(isShowMiniPlayer, isExpanded, miniPlayerPadding, miniPlayerGap)
+                }
             }
         ConstraintLayout(
             constraintSet = constraintSet,
@@ -367,6 +384,38 @@ actual fun LiquidGlassAppBottomNavigationBar(
         }
     }
 }
+
+/**
+ * Wide windows: toolbar and mini player as one row, centred as a group. Every width is a fixed
+ * value, so ConstraintLayout animates the group re-centring as the toolbar folds and unfolds.
+ */
+private fun inlineConstraints(
+    isMiniplayerShow: Boolean,
+    isExpanded: Boolean,
+    parentWidth: Dp,
+    toolbarWidth: Dp,
+    miniCardWidth: Dp,
+    miniPlayerPadding: Dp,
+): ConstraintSet =
+    ConstraintSet {
+        val toolbar = createRefFor("toolbar")
+        val miniPlayer = createRefFor("miniPlayer")
+        val groupWidth = toolbarWidth + if (isMiniplayerShow) SearchGap + miniCardWidth else 0.dp
+        constrain(toolbar) {
+            bottom.linkTo(parent.bottom)
+            start.linkTo(parent.start, margin = ((parentWidth - groupWidth) / 2).coerceAtLeast(BarEdgePadding))
+            width = Dimension.value(toolbarWidth)
+            height = Dimension.value(if (isExpanded) BarHeight else CollapsedBarSize)
+        }
+        constrain(miniPlayer) {
+            // The card's own side padding is pulled back out of the gap, as in decoupledConstraints.
+            start.linkTo(toolbar.end, margin = SearchGap - miniPlayerPadding)
+            top.linkTo(toolbar.top)
+            bottom.linkTo(toolbar.bottom)
+            width = Dimension.value(miniCardWidth + miniPlayerPadding * 2)
+            visibility = if (isMiniplayerShow) Visibility.Visible else Visibility.Gone
+        }
+    }
 
 private fun decoupledConstraints(
     isMiniplayerShow: Boolean = true,
