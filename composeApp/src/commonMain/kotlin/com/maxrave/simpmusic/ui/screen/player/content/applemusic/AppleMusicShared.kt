@@ -85,6 +85,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
@@ -693,6 +694,8 @@ internal fun AppleMusicCompactHeader(
             placeholder = rememberHolderPainter(),
             error = rememberHolderPainter(),
             contentDescription = null,
+            // Fork: square, like the mini player; a video's 16:9 thumbnail would fit as a strip.
+            contentScale = ContentScale.Crop,
             modifier = Modifier.size(55.dp).clip(RoundedCornerShape(4.dp)),
         )
         Spacer(modifier = Modifier.width(12.dp))

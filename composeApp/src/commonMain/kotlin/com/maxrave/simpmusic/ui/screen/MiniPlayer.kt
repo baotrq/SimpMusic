@@ -338,7 +338,12 @@ fun MiniPlayer(
         // One shape for both the Card and the clip below. They must not diverge: the clip wraps
         // the Card's own background draw, so the larger radius wins and silently becomes the
         // visible one.
-        val miniPlayerShape = CircleShape
+        // Glass: a squared card that sits with the square cover; flat: a pill around the round cover.
+        val barCorner = if (isLiquidGlassEnabled == DataStoreManager.TRUE) 16.dp else null
+        val miniPlayerShape = barCorner?.let { RoundedCornerShape(it) } ?: CircleShape
+        // Fork: the player's frame shrinks back to this radius (null = half the bar's height).
+        val barCornerPx = barCorner?.let { with(LocalDensity.current) { it.toPx() } }
+        LaunchedEffect(barCornerPx, isVisible) { if (isVisible) MiniPlayerAnchor.barCornerPx = barCornerPx }
         // Without glass the card follows the theme, not the playing artwork.
         val cardColor =
             if (isLiquidGlassEnabled == DataStoreManager.TRUE) {
@@ -358,18 +363,21 @@ fun MiniPlayer(
                 ),
             modifier =
                 modifier
+                    // Fork: hidden while the player grows out of it, which takes its place. Ahead of
+                    // the glass, or the bar's glass stays up under the growing frame's.
+                    .graphicsLayer { alpha = MiniPlayerAnchor.barAlpha() }
                     .then(
                         if (isLiquidGlassEnabled == DataStoreManager.TRUE) {
-                            Modifier.liquidGlass(backdrop, layer, luminance, RoundedCornerShape(16.dp))
+                            // miniPlayerShape, like the clip and the growing frame: any other radius
+                            // shows around the card's edge.
+                            Modifier.liquidGlass(backdrop, layer, luminance, miniPlayerShape)
                         } else {
                             Modifier
                         },
                     ).then(
                         Modifier
                             // Fork: the player grows out of these bounds, and is built while a finger
-                            // is down here so it is ready before it starts to move. Hidden while the
-                            // player is growing out of it, which takes its place.
-                            .graphicsLayer { alpha = MiniPlayerAnchor.barAlpha() }
+                            // is down here so it is ready before it starts to move.
                             .onGloballyPositioned { coords ->
                                 if (isVisible && coords.size.height > 0) MiniPlayerAnchor.bounds = coords.boundsInRoot()
                             }.pointerInput(Unit) {
@@ -517,8 +525,9 @@ fun MiniPlayer(
                                         placeholder = rememberHolderPainter(),
                                         error = rememberHolderPainter(),
                                         contentDescription = null,
-                                        // Crop in the circle: FillWidth would leave bands around a 16:9 video thumbnail.
-                                        contentScale = if (isFlat) ContentScale.Crop else ContentScale.FillWidth,
+                                        // Always square: a 16:9 video thumbnail fitted by width jumped shape when the
+                                        // travelling cover (cropped square) landed back here.
+                                        contentScale = ContentScale.Crop,
                                         modifier =
                                             Modifier
                                                 .size(if (isFlat) 26.dp else 40.dp)
