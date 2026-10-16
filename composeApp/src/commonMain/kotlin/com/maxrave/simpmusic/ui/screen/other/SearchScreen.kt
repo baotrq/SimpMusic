@@ -296,13 +296,10 @@ fun SearchScreen(
         isSearchSubmitted = true
         searchViewModel.insertSearchHistory(historyItem)
         when (searchScreenState.searchType) {
-            SearchType.ALL -> searchViewModel.searchAll(historyItem)
             SearchType.SONGS -> searchViewModel.searchSongs(historyItem)
-            SearchType.VIDEOS -> searchViewModel.searchVideos(historyItem)
             SearchType.ALBUMS -> searchViewModel.searchAlbums(historyItem)
             SearchType.ARTISTS -> searchViewModel.searchArtists(historyItem)
             SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(historyItem)
-            SearchType.FEATURED_PLAYLISTS -> searchViewModel.searchFeaturedPlaylist(historyItem)
             SearchType.PODCASTS -> searchViewModel.searchPodcast(historyItem)
         }
     }
@@ -490,13 +487,10 @@ fun SearchScreen(
                                                 isSearchSubmitted = true
                                                 searchViewModel.insertSearchHistory(suggestion)
                                                 when (searchScreenState.searchType) {
-                                                    SearchType.ALL -> searchViewModel.searchAll(suggestion)
                                                     SearchType.SONGS -> searchViewModel.searchSongs(suggestion)
-                                                    SearchType.VIDEOS -> searchViewModel.searchVideos(suggestion)
                                                     SearchType.ALBUMS -> searchViewModel.searchAlbums(suggestion)
                                                     SearchType.ARTISTS -> searchViewModel.searchArtists(suggestion)
                                                     SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(suggestion)
-                                                    SearchType.FEATURED_PLAYLISTS -> searchViewModel.searchFeaturedPlaylist(suggestion)
                                                     SearchType.PODCASTS -> searchViewModel.searchPodcast(suggestion)
                                                 }
                                             },
@@ -577,13 +571,10 @@ fun SearchScreen(
                                                 isSearchSubmitted = true
                                                 searchViewModel.insertSearchHistory(historyItem)
                                                 when (searchScreenState.searchType) {
-                                                    SearchType.ALL -> searchViewModel.searchAll(historyItem)
                                                     SearchType.SONGS -> searchViewModel.searchSongs(historyItem)
-                                                    SearchType.VIDEOS -> searchViewModel.searchVideos(historyItem)
                                                     SearchType.ALBUMS -> searchViewModel.searchAlbums(historyItem)
                                                     SearchType.ARTISTS -> searchViewModel.searchArtists(historyItem)
                                                     SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(historyItem)
-                                                    SearchType.FEATURED_PLAYLISTS -> searchViewModel.searchFeaturedPlaylist(historyItem)
                                                     SearchType.PODCASTS -> searchViewModel.searchPodcast(historyItem)
                                                 }
                                             }.padding(horizontal = 12.dp),
@@ -775,13 +766,10 @@ fun SearchScreen(
                                     isSearchSubmitted = true
                                     searchViewModel.insertSearchHistory(query)
                                     when (searchScreenState.searchType) {
-                                        SearchType.ALL -> searchViewModel.searchAll(query)
                                         SearchType.SONGS -> searchViewModel.searchSongs(query)
-                                        SearchType.VIDEOS -> searchViewModel.searchVideos(query)
                                         SearchType.ALBUMS -> searchViewModel.searchAlbums(query)
                                         SearchType.ARTISTS -> searchViewModel.searchArtists(query)
                                         SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(query)
-                                        SearchType.FEATURED_PLAYLISTS -> searchViewModel.searchFeaturedPlaylist(query)
                                         SearchType.PODCASTS -> searchViewModel.searchPodcast(query)
                                     }
                                 }
@@ -828,13 +816,10 @@ fun SearchScreen(
                                             // Search Results List
                                             val currentResults =
                                                 when (searchScreenState.searchType) {
-                                                    SearchType.ALL -> searchScreenState.searchAllResult
                                                     SearchType.SONGS -> searchScreenState.searchSongsResult
-                                                    SearchType.VIDEOS -> searchScreenState.searchVideosResult
                                                     SearchType.ALBUMS -> searchScreenState.searchAlbumsResult
                                                     SearchType.ARTISTS -> searchScreenState.searchArtistsResult
                                                     SearchType.PLAYLISTS -> searchScreenState.searchPlaylistsResult
-                                                    SearchType.FEATURED_PLAYLISTS -> searchScreenState.searchFeaturedPlaylistsResult
                                                     SearchType.PODCASTS -> searchScreenState.searchPodcastsResult
                                                 }
 
@@ -918,6 +903,7 @@ fun SearchScreen(
                                                                             )
                                                                             searchViewModel.loadMediaItem(firstTrack, Config.VIDEO_CLICK)
                                                                         },
+                                                                        videoTag = true,
                                                                         onAddToQueue = {
                                                                             sharedViewModel.addListToQueue(
                                                                                 arrayListOf(result.toTrack()),
@@ -1015,7 +1001,13 @@ fun SearchScreen(
                                                 Spacer(modifier = Modifier.height(10.dp))
                                                 Button(onClick = {
                                                     if (searchText.isNotEmpty()) {
-                                                        searchViewModel.searchAll(searchText)
+                                                        when (searchScreenState.searchType) {
+                                                            SearchType.SONGS -> searchViewModel.searchSongs(searchText)
+                                                            SearchType.ALBUMS -> searchViewModel.searchAlbums(searchText)
+                                                            SearchType.ARTISTS -> searchViewModel.searchArtists(searchText)
+                                                            SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(searchText)
+                                                            SearchType.PODCASTS -> searchViewModel.searchPodcast(searchText)
+                                                        }
                                                     }
                                                 }) {
                                                     Text(text = stringResource(Res.string.retry))
@@ -1079,10 +1071,8 @@ fun SearchScreen(
                 onSelectAll = {
                     val visible =
                         when (searchScreenState.searchType) {
-                            SearchType.SONGS -> searchScreenState.searchSongsResult.map { it.videoId }
-                            SearchType.VIDEOS -> searchScreenState.searchVideosResult.map { it.videoId }
-                            SearchType.ALL ->
-                                searchScreenState.searchAllResult.mapNotNull {
+                            SearchType.SONGS ->
+                                searchScreenState.searchSongsResult.mapNotNull {
                                     (it as? SongsResult)?.videoId ?: (it as? VideosResult)?.videoId
                                 }
                             else -> emptyList()
@@ -1119,13 +1109,10 @@ fun SearchScreen(
                             focusManager.clearFocus()
                             searchViewModel.insertSearchHistory(query)
                             when (searchScreenState.searchType) {
-                                SearchType.ALL -> searchViewModel.searchAll(query)
                                 SearchType.SONGS -> searchViewModel.searchSongs(query)
-                                SearchType.VIDEOS -> searchViewModel.searchVideos(query)
                                 SearchType.ALBUMS -> searchViewModel.searchAlbums(query)
                                 SearchType.ARTISTS -> searchViewModel.searchArtists(query)
                                 SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(query)
-                                SearchType.FEATURED_PLAYLISTS -> searchViewModel.searchFeaturedPlaylist(query)
                                 SearchType.PODCASTS -> searchViewModel.searchPodcast(query)
                             }
                         }

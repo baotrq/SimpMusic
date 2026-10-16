@@ -25,31 +25,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.Normalizer
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.resources.StringResource
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.albums
-import simpmusic.composeapp.generated.resources.all
 import simpmusic.composeapp.generated.resources.artists
-import simpmusic.composeapp.generated.resources.featured_playlists
 import simpmusic.composeapp.generated.resources.playlists
 import simpmusic.composeapp.generated.resources.podcasts
 import simpmusic.composeapp.generated.resources.songs
-import simpmusic.composeapp.generated.resources.videos
 
 // State cho tìm kiếm
 data class SearchScreenState(
-    val searchType: SearchType = SearchType.ALL,
-    val searchAllResult: List<SearchResultType> = emptyList(),
-    val searchSongsResult: List<SongsResult> = emptyList(),
-    val searchVideosResult: List<VideosResult> = emptyList(),
+    val searchType: SearchType = SearchType.SONGS,
+    // Songs and videos in one list, best match first: see [mergeByMatch].
+    val searchSongsResult: List<SearchResultType> = emptyList(),
     val searchAlbumsResult: List<AlbumsResult> = emptyList(),
     val searchArtistsResult: List<ArtistsResult> = emptyList(),
     val searchPlaylistsResult: List<PlaylistsResult> = emptyList(),
-    val searchFeaturedPlaylistsResult: List<PlaylistsResult> = emptyList(),
     val searchPodcastsResult: List<PlaylistsResult> = emptyList(),
     val suggestQueries: List<String> = emptyList(),
     val suggestYTItems: List<SearchResultType> = emptyList(),
@@ -57,25 +54,19 @@ data class SearchScreenState(
 
 // Loại tìm kiếm
 enum class SearchType {
-    ALL,
     SONGS,
-    VIDEOS,
-    ALBUMS,
     ARTISTS,
+    ALBUMS,
     PLAYLISTS,
-    FEATURED_PLAYLISTS,
     PODCASTS,
 }
 
 fun SearchType.toStringRes(): StringResource =
     when (this) {
-        SearchType.ALL -> Res.string.all
         SearchType.SONGS -> Res.string.songs
-        SearchType.VIDEOS -> Res.string.videos
         SearchType.ALBUMS -> Res.string.albums
         SearchType.ARTISTS -> Res.string.artists
         SearchType.PLAYLISTS -> Res.string.playlists
-        SearchType.FEATURED_PLAYLISTS -> Res.string.featured_playlists
         SearchType.PODCASTS -> Res.string.podcasts
     }
 
@@ -203,152 +194,29 @@ class SearchViewModel(
         }
     }
 
+    /**
+     * Songs and videos together: a lot of music (remixes, covers, uploads) exists only as a video,
+     * and YouTube's Songs filter never shows it. Both filters are asked and the results merged by
+     * how well they match the query.
+     */
     fun searchSongs(query: String) {
         _searchScreenUIState.value = SearchScreenUIState.Loading
         viewModelScope.launch {
-            searchRepository.getSearchDataSong(query).collect { values ->
-                when (values) {
-                    is Resource.Success -> {
-                        values.data?.let { songsList ->
-                            _searchScreenState.update { state ->
-                                state.copy(searchSongsResult = songsList)
-                            }
-                        }
-                        _searchScreenUIState.value = SearchScreenUIState.Success
-                    }
-
-                    is Resource.Error -> {
-                        _searchScreenUIState.value = SearchScreenUIState.Error
-                    }
-                }
-            }
-        }
-    }
-
-    fun searchAll(query: String) {
-        _searchScreenUIState.value = SearchScreenUIState.Loading
-        viewModelScope.launch {
-            var song = ArrayList<SongsResult>()
-            val video = ArrayList<VideosResult>()
-            var album = ArrayList<AlbumsResult>()
-            var artist = ArrayList<ArtistsResult>()
-            var playlist = ArrayList<PlaylistsResult>()
-            var featuredPlaylist = ArrayList<PlaylistsResult>()
-            var podcast = ArrayList<PlaylistsResult>()
-            val temp: ArrayList<SearchResultType> = ArrayList()
-
-            val job1 =
-                launch {
-                    searchRepository.getSearchDataSong(query).collect { values ->
-                        when (values) {
-                            is Resource.Success -> values.data?.let { song = it }
-                            is Resource.Error -> {}
-                        }
-                    }
-                }
-            val job2 =
-                launch {
-                    searchRepository.getSearchDataArtist(query).collect { values ->
-                        when (values) {
-                            is Resource.Success -> values.data?.let { artist = it }
-                            is Resource.Error -> {}
-                        }
-                    }
-                }
-            val job3 =
-                launch {
-                    searchRepository
-                        .getSearchDataAlbum(query)
-                        .collect { values ->
-                            when (values) {
-                                is Resource.Success -> values.data?.let { album = it }
-                                is Resource.Error -> {}
-                            }
-                        }
-                }
-            val job4 =
-                launch {
-                    searchRepository.getSearchDataPlaylist(query).collect { values ->
-                        when (values) {
-                            is Resource.Success -> values.data?.let { playlist = it }
-                            is Resource.Error -> {}
-                        }
-                    }
-                }
-            val job5 =
-                launch {
-                    searchRepository.getSearchDataVideo(query).collect { values ->
-                        when (values) {
-                            is Resource.Success -> values.data?.let { video.addAll(it) }
-                            is Resource.Error -> {}
-                        }
-                    }
-                }
-            val job6 =
-                launch {
-                    searchRepository.getSearchDataFeaturedPlaylist(query).collect { values ->
-                        when (values) {
-                            is Resource.Success -> values.data?.let { featuredPlaylist = it }
-                            is Resource.Error -> {}
-                        }
-                    }
-                }
-            val job7 =
-                launch {
-                    searchRepository.getSearchDataPodcast(query).collect { values ->
-                        when (values) {
-                            is Resource.Success -> values.data?.let { podcast = it }
-                            is Resource.Error -> {}
-                        }
-                    }
-                }
-            job1.join()
-            job2.join()
-            job3.join()
-            job4.join()
-            job5.join()
-            job6.join()
-            job7.join()
-
-            try {
-                if (artist.size >= 3) {
-                    for (i in 0..2) {
-                        temp += artist[i]
-                    }
-                    temp.addAll(song)
-                    temp.addAll(video)
-                    temp.addAll(album)
-                    temp.addAll(playlist)
-                    temp.addAll(featuredPlaylist)
-                    temp.addAll(podcast)
-                } else {
-                    temp.addAll(artist)
-                    temp.addAll(song)
-                    temp.addAll(video)
-                    temp.addAll(album)
-                    temp.addAll(playlist)
-                    temp.addAll(featuredPlaylist)
-                    temp.addAll(podcast)
-                }
-
-                _searchScreenState.update { state ->
-                    state.copy(
-                        searchType = SearchType.ALL,
-                        searchAllResult = temp,
-                        searchSongsResult = song,
-                        searchArtistsResult = artist,
-                        searchAlbumsResult = album,
-                        searchPlaylistsResult = playlist,
-                        searchVideosResult = video,
-                        searchFeaturedPlaylistsResult = featuredPlaylist,
-                        searchPodcastsResult = podcast,
-                    )
-                }
-                _searchScreenUIState.value = SearchScreenUIState.Success
-            } catch (e: Exception) {
-                e.printStackTrace()
+            val songs = async { searchRepository.getSearchDataSong(query).first() }
+            val videos = async { searchRepository.getSearchDataVideo(query).first() }
+            val songResult = songs.await()
+            val videoResult = videos.await()
+            if (songResult is Resource.Error && videoResult is Resource.Error) {
                 _searchScreenUIState.value = SearchScreenUIState.Error
+                return@launch
             }
+            _searchScreenState.update { state ->
+                state.copy(
+                    searchType = SearchType.SONGS,
+                    searchSongsResult = mergeByMatch(query, songResult.data.orEmpty(), videoResult.data.orEmpty()),
+                )
+            }
+            _searchScreenUIState.value = SearchScreenUIState.Success
         }
     }
 
@@ -387,31 +255,6 @@ class SearchViewModel(
                                 state.copy(
                                     searchType = SearchType.ALBUMS,
                                     searchAlbumsResult = albumsList,
-                                )
-                            }
-                        }
-                        _searchScreenUIState.value = SearchScreenUIState.Success
-                    }
-
-                    is Resource.Error -> {
-                        _searchScreenUIState.value = SearchScreenUIState.Error
-                    }
-                }
-            }
-        }
-    }
-
-    fun searchFeaturedPlaylist(query: String) {
-        _searchScreenUIState.value = SearchScreenUIState.Loading
-        viewModelScope.launch {
-            searchRepository.getSearchDataFeaturedPlaylist(query).collect { values ->
-                when (values) {
-                    is Resource.Success -> {
-                        values.data?.let { featuredPlaylistList ->
-                            _searchScreenState.update { state ->
-                                state.copy(
-                                    searchType = SearchType.FEATURED_PLAYLISTS,
-                                    searchFeaturedPlaylistsResult = featuredPlaylistList,
                                 )
                             }
                         }
@@ -476,53 +319,26 @@ class SearchViewModel(
         }
     }
 
+    /** YouTube's own (featured) playlists first, then community ones. */
     fun searchPlaylists(query: String) {
         _searchScreenUIState.value = SearchScreenUIState.Loading
         viewModelScope.launch {
-            searchRepository.getSearchDataPlaylist(query).collect { values ->
-                when (values) {
-                    is Resource.Success -> {
-                        values.data?.let { playlistsList ->
-                            _searchScreenState.update { state ->
-                                state.copy(
-                                    searchType = SearchType.PLAYLISTS,
-                                    searchPlaylistsResult = playlistsList,
-                                )
-                            }
-                        }
-                        _searchScreenUIState.value = SearchScreenUIState.Success
-                    }
-
-                    is Resource.Error -> {
-                        _searchScreenUIState.value = SearchScreenUIState.Error
-                    }
-                }
+            val featured = async { searchRepository.getSearchDataFeaturedPlaylist(query).first() }
+            val community = async { searchRepository.getSearchDataPlaylist(query).first() }
+            val featuredResult = featured.await()
+            val communityResult = community.await()
+            if (featuredResult is Resource.Error && communityResult is Resource.Error) {
+                _searchScreenUIState.value = SearchScreenUIState.Error
+                return@launch
             }
-        }
-    }
-
-    fun searchVideos(query: String) {
-        _searchScreenUIState.value = SearchScreenUIState.Loading
-        viewModelScope.launch {
-            searchRepository.getSearchDataVideo(query).collect { values ->
-                when (values) {
-                    is Resource.Success -> {
-                        values.data?.let { videosList ->
-                            _searchScreenState.update { state ->
-                                state.copy(
-                                    searchType = SearchType.VIDEOS,
-                                    searchVideosResult = videosList,
-                                )
-                            }
-                        }
-                        _searchScreenUIState.value = SearchScreenUIState.Success
-                    }
-
-                    is Resource.Error -> {
-                        _searchScreenUIState.value = SearchScreenUIState.Error
-                    }
-                }
+            _searchScreenState.update { state ->
+                state.copy(
+                    searchType = SearchType.PLAYLISTS,
+                    searchPlaylistsResult =
+                        (featuredResult.data.orEmpty() + communityResult.data.orEmpty()).distinctBy { it.browseId },
+                )
             }
+            _searchScreenUIState.value = SearchScreenUIState.Success
         }
     }
 
@@ -534,3 +350,37 @@ class SearchViewModel(
 }
 // How many recently played songs the search landing offers.
 private const val RECENT_SONG_COUNT = 15
+
+/**
+ * Songs and videos merged, best match first. A result scores one point per query word found among
+ * the words of its title and artists, compared without case or accents ("nuoc mat" matches "Nước
+ * Mắt", đ as d). Ties keep each list's own order, interleaved song, video, song…, so with no word
+ * to tell them apart YouTube's ranking still decides.
+ */
+internal fun mergeByMatch(
+    query: String,
+    songs: List<SongsResult>,
+    videos: List<VideosResult>,
+): List<SearchResultType> {
+    val queryWords = searchWords(query)
+    fun score(title: String?, artists: List<String>): Int {
+        val words = searchWords(title.orEmpty() + " " + artists.joinToString(" "))
+        return queryWords.count { it in words }
+    }
+    data class Ranked(val item: SearchResultType, val videoId: String, val score: Int, val rank: Int, val isVideo: Boolean)
+    val ranked =
+        songs.mapIndexed { i, it -> Ranked(it, it.videoId, score(it.title, it.artists.orEmpty().map { a -> a.name }), i, false) } +
+            videos.mapIndexed { i, it -> Ranked(it, it.videoId, score(it.title, it.artists.orEmpty().map { a -> a.name }), i, true) }
+    return ranked
+        .sortedWith(compareByDescending<Ranked> { it.score }.thenBy { it.rank }.thenBy { it.isVideo })
+        .distinctBy { it.videoId }
+        .map { it.item }
+}
+
+private fun searchWords(text: String): Set<String> =
+    Normalizer
+        .normalize(text.lowercase().replace('đ', 'd'), Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .split(Regex("[^\\p{L}\\p{N}]+"))
+        .filter { it.isNotEmpty() }
+        .toSet()

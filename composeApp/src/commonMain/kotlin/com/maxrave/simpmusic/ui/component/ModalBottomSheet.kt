@@ -58,6 +58,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -164,6 +165,11 @@ import com.maxrave.simpmusic.ui.icon.Remove
 import com.maxrave.simpmusic.ui.icon.Sensors
 import com.maxrave.simpmusic.ui.icon.Share
 import com.maxrave.simpmusic.ui.icon.SimpIcons
+import com.maxrave.simpmusic.ui.component.lyrics.TapAlongLyricsDialog
+import com.maxrave.simpmusic.ui.icon.ThumbsUpDown
+import com.maxrave.simpmusic.ui.icon.TouchApp
+import com.maxrave.simpmusic.ui.screen.player.content.canVote
+import com.maxrave.simpmusic.ui.screen.player.content.stripRichSyncTimestamps
 import com.maxrave.simpmusic.ui.icon.Speed
 import com.maxrave.simpmusic.ui.icon.Sync
 import com.maxrave.simpmusic.ui.icon.SyncDisabled
@@ -175,6 +181,7 @@ import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetUIEvent
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel
+import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -228,7 +235,13 @@ import simpmusic.composeapp.generated.resources.like_and_dislike
 import simpmusic.composeapp.generated.resources.liked
 import simpmusic.composeapp.generated.resources.list_all_cookies_of_this_page
 import simpmusic.composeapp.generated.resources.lrclib
-import simpmusic.composeapp.generated.resources.main_lyrics_provider
+import simpmusic.composeapp.generated.resources.lyrics
+import simpmusic.composeapp.generated.resources.lyrics_provider_for_this_song
+import simpmusic.composeapp.generated.resources.lyrics_provider_main
+import simpmusic.composeapp.generated.resources.rate_lyrics
+import simpmusic.composeapp.generated.resources.tap_along
+import simpmusic.composeapp.generated.resources.tap_along_description
+import simpmusic.composeapp.generated.resources.tap_along_remove
 import simpmusic.composeapp.generated.resources.merging_audio_and_video
 import simpmusic.composeapp.generated.resources.mime_type
 import simpmusic.composeapp.generated.resources.move_down
@@ -1353,6 +1366,7 @@ fun NowPlayingBottomSheet(
     var addToAPlaylist by remember { mutableStateOf(false) }
     var artist by remember { mutableStateOf(false) }
     var mainLyricsProvider by remember { mutableStateOf(false) }
+    var tapAlongLines by remember { mutableStateOf<List<String>?>(null) }
     var sleepTimer by remember { mutableStateOf(false) }
     var sleepTimerWarning by remember { mutableStateOf(false) }
     var isBottomSheetVisible by rememberSaveable { mutableStateOf(false) }
@@ -1454,94 +1468,164 @@ fun NowPlayingBottomSheet(
         )
     }
 
+    tapAlongLines?.let { lines ->
+        TapAlongLyricsDialog(
+            videoId = uiState.songUIState.videoId,
+            sourceLines = lines,
+            onDismiss = { tapAlongLines = null },
+            onSaved = {
+                tapAlongLines = null
+                hideModalBottomSheet()
+            },
+        )
+    }
+
     if (mainLyricsProvider) {
-        var selected by remember {
-            mutableIntStateOf(
-                when (uiState.mainLyricsProvider) {
-                    DataStoreManager.SIMPMUSIC -> 0
-                    DataStoreManager.LRCLIB -> 1
-                    DataStoreManager.YOUTUBE -> 2
-                    DataStoreManager.BETTER_LYRICS -> 3
-                    else -> 0
+        val sharedViewModel = koinInject<SharedViewModel>()
+        val videoId = uiState.songUIState.videoId
+        val songProvider by remember(videoId) { sharedViewModel.songLyricsProvider(videoId) }.collectAsState(null)
+        // "" = the main provider; anything else overrides it for this song only.
+        var selected by remember(songProvider) { mutableStateOf(songProvider.orEmpty()) }
+        val screenData by sharedViewModel.nowPlayingScreenData.collectAsStateWithLifecycle()
+        val lyricsData = screenData.lyricsData
+        var showVoteDialog by remember { mutableStateOf(false) }
+
+        if (showVoteDialog) {
+            val lyricsVoteState by sharedViewModel.lyricsVoteState.collectAsStateWithLifecycle()
+            val translatedVoteState by sharedViewModel.translatedVoteState.collectAsStateWithLifecycle()
+            VoteLyricsDialog(
+                canVoteLyrics =
+                    lyricsData?.lyricsProvider == LyricsProvider.SIMPMUSIC && lyricsData?.lyrics?.simpMusicLyrics != null,
+                canVoteTranslatedLyrics =
+                    lyricsData?.translatedLyrics?.second == LyricsProvider.SIMPMUSIC &&
+                        lyricsData?.translatedLyrics?.first?.simpMusicLyrics != null,
+                lyricsVoteState = lyricsVoteState,
+                translatedLyricsVoteState = translatedVoteState,
+                onVoteLyrics = { sharedViewModel.voteLyrics(it) },
+                onVoteTranslatedLyrics = { sharedViewModel.voteTranslatedLyrics(it) },
+                onDismiss = { showVoteDialog = false },
+            )
+        }
+
+        val providerName: @Composable (String) -> String = { provider ->
+            stringResource(
+                when (provider) {
+                    DataStoreManager.LRCLIB -> Res.string.lrclib
+                    DataStoreManager.YOUTUBE -> Res.string.youtube_transcript
+                    DataStoreManager.BETTER_LYRICS -> Res.string.better_lyrics
+                    else -> Res.string.simpmusic_lyrics
                 },
             )
         }
+        val options =
+            listOf("", DataStoreManager.SIMPMUSIC, DataStoreManager.LRCLIB, DataStoreManager.YOUTUBE, DataStoreManager.BETTER_LYRICS)
 
         AlertDialog(
             onDismissRequest = { mainLyricsProvider = false },
             containerColor = rememberSurfaceDarkColors().container,
             title = {
                 Text(
-                    text = stringResource(Res.string.main_lyrics_provider),
+                    text = stringResource(Res.string.lyrics_provider_for_this_song),
                     style = typo().titleMedium,
                 )
             },
             text = {
                 Column {
-                    Row(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 4.dp)
-                                .fillMaxWidth()
-                                .clickable { selected = 0 },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected == 0, onClick = { selected = 0 })
-                        Spacer(modifier = Modifier.size(10.dp))
-                        Text(text = stringResource(Res.string.simpmusic_lyrics), style = typo().labelSmall)
+                    options.forEach { option ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .fillMaxWidth()
+                                    .clickable { selected = option },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = selected == option, onClick = { selected = option })
+                            Spacer(modifier = Modifier.size(10.dp))
+                            Text(
+                                text =
+                                    if (option.isEmpty()) {
+                                        stringResource(Res.string.lyrics_provider_main, providerName(uiState.mainLyricsProvider))
+                                    } else {
+                                        providerName(option)
+                                    },
+                                style = typo().labelSmall,
+                            )
+                        }
                     }
-                    Row(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 4.dp)
-                                .fillMaxWidth()
-                                .clickable { selected = 1 },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected == 1, onClick = { selected = 1 })
-                        Spacer(modifier = Modifier.size(10.dp))
-                        Text(text = stringResource(Res.string.lrclib), style = typo().labelSmall)
+                    // Only lyrics that actually came from SimpMusic can be rated: the other
+                    // providers take no votes, and a SimpMusic miss falls through to them.
+                    if (lyricsData.canVote()) {
+                        Spacer(modifier = Modifier.size(8.dp))
+                        TextButton(onClick = { showVoteDialog = true }) {
+                            Icon(
+                                imageVector = SimpIcons.ThumbsUpDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = stringResource(Res.string.rate_lyrics),
+                                style = typo().labelSmall,
+                                color = LocalContentColor.current,
+                            )
+                        }
                     }
-                    Row(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 4.dp)
-                                .fillMaxWidth()
-                                .clickable { selected = 2 },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected == 2, onClick = { selected = 2 })
-                        Spacer(modifier = Modifier.size(10.dp))
-                        Text(text = stringResource(Res.string.youtube_transcript), style = typo().labelSmall)
+                    val sourceLines =
+                        lyricsData
+                            ?.lyrics
+                            ?.lines
+                            ?.map { if (lyricsData.lyrics.syncType == "RICH_SYNCED") it.words.stripRichSyncTimestamps() else it.words }
+                            ?.map { it.trim() }
+                            ?.filter { it.isNotEmpty() }
+                            .orEmpty()
+                    // Shown even with no lyrics at all: lines can be typed in from tap-along.
+                    run {
+                        TextButton(
+                            onClick = {
+                                tapAlongLines = sourceLines
+                                mainLyricsProvider = false
+                            },
+                        ) {
+                            Icon(
+                                imageVector = SimpIcons.TouchApp,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(Res.string.tap_along),
+                                    style = typo().labelSmall,
+                                    color = LocalContentColor.current,
+                                )
+                                Text(
+                                    text = stringResource(Res.string.tap_along_description),
+                                    style = typo().bodySmall,
+                                )
+                            }
+                        }
                     }
-                    Row(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 4.dp)
-                                .fillMaxWidth()
-                                .clickable { selected = 3 },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected == 3, onClick = { selected = 3 })
-                        Spacer(modifier = Modifier.size(10.dp))
-                        Text(text = stringResource(Res.string.better_lyrics), style = typo().labelSmall)
+                    if (lyricsData?.lyricsProvider == LyricsProvider.CUSTOM) {
+                        TextButton(
+                            onClick = {
+                                sharedViewModel.deleteCustomLyrics(videoId)
+                                mainLyricsProvider = false
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.tap_along_remove),
+                                style = typo().labelSmall,
+                                color = LocalContentColor.current,
+                            )
+                        }
                     }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.onUIEvent(
-                            NowPlayingBottomSheetUIEvent.ChangeLyricsProvider(
-                                when (selected) {
-                                    0 -> DataStoreManager.SIMPMUSIC
-                                    1 -> DataStoreManager.LRCLIB
-                                    2 -> DataStoreManager.YOUTUBE
-                                    3 -> DataStoreManager.BETTER_LYRICS
-                                    else -> DataStoreManager.SIMPMUSIC
-                                },
-                            ),
-                        )
+                        sharedViewModel.setSongLyricsProvider(videoId, selected)
                         mainLyricsProvider = false
                     },
                 ) {
@@ -1680,6 +1764,16 @@ fun NowPlayingBottomSheet(
                             }
                         }
                     }
+                    Crossfade(targetState = changeMainLyricsProviderEnable) {
+                        if (it) {
+                            ActionButton(
+                                icon = SimpIcons.Lyrics,
+                                text = Res.string.lyrics,
+                            ) {
+                                mainLyricsProvider = true
+                            }
+                        }
+                    }
                     CheckBoxActionButton(
                         defaultChecked = uiState.songUIState.liked,
                         isHeartIcon = true,
@@ -1784,16 +1878,6 @@ fun NowPlayingBottomSheet(
                             ),
                         )
                         hideModalBottomSheet()
-                    }
-                    Crossfade(targetState = changeMainLyricsProviderEnable) {
-                        if (it) {
-                            ActionButton(
-                                icon = SimpIcons.Lyrics,
-                                text = Res.string.main_lyrics_provider,
-                            ) {
-                                mainLyricsProvider = true
-                            }
-                        }
                     }
                     Crossfade(targetState = setSleepTimerEnable) {
                         val sleepTimerState = uiState.sleepTimer
