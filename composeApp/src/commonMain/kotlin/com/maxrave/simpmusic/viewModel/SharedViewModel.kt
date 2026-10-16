@@ -73,6 +73,8 @@ import com.maxrave.simpmusic.expect.getDownloadFolderPath
 import com.maxrave.simpmusic.expect.ui.toByteArray
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.playbacksync.SettingsSync
+import com.maxrave.simpmusic.playbacksync.SongLyricsSync
+import com.maxrave.simpmusic.utils.CustomLyrics
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.decodePromos
 import com.maxrave.simpmusic.utils.isEnglishOrVietnamese
@@ -844,6 +846,58 @@ class SharedViewModel(
         }
     }
 
+    /** Plain (untimed) lyrics a source returned while the lookup went on to look for a timed version. */
+    private data class PlainLyricsBackup(
+        val videoId: String,
+        val duration: Int,
+        val lyrics: Lyrics,
+        val provider: LyricsProvider,
+    )
+
+    private var plainLyricsBackup: PlainLyricsBackup? = null
+
+    /**
+     * True when [lyrics] carry no timing: they are kept as a backup (the first one found wins) and
+     * the caller carries on down its fallback chain as if the source had missed, so a timed version
+     * further down the chain is preferred. [finishLyricsSearch] uses the backup if none turns up.
+     */
+    private fun holdIfPlain(
+        videoId: String,
+        duration: Int,
+        lyrics: Lyrics,
+        provider: LyricsProvider,
+    ): Boolean {
+        if (lyrics.syncType == "LINE_SYNCED" || lyrics.syncType == "RICH_SYNCED") return false
+        if (plainLyricsBackup?.videoId != videoId) {
+            plainLyricsBackup = PlainLyricsBackup(videoId, duration, lyrics, provider)
+        }
+        log("Plain lyrics from $provider for $videoId, looking for timed ones", LogLevel.INFO)
+        return true
+    }
+
+    /**
+     * The end of every fallback chain. A plain version fetched just now beats the saved copy, which
+     * may be older lyrics this song has since been moved away from; with nothing fetched, the saved
+     * copy is the offline fallback it always was.
+     */
+    private fun finishLyricsSearch(track: Track) {
+        val backup = plainLyricsBackup?.takeIf { it.videoId == track.videoId }
+        if (backup == null) {
+            getSavedLyrics(track)
+            return
+        }
+        plainLyricsBackup = null
+        viewModelScope.launch {
+            updateLyrics(backup.videoId, backup.duration, backup.lyrics, false, backup.provider)
+            insertLyrics(backup.lyrics.toLyricsEntity(backup.videoId))
+            if (backup.provider == LyricsProvider.SIMPMUSIC) {
+                getSimpMusicTranslatedLyrics(backup.videoId, backup.lyrics)
+            } else {
+                getAITranslationLyrics(backup.videoId, backup.lyrics)
+            }
+        }
+    }
+
     private fun getSavedLyrics(track: Track) {
         viewModelScope.launch {
             lyricsCanvasRepository.getSavedLyrics(track.videoId).cancellable().collectLatest { lyrics ->
@@ -1354,7 +1408,9 @@ class SharedViewModel(
             runBlocking {
                 dataStoreManager.helpBuildLyricsDatabase.first() == TRUE
             } &&
-                lyricsProvider != LyricsProvider.SIMPMUSIC
+                lyricsProvider != LyricsProvider.SIMPMUSIC &&
+                // Tap-along timing is personal and stays on the device.
+                lyricsProvider != LyricsProvider.CUSTOM
         if (_nowPlayingState.value?.songEntity?.videoId == videoId) {
             val track = _nowPlayingState.value?.track
             when (isTranslatedLyrics) {
@@ -1480,7 +1536,18 @@ class SharedViewModel(
                         ?: ""
                 }
             resetLyricsVoteState()
-            val lyricsProvider = dataStoreManager.lyricsProvider.first()
+            plainLyricsBackup = null
+            // Fixes made for this song on another device (its source, the user's own lyrics).
+            SongLyricsSync.pull(videoId, dataStoreManager)
+            // Lyrics the user timed with tap-along win over every provider for this song.
+            CustomLyrics.load(videoId)?.let { custom ->
+                updateLyrics(videoId, duration, custom, false, LyricsProvider.CUSTOM)
+                getAITranslationLyrics(videoId, custom)
+                return@launch
+            }
+            val lyricsProvider =
+                songLyricsProvider(videoId).first()?.takeIf { it.isNotEmpty() }
+                    ?: dataStoreManager.lyricsProvider.first()
             when (lyricsProvider) {
                 DataStoreManager.SIMPMUSIC -> {
                     getSimpMusicLyrics(
@@ -1528,7 +1595,7 @@ class SharedViewModel(
         lyricsCanvasRepository.getSimpMusicLyrics(videoId).collectLatest {
             Logger.d(tag, "Get SimpMusic Lyrics for $videoId: ${it::class.simpleName}")
             val data = it.data
-            if (it is Resource.Success && data != null) {
+            if (it is Resource.Success && data != null && !holdIfPlain(videoId, duration, data, LyricsProvider.SIMPMUSIC)) {
                 Logger.d(tag, "Get SimpMusic Lyrics Success")
                 updateLyrics(
                     videoId,
@@ -1625,7 +1692,7 @@ class SharedViewModel(
                 ).collectLatest { res ->
                     val data = res.data
                     when (res) {
-                        is Resource.Success if (data != null) -> {
+                        is Resource.Success if (data != null && !holdIfPlain(song.videoId, duration, data, LyricsProvider.LRCLIB)) -> {
                             Logger.d(tag, "Get Lyrics Data Success")
                             updateLyrics(
                                 song.videoId,
@@ -1646,7 +1713,7 @@ class SharedViewModel(
                         }
 
                         else -> {
-                            getSavedLyrics(
+                            finishLyricsSearch(
                                 song.toTrack().copy(
                                     durationSeconds = duration,
                                 ),
@@ -1671,7 +1738,7 @@ class SharedViewModel(
                 ).collectLatest { res ->
                     val data = res.data
                     when (res) {
-                        is Resource.Success if (data != null) -> {
+                        is Resource.Success if (data != null && !holdIfPlain(song.videoId, duration, data, LyricsProvider.BETTER_LYRICS)) -> {
                             Logger.d(tag, "Get BetterLyrics Success")
                             updateLyrics(
                                 song.videoId,
@@ -1854,25 +1921,23 @@ class SharedViewModel(
                 Logger.d("Check SpotifyLyrics", response.toString())
                 val data = response.data
                 when (response) {
-                    is Resource.Success -> {
-                        if (data != null) {
-                            insertLyrics(
-                                data.toLyricsEntity(
-                                    track.videoId,
-                                ),
-                            )
-                            updateLyrics(
+                    is Resource.Success if (data != null && !holdIfPlain(track.videoId, duration ?: 0, data, LyricsProvider.SPOTIFY)) -> {
+                        insertLyrics(
+                            data.toLyricsEntity(
                                 track.videoId,
-                                duration ?: 0,
-                                data,
-                                false,
-                                LyricsProvider.SPOTIFY,
-                            )
-                            getAITranslationLyrics(
-                                track.videoId,
-                                data,
-                            )
-                        }
+                            ),
+                        )
+                        updateLyrics(
+                            track.videoId,
+                            duration ?: 0,
+                            data,
+                            false,
+                            LyricsProvider.SPOTIFY,
+                        )
+                        getAITranslationLyrics(
+                            track.videoId,
+                            data,
+                        )
                     }
 
                     else -> {
@@ -1885,6 +1950,59 @@ class SharedViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * The lyrics source chosen for one song, overriding the main provider for that song only — for
+     * a track whose usual source is wrong (lyrics timed to the music video, a different take).
+     * Empty or null means the main provider.
+     */
+    fun songLyricsProvider(videoId: String): Flow<String?> = dataStoreManager.getString(SongLyricsSync.providerKey(videoId))
+
+    fun setSongLyricsProvider(
+        videoId: String,
+        provider: String,
+    ) {
+        viewModelScope.launch {
+            dataStoreManager.putString(SongLyricsSync.providerKey(videoId), provider)
+            SongLyricsSync.push(videoId, dataStoreManager)
+            if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
+        }
+    }
+
+    /** Saves the user's own lyrics for [videoId] (tap-along or edited) and shows them at once if that song is playing. */
+    fun saveCustomLyrics(
+        videoId: String,
+        lines: List<Pair<Long, String>>,
+        timed: Boolean = true,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            CustomLyrics.save(videoId, lines, timed)
+            SongLyricsSync.push(videoId, dataStoreManager)
+            if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
+        }
+    }
+
+    fun deleteCustomLyrics(videoId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            CustomLyrics.delete(videoId)
+            SongLyricsSync.push(videoId, dataStoreManager)
+            if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
+        }
+    }
+
+    /**
+     * Where the playhead is right now, for stamping a tap. Android asks the player itself, since
+     * the published timeline lags it by up to a tick; Desktop's player moves in 250-500 ms steps,
+     * so the published (smoothed) timeline is the finer of the two there.
+     */
+    fun playerPositionMs(): Long =
+        if (getPlatform() == Platform.Desktop) timeline.value.current else mediaPlayerHandler.getProgress()
+
+    fun seekToMs(positionMs: Long) {
+        val total = timeline.value.total
+        if (total <= 0) return
+        onUIEvent(UIEvent.UpdateProgress(positionMs.coerceIn(0, total) * 100f / total))
     }
 
     private fun setLyricsProvider() {
@@ -2264,6 +2382,7 @@ enum class LyricsProvider {
     BETTER_LYRICS,
     AI,
     OFFLINE,
+    CUSTOM,
 }
 
 data class NowPlayingScreenData(

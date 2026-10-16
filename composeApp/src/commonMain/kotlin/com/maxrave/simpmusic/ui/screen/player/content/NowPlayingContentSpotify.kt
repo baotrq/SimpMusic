@@ -177,6 +177,7 @@ import simpmusic.composeapp.generated.resources.lyrics_provider_simpmusic
 import simpmusic.composeapp.generated.resources.lyrics_provider_youtube
 import simpmusic.composeapp.generated.resources.now_playing_upper
 import simpmusic.composeapp.generated.resources.offline_mode
+import simpmusic.composeapp.generated.resources.lyrics_provider_custom
 import simpmusic.composeapp.generated.resources.playing_on_device
 import simpmusic.composeapp.generated.resources.published_at
 import simpmusic.composeapp.generated.resources.rate_lyrics
@@ -1417,6 +1418,10 @@ fun NowPlayingContentSpotify(
 
                                                     LyricsProvider.OFFLINE -> {
                                                         stringResource(Res.string.offline_mode)
+                                                    }
+
+                                                    LyricsProvider.CUSTOM -> {
+                                                        stringResource(Res.string.lyrics_provider_custom)
                                                     }
 
                                                     LyricsProvider.BETTER_LYRICS -> {

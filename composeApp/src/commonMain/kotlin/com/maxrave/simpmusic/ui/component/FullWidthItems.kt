@@ -103,6 +103,7 @@ import simpmusic.composeapp.generated.resources.playlist
 import simpmusic.composeapp.generated.resources.podcasts
 import simpmusic.composeapp.generated.resources.radio
 import simpmusic.composeapp.generated.resources.you
+import simpmusic.composeapp.generated.resources.video_tag
 import kotlin.math.roundToInt
 
 /**
@@ -130,6 +131,8 @@ fun SongFullWidthItems(
     modifier: Modifier,
     rightView: @Composable (() -> Unit)? = null,
     forceDark: Boolean = LocalForceDarkText.current,
+    // "Video • " before the artist, as YouTube Music writes it, for results that are video uploads.
+    videoTag: Boolean = false,
 ) {
     val contentColor = if (forceDark) Color.White else MaterialTheme.colorScheme.onSurface
     val subtitleColor = if (forceDark) Color(0xC4FFFFFF) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -359,10 +362,13 @@ fun SongFullWidthItems(
                         }
                         Text(
                             text =
-                                (
-                                    track?.artists?.toListName()?.connectArtists()
-                                        ?: songEntity?.artistName?.connectArtists()
-                                ) ?: "",
+                                (if (videoTag) stringResource(Res.string.video_tag) + " • " else "") +
+                                    (
+                                        (
+                                            track?.artists?.toListName()?.connectArtists()
+                                                ?: songEntity?.artistName?.connectArtists()
+                                        ) ?: ""
+                                    ),
                             style = typo().bodySmall,
                             maxLines = 1,
                             color = subtitleColor,
