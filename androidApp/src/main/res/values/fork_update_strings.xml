@@ -5,7 +5,9 @@
     <string name="fork_update_message">%1$s\n\nDownload and install it now? Your data and settings stay.</string>
     <string name="fork_update_install">Update</string>
     <string name="fork_update_later">Later</string>
-    <string name="fork_update_skip">Skip this build</string>
+    <string name="fork_update_checking">Checking for a new build…</string>
+    <string name="fork_update_none">You are on the newest build</string>
+    <string name="fork_update_check_failed">Could not check for a new build: %1$s</string>
     <string name="fork_update_downloading">Downloading… %1$d%%</string>
     <string name="fork_update_allow_install">Allow SimpMusic to install apps, then come back and tap Update.</string>
     <string name="fork_update_failed">Update download failed: %1$s</string>

@@ -43,6 +43,7 @@ import com.maxrave.simpmusic.expect.ui.rememberDesktopModeScale
 import com.maxrave.simpmusic.service.test.notification.NotifyWork
 import com.maxrave.simpmusic.update.ForkUpdater
 import com.maxrave.simpmusic.utils.ComposeResUtils
+import com.maxrave.simpmusic.utils.ForkBuildCheck
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import kotlinx.coroutines.runBlocking
@@ -117,9 +118,9 @@ class MainActivity : AppCompatActivity() {
         unloadKoinModules(viewModelModule)
         loadKoinModules(viewModelModule)
         VersionManager.initialize()
-        checkForUpdate()
-        // Fork: offer newer personal bao- builds; once per launch, not on every recreate.
-        if (savedInstanceState == null) ForkUpdater.checkOnLaunch(this)
+        // Fork: no update check at launch, for either upstream or bao- builds. Both run only from
+        // Settings → About, so startup does not spend the connection on them.
+        if (ForkUpdater.isAvailable) ForkBuildCheck.check = { ForkUpdater.check(this) }
         if (viewModel.recreateActivity.value || viewModel.isServiceRunning) {
             viewModel.activityRecreateDone()
         } else {
@@ -232,7 +233,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        viewModel.getLocation()
 
         if (!BuildConfig.DEBUG && !BuildConfig.SKIP_OFFICIAL_BUILD_CHECK) viewModel.checkOfficialBuild(packageName, signingCertSha256())
         setContent {
@@ -254,6 +254,8 @@ class MainActivity : AppCompatActivity() {
             viewModel.isServiceRunning = false
         }
         unloadKoinModules(viewModelModule)
+        // The lambda holds this activity; a recreated one has already put its own in.
+        if (isFinishing) ForkBuildCheck.check = null
         super.onDestroy()
         Logger.d("MainActivity", "onDestroy: ")
     }
@@ -290,12 +292,6 @@ class MainActivity : AppCompatActivity() {
         viewModel.isServiceRunning = true
         shouldUnbind = true
         Logger.d("Service", "Service started")
-    }
-
-    private fun checkForUpdate() {
-        if (viewModel.shouldCheckForUpdate()) {
-            viewModel.checkForUpdate()
-        }
     }
 
     private fun putString(

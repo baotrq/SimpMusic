@@ -219,6 +219,8 @@
     <string name="update_available">New update available</string>
     <string name="update_message">Version %1$s available\nRelease: %2$s\n</string>
     <string name="check_for_update">Check for update</string>
+    <string name="check_for_new_build">Check for new build</string>
+    <string name="check_for_new_build_description">Looks for a newer bao- build of this app on GitHub</string>
     <string name="last_checked_at">Last checked at %1$s</string>
     <string name="checking">Checking</string>
     <string name="sponsorblock_skip_segment">SponsorBlock: Skip %1$s segment</string>
@@ -1032,6 +1034,17 @@
     <string name="log_hide_stack_trace">Hide stack trace</string>
     <string name="log_export_failed">Could not export the log</string>
     <string name="led_strip">LED strip</string>
+    <string name="car_mode">Car mode</string>
+    <string name="car_mode_title">Car mode on this phone</string>
+    <string name="car_mode_description">Uses more mobile data and storage to feel faster: liked songs and the songs you play stay downloaded (up to 10 GB, then the least and longest-ago played make room), upcoming songs download in full, covers are kept for 30 days, and the app opens without waiting for your other phone. Only this phone.</string>
+    <string name="car_mode_offline">Offline songs</string>
+    <string name="car_mode_check_now">Check now</string>
+    <string name="car_mode_check_now_description">Looks for songs to download or remove right away, and retries ones that failed</string>
+    <string name="car_mode_offline_summary">%1$s songs · %2$s of %3$s</string>
+    <string name="car_mode_offline_downloading">Downloading %1$s · %2$s to go</string>
+    <string name="car_mode_offline_full">Storage limit reached · %1$s not downloaded</string>
+    <string name="car_mode_offline_done">Liked and recently played songs are offline</string>
+    <string name="car_mode_offline_pool">Recently played: %1$s of %2$s</string>
     <string name="led_strip_sync">Sync LED strip with album art</string>
     <string name="led_strip_sync_info">Sets a Bluetooth LED strip (LEDDMX controllers, as used by the LED LAMP app) to the vivid colour of the song\'s artwork.</string>
     <string name="led_strip_device">Strip</string>

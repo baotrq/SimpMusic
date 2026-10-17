@@ -1,6 +1,5 @@
 package com.maxrave.simpmusic.update
 
-import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.widget.Toast
@@ -24,19 +23,17 @@ import java.time.Instant
 
 /**
  * Fork: updates the personal build from the fork's own GitHub releases (`bao-YYYY.MM.DD.N`, published
- * by `scripts/release-bao.sh`). On launch it looks for a release whose commit is newer than this
- * build's ([BuildConfig.BAO_COMMIT_TIME]), offers it, downloads the arm64 APK and hands it to the
- * system installer, which asks for one tap. Android installs it as an update only when it is signed
- * with the same key as the installed app, so a tampered download cannot replace it.
+ * by `scripts/release-bao.sh`). Run from Settings → About → Check for new build, never on its own:
+ * it looks for a release whose commit is newer than this build's ([BuildConfig.BAO_COMMIT_TIME]),
+ * offers it, downloads the arm64 APK and hands it to the system installer, which asks for one tap.
+ * Android installs it as an update only when it is signed with the same key as the installed app, so
+ * a tampered download cannot replace it.
  */
 object ForkUpdater {
     private const val TAG = "ForkUpdater"
     private const val API = "https://api.github.com/repos/baotrq/SimpMusic"
     private const val TAG_PREFIX = "bao-"
     private const val ASSET_SUFFIX = "-arm64-v8a.apk"
-    private const val PREFS = "fork_updater"
-    private const val KEY_SKIPPED = "skipped_tag"
-
     private class Release(
         val tag: String,
         val title: String,
@@ -44,18 +41,27 @@ object ForkUpdater {
         val apkSize: Long,
     )
 
-    fun checkOnLaunch(activity: AppCompatActivity) {
-        if (BuildConfig.DEBUG || BuildConfig.BAO_COMMIT_TIME == 0L) return
+    /** False in debug builds and in vivoAndroidApp, which have no bao- releases to compare against. */
+    val isAvailable: Boolean get() = !BuildConfig.DEBUG && BuildConfig.BAO_COMMIT_TIME != 0L
+
+    /** Asked for from Settings, so every outcome is answered, "nothing newer" included. */
+    fun check(activity: AppCompatActivity) {
+        if (!isAvailable) return
+        Toast.makeText(activity, R.string.fork_update_checking, Toast.LENGTH_SHORT).show()
         activity.lifecycleScope.launch {
-            val release =
-                withContext(Dispatchers.IO) {
-                    runCatching { newerRelease() }
-                        .onFailure { Logger.w(TAG, "Check failed: ${it.message}") }
-                        .getOrNull()
-                } ?: return@launch
-            if (prefs(activity).getString(KEY_SKIPPED, null) == release.tag) return@launch
-            Logger.i(TAG, "Offering ${release.tag}")
-            offer(activity, release)
+            val result = withContext(Dispatchers.IO) { runCatching { newerRelease() } }
+            result
+                .onSuccess { release ->
+                    if (release == null) {
+                        Toast.makeText(activity, R.string.fork_update_none, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Logger.i(TAG, "Offering ${release.tag}")
+                        offer(activity, release)
+                    }
+                }.onFailure {
+                    Logger.w(TAG, "Check failed: ${it.message}")
+                    Toast.makeText(activity, activity.getString(R.string.fork_update_check_failed, it.message), Toast.LENGTH_LONG).show()
+                }
         }
     }
 
@@ -98,9 +104,7 @@ object ForkUpdater {
             .setMessage(activity.getString(R.string.fork_update_message, release.title))
             .setPositiveButton(R.string.fork_update_install) { _, _ -> install(activity, release) }
             .setNegativeButton(R.string.fork_update_later, null)
-            .setNeutralButton(R.string.fork_update_skip) { _, _ ->
-                prefs(activity).edit().putString(KEY_SKIPPED, release.tag).apply()
-            }.show()
+            .show()
     }
 
     private fun install(
@@ -200,6 +204,4 @@ object ForkUpdater {
             connectTimeout = 15_000
             readTimeout = 30_000
         }
-
-    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

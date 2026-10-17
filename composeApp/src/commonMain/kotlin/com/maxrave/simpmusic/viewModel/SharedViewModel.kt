@@ -12,7 +12,6 @@ import com.maxrave.common.Config.SHARE
 import com.maxrave.common.Config.SONG_CLICK
 import com.maxrave.common.Config.VIDEO_CLICK
 import com.maxrave.common.LibraryChipType
-import com.maxrave.common.SELECTED_LANGUAGE
 import com.maxrave.common.STATUS_DONE
 import com.maxrave.domain.data.entities.AlbumEntity
 import com.maxrave.domain.data.entities.DownloadState
@@ -116,6 +115,7 @@ import simpmusic.composeapp.generated.resources.added_to_youtube_liked
 import simpmusic.composeapp.generated.resources.error
 import simpmusic.composeapp.generated.resources.lastfm_login_failed
 import simpmusic.composeapp.generated.resources.login_success
+import simpmusic.composeapp.generated.resources.no_update
 import simpmusic.composeapp.generated.resources.play_next
 import simpmusic.composeapp.generated.resources.removed_from_youtube_liked
 import simpmusic.composeapp.generated.resources.shared
@@ -162,8 +162,6 @@ class SharedViewModel(
     private var _sleepTimerState = MutableStateFlow(SleepTimerState(false, 0))
     val sleepTimerState: StateFlow<SleepTimerState> = _sleepTimerState
 
-    private var regionCode: String? = null
-    private var language: String? = null
 
     private var _format: MutableStateFlow<NewFormatEntity?> = MutableStateFlow(null)
     val format: SharedFlow<NewFormatEntity?> = _format.asSharedFlow()
@@ -369,7 +367,8 @@ class SharedViewModel(
 //            controllerStateJob.join()
         }
 
-        runBlocking {
+        // Off the main thread: the activity waits for this constructor before drawing anything.
+        viewModelScope.launch {
             dataStoreManager.getString("miniplayer_guide").first().let {
                 isFirstMiniplayer = it != STATUS_DONE
             }
@@ -1102,11 +1101,6 @@ class SharedViewModel(
         Logger.w("Check onCleared", "onCleared")
     }
 
-    fun getLocation() {
-        regionCode = runBlocking { dataStoreManager.location.first() }
-        language = runBlocking { dataStoreManager.getString(SELECTED_LANGUAGE).first() }
-    }
-
     private fun checkAllDownloadingLocalPlaylists() {
         viewModelScope.launch {
             localPlaylistRepository.getAllDownloadingLocalPlaylists().collectLatest { playlists ->
@@ -1219,10 +1213,13 @@ class SharedViewModel(
                     is Resource.Success if (data != null) -> {
                         _updateResponse.value = data
                         showedUpdateDialog = true
+                        // Fork: only ever run from Settings now, so "nothing newer" needs saying.
+                        if (!VersionManager.isBehind(data.tagName)) makeToast(getString(Res.string.no_update))
                     }
 
                     else -> {
                         log("Check for update error: ${response.message}", LogLevel.WARN)
+                        makeToast(response.message ?: getString(Res.string.error))
                     }
                 }
                 _isCheckingUpdate.value = false
@@ -1544,6 +1541,17 @@ class SharedViewModel(
                 updateLyrics(videoId, duration, custom, false, LyricsProvider.CUSTOM)
                 getAITranslationLyrics(videoId, custom)
                 return@launch
+            }
+            // Fork: saved lyrics show at once, and the lookup below still runs and replaces them.
+            // They used to appear only after every online source had failed, which without signal
+            // takes a long while. Set directly, not through updateLyrics: that one saves the lyrics
+            // again and may upload them to the community database.
+            lyricsCanvasRepository.getSavedLyrics(videoId).first()?.let { saved ->
+                if (_nowPlayingState.value?.songEntity?.videoId == videoId && _nowPlayingScreenData.value.lyricsData == null) {
+                    _nowPlayingScreenData.update {
+                        it.copy(lyricsData = NowPlayingScreenData.LyricsData(lyrics = saved.toLyrics(), lyricsProvider = LyricsProvider.OFFLINE))
+                    }
+                }
             }
             val lyricsProvider =
                 songLyricsProvider(videoId).first()?.takeIf { it.isNotEmpty() }

@@ -30,8 +30,10 @@ import java.util.UUID
  * decoding succeeds. This keeps a 404 or an undecodable 200 from replacing the offline fallback.
  */
 class NetworkFirstInterceptor(
-    private val ttlMillis: Long = 24L * 60 * 60 * 1000,
+    ttlMillis: Long = 24L * 60 * 60 * 1000,
     private val nowMillis: () -> Long = { System.currentTimeMillis() },
+    /** Asked on every request, so a setting can change the TTL without rebuilding the loader (Car mode). */
+    private val currentTtlMillis: () -> Long = { ttlMillis },
     private val imageLoader: () -> ImageLoader,
 ) : Interceptor {
     init {
@@ -166,7 +168,7 @@ class NetworkFirstInterceptor(
     private fun isFresh(cachedAtMillis: Long?): Boolean {
         if (cachedAtMillis == null || cachedAtMillis <= 0) return false
         val now = nowMillis()
-        return now >= cachedAtMillis && now - cachedAtMillis < ttlMillis
+        return now >= cachedAtMillis && now - cachedAtMillis < currentTtlMillis()
     }
 
     @OptIn(InternalCoilApi::class)

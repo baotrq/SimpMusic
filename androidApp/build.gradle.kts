@@ -231,6 +231,10 @@ sentry {
         includeProguardMapping.set(true)
         // Fork: personal sideloaded builds never upload mappings to upstream's Sentry project.
         autoUploadProguardMapping.set(false)
+        // Fork: no SENTRY_DSN is set, so nothing is ever reported, while the tracing transform still
+        // rewrote the bytecode of the app and every dependency on each release build (slow) and
+        // added no-op Sentry calls around network, database and app start.
+        tracingInstrumentation.enabled.set(false)
     } else {
         includeProguardMapping.set(false)
         autoUploadProguardMapping.set(false)

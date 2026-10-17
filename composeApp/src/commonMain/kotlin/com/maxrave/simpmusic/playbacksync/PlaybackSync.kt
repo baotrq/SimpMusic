@@ -162,6 +162,12 @@ object PlaybackSync : KoinComponent {
 
     /** Writes another phone's newer snapshot where the launch restore reads, before it runs. */
     private suspend fun pullOnLaunch() {
+        // Car mode: the player opens on this phone's own song at once instead of waiting on the
+        // server; a newer song from another phone still turns up as Home's "Continue from" card.
+        if (dataStore.carMode.first() == DataStoreManager.TRUE) {
+            Logger.i(TAG, "Car mode: launch does not wait for the other phone's song")
+            return
+        }
         val snapshot = fetchNewer(LAUNCH_FETCH_TIMEOUT_MS) ?: return
         val track = snapshot.track ?: return
         Logger.i(TAG, "Opening on ${track.videoId} at ${snapshot.positionMs} ms from ${snapshot.deviceName}")

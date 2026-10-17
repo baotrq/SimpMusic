@@ -21,6 +21,8 @@ import com.maxrave.data.di.loader.loadAllModules
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.logger.Logger
+import com.maxrave.simpmusic.carmode.CarMode
+import com.maxrave.simpmusic.carmode.CarModeDownloads
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.led.LedStripSync
 import com.maxrave.simpmusic.playbacksync.PlaybackSync
@@ -30,7 +32,9 @@ import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import multiplatform.network.cmptoast.AppContext
 import okhttp3.OkHttpClient
 import okio.FileSystem
@@ -58,12 +62,16 @@ class SimpMusicApplication :
 
     override fun onCreate() {
         super.onCreate()
+        // Before anything builds an HTTP client: release builds skip Debug lines, the per-request
+        // curl dumps and the per-chunk header logs. Info and above still reach the App log.
+        Logger.debugEnabled = BuildConfig.DEBUG
         // First, so the rest of startup reaches the App log too (Settings → Developer option).
         Logger.enableFileLogging(File(filesDir, "logs").path)
         configCrashlytics(this, BuildKonfig.sentryDsn)
         configLastfm(BuildKonfig.lastfmApiKey, BuildKonfig.lastfmSecret)
         startKoin {
-            androidLogger(level = Level.DEBUG)
+            // DEBUG logs every definition Koin creates, which is a lot of work at startup.
+            androidLogger(level = if (BuildConfig.DEBUG) Level.DEBUG else Level.ERROR)
             androidContext(this@SimpMusicApplication)
             loadAllModules(
                 AppIdentity(
@@ -84,6 +92,11 @@ class SimpMusicApplication :
 
         // initialize WorkManager
         WorkManager.initialize(this, workConfig)
+
+        // Fork: Car mode's switch, mirrored for the image loader (cover TTL).
+        CarMode.start(dataStoreManager, applicationScope)
+        // Car mode's offline library: idle unless Car mode is on.
+        CarModeDownloads.start()
 
         // Initialize and start AutoBackupScheduler
         autoBackupScheduler = AutoBackupScheduler(this, dataStoreManager)
@@ -134,13 +147,16 @@ class SimpMusicApplication :
         Logger.w("Terminate", "Checking")
     }
 
+    private fun carModeAtStart(): Boolean =
+        runCatching { runBlocking { dataStoreManager.carMode.first() } == DataStoreManager.TRUE }.getOrDefault(false)
+
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         lateinit var imageLoader: ImageLoader
         imageLoader =
             ImageLoader
                 .Builder(context)
                 .components {
-                    add(NetworkFirstInterceptor { imageLoader })
+                    add(NetworkFirstInterceptor(currentTtlMillis = CarMode::imageTtlMillis) { imageLoader })
                     add(
                         OkHttpNetworkFetcherFactory(
                             callFactory = {
@@ -154,7 +170,9 @@ class SimpMusicApplication :
                     DiskCache
                         .Builder()
                         .directory(FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "image_cache")
-                        .maxSizeBytes(512L * 1024 * 1024)
+                        // Car mode keeps the covers of its offline songs here, so it gets room for
+                        // them. Read once: the loader is built on the first image the app shows.
+                        .maxSizeBytes(if (carModeAtStart()) 2048L * 1024 * 1024 else 512L * 1024 * 1024)
                         .build(),
                 ).crossfade(true)
                 .build()

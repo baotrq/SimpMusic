@@ -2,10 +2,7 @@ package com.maxrave.simpmusic.viewModel
 
 import androidx.lifecycle.viewModelScope
 import com.maxrave.common.Config
-import com.maxrave.common.SELECTED_LANGUAGE
-import com.maxrave.common.SUPPORTED_LANGUAGE
 import com.maxrave.domain.data.entities.SongEntity
-import com.maxrave.domain.data.model.home.HomeDataCombine
 import com.maxrave.domain.data.model.home.HomeItem
 import com.maxrave.domain.data.model.home.chart.Chart
 import com.maxrave.domain.data.model.mood.Mood
@@ -17,11 +14,13 @@ import com.maxrave.domain.mediaservice.handler.SimpleMediaState
 import com.maxrave.domain.repository.HomeRepository
 import com.maxrave.domain.utils.Resource
 import com.maxrave.logger.Logger
+import com.maxrave.simpmusic.expect.networkBecameAvailable
 import com.maxrave.simpmusic.playbacksync.PlaybackSnapshot
 import com.maxrave.simpmusic.playbacksync.PlaybackSync
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,8 +32,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.jetbrains.compose.resources.getString as resourceString
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.music_video
 import simpmusic.composeapp.generated.resources.new_release
@@ -94,88 +93,66 @@ class HomeViewModel(
     val mainHomeThumbnail: StateFlow<String?> = _mainHomeThumbnail
 
     init {
-        if (runBlocking { dataStoreManager.cookie.first() }.isEmpty() &&
-            runBlocking {
-                dataStoreManager.shouldShowLogInRequiredAlert.first() == TRUE
-            }
-        ) {
-            _showLogInAlert.update { true }
-        }
-        homeJob = Job()
         viewModelScope.launch {
-            regionCodeChart.value = dataStoreManager.chartKey.first()
-            exploreChart(regionCodeChart.value ?: "ZZ")
-            language = dataStoreManager.getString(SELECTED_LANGUAGE).first()
-                ?: SUPPORTED_LANGUAGE.codes.first()
-            //  refresh when region change
-            val job1 =
-                launch {
-                    dataStoreManager.location.distinctUntilChanged().collect {
-                        regionCode = it
-                        getHomeItemList(params.value)
+            if (dataStoreManager.cookie.first().isEmpty() &&
+                dataStoreManager.shouldShowLogInRequiredAlert.first() == TRUE
+            ) {
+                _showLogInAlert.update { true }
+            }
+        }
+        viewModelScope.launch {
+            // One load per real change. This used to be five separate watchers (region, language,
+            // cookie twice, params), each loading Home on its first value, so a launch sent Home's
+            // four requests up to five times, and a signed-in launch threw its first second of
+            // loading away on purpose (a delayed reload "to wait for the cookie"). The data layer now
+            // waits for the session to reach YouTube itself (YouTubeSession), so one load is right.
+            var lastCookie: String? = null
+            combine(
+                dataStoreManager.location.distinctUntilChanged(),
+                dataStoreManager.language.distinctUntilChanged(),
+                dataStoreManager.cookie.distinctUntilChanged(),
+                params,
+            ) { location, language, cookie, params -> HomeLoadKey(location, language, cookie, params) }
+                .distinctUntilChanged()
+                .collectLatest { key ->
+                    regionCode = key.location
+                    language = key.language
+                    val signedInJustNow = lastCookie != null && lastCookie != key.cookie && key.cookie.isNotEmpty()
+                    lastCookie = key.cookie
+                    if (signedInJustNow) {
+                        // A fresh sign-in writes the cookie before the account's other rows land.
+                        loading.value = true
+                        delay(1000)
                     }
+                    getHomeItemList(key.params)
+                    _accountInfo.emit(
+                        Pair(
+                            dataStoreManager.getString("AccountName").first(),
+                            dataStoreManager.getString("AccountThumbUrl").first(),
+                        ),
+                    )
                 }
-            //  refresh when language change
-            val job2 =
-                launch {
-                    dataStoreManager.language.distinctUntilChanged().collect {
-                        language = it
-                        getHomeItemList(params.value)
-                    }
-                }
-            val job3 =
-                launch {
-                    dataStoreManager.cookie.distinctUntilChanged().collect {
-                        getHomeItemList(params.value)
-                        _accountInfo.emit(
-                            Pair(
-                                dataStoreManager.getString("AccountName").first(),
-                                dataStoreManager.getString("AccountThumbUrl").first(),
-                            ),
-                        )
-                    }
-                }
-            val job4 =
-                launch {
-                    params.collectLatest {
-                        getHomeItemList(it)
-                    }
-                }
-            val job5 =
-                launch {
-                    dataStoreManager
-                        .cookie
-                        .distinctUntilChanged()
-                        .collectLatest {
-                            if (it.isNotEmpty()) {
-                                Logger.w(tag, "Cookie changed, refreshing home")
-                                loading.value = true
-                                delay(1000) // To wait for the cookie to be saved properly
-                                getHomeItemList(params.value)
-                            }
-                        }
-                }
-            val job6 =
-                launch {
-                    homeItemList.collectLatest { list ->
-                        _mainHomeThumbnail.value =
-                            list
-                                .firstOrNull()
-                                ?.contents
-                                ?.firstOrNull()
-                                ?.thumbnails
-                                ?.lastOrNull()
-                                ?.url
-                    }
-                }
-            job1.join()
-            job2.join()
-            job3.join()
-            job4.join()
-            job5.join()
-            job6.join()
+        }
+        viewModelScope.launch {
+            homeItemList.collectLatest { list ->
+                _mainHomeThumbnail.value =
+                    list
+                        .firstOrNull()
+                        ?.contents
+                        ?.firstOrNull()
+                        ?.thumbnails
+                        ?.lastOrNull()
+                        ?.url
+            }
         }
     }
+
+    private data class HomeLoadKey(
+        val location: String,
+        val language: String,
+        val cookie: String,
+        val params: String?,
+    )
 
     fun doneShowLogInAlert(neverShowAgain: Boolean = false) {
         viewModelScope.launch {
@@ -186,107 +163,103 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * Loads the four parts of Home side by side, each shown the moment it arrives: the main feed no
+     * longer waits for the chart, moods and new releases (it used to `combine` all four, so the
+     * slowest decided when anything appeared).
+     *
+     * A part that fails is tried again by itself, quietly, when the phone gets a working connection
+     * or after a growing wait — right after boot the radio is often not up yet, and nothing used to
+     * try again until the user pulled to refresh. A failure keeps what is already on screen.
+     */
     fun getHomeItemList(params: String? = null) {
         loading.value = true
         _homeListState.value = ListState.LOADING
-        language =
-            runBlocking {
-                dataStoreManager.getString(SELECTED_LANGUAGE).first()
-                    ?: SUPPORTED_LANGUAGE.codes.first()
-            }
-        regionCode = runBlocking { dataStoreManager.location.first() }
         homeJob?.cancel()
         homeJob =
             viewModelScope.launch {
-                combine(
-                    homeRepository.getHomeData(
-                        params,
-                        getString(Res.string.view_count),
-                        getString(Res.string.song),
-                    ),
-                    homeRepository.getMoodAndMomentsData(),
-                    homeRepository.getChartData(dataStoreManager.chartKey.first()),
-                    homeRepository.getNewRelease(
-                        getString(Res.string.new_release),
-                        getString(Res.string.music_video),
-                    ),
-                ) { home, exploreMood, exploreChart, newRelease ->
-                    HomeDataCombine(home, exploreMood, exploreChart, newRelease)
-                }.collect { result ->
-                    val home = result.home
-                    Logger.d("home size", "${home.data?.second?.size}")
-                    val exploreMoodItem = result.mood
-                    val chart = result.chart
-                    val newRelease = result.newRelease
-                    when (home) {
-                        is Resource.Success -> {
-                            _continuation.value = home.data?.first
-                            _homeItemList.value = home.data?.second ?: listOf()
-                        }
+                val viewString = resourceString(Res.string.view_count)
+                val songString = resourceString(Res.string.song)
+                launch {
+                    loadWithRetry("home", { homeRepository.getHomeData(params, viewString, songString) }) { home, attempt ->
+                        when (home) {
+                            is Resource.Success -> {
+                                _continuation.value = home.data?.first
+                                _homeItemList.value = home.data?.second ?: listOf()
+                                _homeListState.value =
+                                    if (continuation.value.isNullOrEmpty()) ListState.PAGINATION_EXHAUST else ListState.IDLE
+                                if (dataStoreManager.cookie.first().isNotEmpty()) {
+                                    _accountInfo.emit(
+                                        Pair(
+                                            dataStoreManager.getString("AccountName").first(),
+                                            dataStoreManager.getString("AccountThumbUrl").first(),
+                                        ),
+                                    )
+                                }
+                            }
 
-                        else -> {
-                            _continuation.value = null
-                            _homeItemList.value = listOf()
+                            is Resource.Error -> {
+                                Logger.w(tag, "Home failed (attempt $attempt): ${home.message}")
+                                if (_homeItemList.value.isEmpty()) {
+                                    _continuation.value = null
+                                    _homeListState.value = ListState.PAGINATION_EXHAUST
+                                } else {
+                                    _homeListState.value = ListState.IDLE
+                                }
+                                if (attempt == 0) showSnackBarErrorState.emit(home.message ?: "")
+                            }
                         }
+                        loading.value = false
                     }
-                    if (continuation.value.isNullOrEmpty()) {
-                        _homeListState.value = ListState.PAGINATION_EXHAUST
-                    } else {
-                        _homeListState.value = ListState.IDLE
-                    }
-                    when (chart) {
-                        is Resource.Success -> {
+                }
+                launch {
+                    loadWithRetry("chart", { homeRepository.getChartData(dataStoreManager.chartKey.first()) }) { chart, _ ->
+                        if (chart is Resource.Success) {
                             _chart.value = chart.data
+                            regionCodeChart.value = dataStoreManager.chartKey.first()
                         }
-
-                        else -> {
-                            _chart.value = null
-                        }
+                        loadingChart.value = false
                     }
-                    when (newRelease) {
-                        is Resource.Success -> {
-                            _newRelease.value = newRelease.data ?: arrayListOf()
-                        }
-
-                        else -> {
-                            _newRelease.value = arrayListOf()
-                        }
+                }
+                launch {
+                    loadWithRetry("new release", {
+                        homeRepository.getNewRelease(
+                            resourceString(Res.string.new_release),
+                            resourceString(Res.string.music_video),
+                        )
+                    }) { newRelease, _ ->
+                        if (newRelease is Resource.Success) _newRelease.value = newRelease.data ?: arrayListOf()
                     }
-                    when (exploreMoodItem) {
-                        is Resource.Success -> {
-                            _exploreMoodItem.value = exploreMoodItem.data
-                        }
-
-                        else -> {
-                            _exploreMoodItem.value = null
-                        }
+                }
+                launch {
+                    loadWithRetry("moods", { homeRepository.getMoodAndMomentsData() }) { mood, _ ->
+                        if (mood is Resource.Success) _exploreMoodItem.value = mood.data
                     }
-                    regionCodeChart.value = dataStoreManager.chartKey.first()
-                    Logger.d("HomeViewModel", "getHomeItemList: $result")
-                    dataStoreManager.cookie.first().let {
-                        if (it != "") {
-                            _accountInfo.emit(
-                                Pair(
-                                    dataStoreManager.getString("AccountName").first(),
-                                    dataStoreManager.getString("AccountThumbUrl").first(),
-                                ),
-                            )
-                        }
-                    }
-                    when {
-                        home is Resource.Error -> home.message
-                        exploreMoodItem is Resource.Error -> exploreMoodItem.message
-                        chart is Resource.Error -> chart.message
-                        else -> null
-                    }?.let {
-                        showSnackBarErrorState.emit(it)
-                        Logger.w("Error", "getHomeItemList: ${home.message}")
-                        Logger.w("Error", "getHomeItemList: ${exploreMoodItem.message}")
-                        Logger.w("Error", "getHomeItemList: ${chart.message}")
-                    }
-                    loading.value = false
                 }
             }
+    }
+
+    /**
+     * Collects [source] until it answers with a success. After a failure it waits for a working
+     * connection to come up, or for a growing delay, whichever is first, and asks again; it gives up
+     * once [RETRY_DELAYS_MS] runs out, by which time the user has pulled to refresh or moved on.
+     */
+    private suspend fun <T> loadWithRetry(
+        name: String,
+        source: suspend () -> Flow<Resource<T>>,
+        onResult: suspend (result: Resource<T>, attempt: Int) -> Unit,
+    ) {
+        for (attempt in 0..RETRY_DELAYS_MS.size) {
+            var succeeded = false
+            source().collect { result ->
+                if (result is Resource.Success) succeeded = true
+                onResult(result, attempt)
+            }
+            if (succeeded || attempt == RETRY_DELAYS_MS.size) return
+            val waitMs = RETRY_DELAYS_MS[attempt]
+            val cameOnline = withTimeoutOrNull(waitMs) { networkBecameAvailable().first() } != null
+            Logger.d(tag, "Retrying $name (attempt ${attempt + 1}) after ${if (cameOnline) "connection came up" else "${waitMs}ms"}")
+        }
     }
 
     /** A shelf's "Play all": YouTube's own finite queue of that shelf's songs. */
@@ -395,6 +368,9 @@ class HomeViewModel(
     }
 
     companion object {
+        /** Waits between automatic retries of a part of Home that failed (ms); a connection coming up cuts each short. */
+        private val RETRY_DELAYS_MS = longArrayOf(3_000, 6_000, 12_000, 20_000, 30_000, 30_000, 30_000, 60_000, 60_000, 60_000)
+
         /** A song only seconds in simply starts over. */
         private const val SKIP_SEEK_BELOW_MS = 3_000L
 

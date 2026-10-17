@@ -147,6 +147,11 @@ import com.maxrave.simpmusic.ui.navigation.destination.login.SpotifyLoginDestina
 import com.maxrave.simpmusic.ui.theme.md_theme_dark_primary
 import com.maxrave.simpmusic.ui.theme.parseThemeColorHex
 import com.maxrave.simpmusic.ui.theme.typo
+import com.maxrave.simpmusic.carmode.CarModeDownloads
+import com.maxrave.simpmusic.carmode.carModeOfflineSummary
+import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDynamicPlaylistDestination
+import com.maxrave.simpmusic.ui.screen.library.LibraryDynamicPlaylistType
+import com.maxrave.simpmusic.utils.ForkBuildCheck
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.viewModel.ImportViewModel
 import com.maxrave.simpmusic.viewModel.SettingAlertState
@@ -205,8 +210,6 @@ import simpmusic.composeapp.generated.resources.audio_reverb_description
 import simpmusic.composeapp.generated.resources.author
 import simpmusic.composeapp.generated.resources.auto_backup
 import simpmusic.composeapp.generated.resources.auto_backup_description
-import simpmusic.composeapp.generated.resources.auto_check_for_update
-import simpmusic.composeapp.generated.resources.auto_check_for_update_description
 import simpmusic.composeapp.generated.resources.auto_download_liked_songs
 import simpmusic.composeapp.generated.resources.auto_download_liked_songs_description
 import simpmusic.composeapp.generated.resources.backup
@@ -218,9 +221,17 @@ import simpmusic.composeapp.generated.resources.better_lyrics
 import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.animated_artwork_info
 import simpmusic.composeapp.generated.resources.canvas_info
+import simpmusic.composeapp.generated.resources.car_mode
+import simpmusic.composeapp.generated.resources.car_mode_check_now
+import simpmusic.composeapp.generated.resources.car_mode_check_now_description
+import simpmusic.composeapp.generated.resources.car_mode_description
+import simpmusic.composeapp.generated.resources.car_mode_offline
+import simpmusic.composeapp.generated.resources.car_mode_title
 import simpmusic.composeapp.generated.resources.categories_sponsor_block
 import simpmusic.composeapp.generated.resources.change
 import simpmusic.composeapp.generated.resources.change_language_warning
+import simpmusic.composeapp.generated.resources.check_for_new_build
+import simpmusic.composeapp.generated.resources.check_for_new_build_description
 import simpmusic.composeapp.generated.resources.check_for_update
 import simpmusic.composeapp.generated.resources.checking
 import simpmusic.composeapp.generated.resources.clear
@@ -320,7 +331,6 @@ import simpmusic.composeapp.generated.resources.login_sync_section
 import simpmusic.composeapp.generated.resources.lrclib
 import simpmusic.composeapp.generated.resources.lyrics
 import simpmusic.composeapp.generated.resources.lyrics_style
-import simpmusic.composeapp.generated.resources.led_strip
 import simpmusic.composeapp.generated.resources.lyrics_offset
 import simpmusic.composeapp.generated.resources.lyrics_offset_invalid
 import simpmusic.composeapp.generated.resources.lyrics_offset_message
@@ -546,7 +556,6 @@ fun SettingScreen(
     val proxyPort by viewModel.proxyPort.collectAsStateWithLifecycle()
     val proxyUsername by viewModel.proxyUsername.collectAsStateWithLifecycle()
     val proxyPassword by viewModel.proxyPassword.collectAsStateWithLifecycle()
-    val autoCheckUpdate by viewModel.autoCheckUpdate.collectAsStateWithLifecycle()
     val aiProvider by viewModel.aiProvider.collectAsStateWithLifecycle()
     val isHasApiKey by viewModel.isHasApiKey.collectAsStateWithLifecycle()
     val useAITranslation by viewModel.useAITranslation.collectAsStateWithLifecycle()
@@ -587,6 +596,8 @@ fun SettingScreen(
     val crossfadeDuration by viewModel.crossfadeDuration.collectAsStateWithLifecycle()
     val crossfadeDjMode by viewModel.crossfadeDjMode.collectAsStateWithLifecycle()
     val crossfadeSkipAlbum by viewModel.crossfadeSkipAlbum.collectAsStateWithLifecycle()
+    val carMode by viewModel.carMode.collectAsStateWithLifecycle()
+    val carModeOffline by CarModeDownloads.status.collectAsStateWithLifecycle()
     val castState by viewModel.castState.collectAsStateWithLifecycle()
 
     val isCheckingUpdate by sharedViewModel.isCheckingUpdate.collectAsStateWithLifecycle()
@@ -689,14 +700,37 @@ fun SettingScreen(
                         },
                 )
                 // Above every section, and inside item 0 rather than an item of its own, for the
-                // glow reason above. The car LED strip comes first on Android; whichever group is
-                // first is the one the pinned bar measures.
+                // glow reason above. Car mode (with the car's LED strip in it) comes first on
+                // Android; whichever group is first is the one the pinned bar measures.
                 val ledStripFirst = getPlatform() == Platform.Android
                 if (ledStripFirst) {
                     SettingGroup(
-                        title = stringResource(Res.string.led_strip),
+                        title = stringResource(Res.string.car_mode),
                         modifier = Modifier.onSizeChanged { devicesGroupHeightPx = it.height },
                     ) {
+                        SettingItem(
+                            title = stringResource(Res.string.car_mode_title),
+                            subtitle = stringResource(Res.string.car_mode_description),
+                            switch = (carMode to { viewModel.setCarMode(it) }),
+                        )
+                        if (carMode) {
+                            SettingItem(
+                                title = stringResource(Res.string.car_mode_offline),
+                                subtitle = carModeOfflineSummary(carModeOffline),
+                                onClick = {
+                                    navController.navigate(
+                                        LibraryDynamicPlaylistDestination(
+                                            type = LibraryDynamicPlaylistType.Downloaded.toStringParams(),
+                                        ),
+                                    )
+                                },
+                            )
+                            SettingItem(
+                                title = stringResource(Res.string.car_mode_check_now),
+                                subtitle = stringResource(Res.string.car_mode_check_now_description),
+                                onClick = { CarModeDownloads.downloadNow() },
+                            )
+                        }
                         LedStripSettingItems()
                     }
                 }
@@ -2693,17 +2727,20 @@ fun SettingScreen(
                     },
                 )
                 SettingItem(
-                    title = stringResource(Res.string.auto_check_for_update),
-                    subtitle = stringResource(Res.string.auto_check_for_update_description),
-                    switch = (autoCheckUpdate to { viewModel.setAutoCheckUpdate(it) }),
-                )
-                SettingItem(
                     title = stringResource(Res.string.check_for_update),
                     subtitle = checkForUpdateSubtitle,
                     onClick = {
                         sharedViewModel.checkForUpdate()
                     },
                 )
+                // Fork: newer bao- builds of this app. Android release builds only (ForkBuildCheck).
+                ForkBuildCheck.check?.let { checkForNewBuild ->
+                    SettingItem(
+                        title = stringResource(Res.string.check_for_new_build),
+                        subtitle = stringResource(Res.string.check_for_new_build_description),
+                        onClick = checkForNewBuild,
+                    )
+                }
                 SettingItem(
                     title = stringResource(Res.string.third_party_libraries),
                     subtitle = stringResource(Res.string.description_and_licenses),

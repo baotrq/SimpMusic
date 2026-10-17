@@ -35,13 +35,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.lastOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.singleOrNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -162,6 +165,16 @@ class SettingsViewModel(
     val crossfadeDjMode: StateFlow<Boolean> = _crossfadeDjMode
     private val _crossfadeSkipAlbum = MutableStateFlow<Boolean>(false)
     val crossfadeSkipAlbum: StateFlow<Boolean> = _crossfadeSkipAlbum
+    /** Fork: Car mode (see DataStoreManager.carMode). */
+    val carMode: StateFlow<Boolean> =
+        dataStoreManager.carMode
+            .map { it == DataStoreManager.TRUE }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun setCarMode(enabled: Boolean) {
+        viewModelScope.launch { dataStoreManager.setCarMode(enabled) }
+    }
+
     private val _autoDownloadLikedSongs = MutableStateFlow<Boolean>(false)
     val autoDownloadLikedSongs: StateFlow<Boolean> = _autoDownloadLikedSongs
     private val _youtubeSubtitleLanguage = MutableStateFlow<String>("")
