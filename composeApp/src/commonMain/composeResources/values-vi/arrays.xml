@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fork: what the Apple Music player says while two songs are crossfading; one is picked per fade. -->
+    <string-array name="crossfade_mix_words">
+        <item>Đang trộn bài</item>
+        <item>Đang nấu</item>
+        <item>Đang hòa âm</item>
+        <item>Đang khớp nhịp</item>
+        <item>Đang khuấy nồi</item>
+        <item>Đang lên bài mới</item>
+        <item>Chuyền aux nào</item>
+        <item>Đang thả bài kế</item>
+        <item>Đang kéo fader</item>
+        <item>Đang lửa nhỏ</item>
+    </string-array>
+</resources>

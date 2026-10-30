@@ -1994,7 +1994,7 @@ class SharedViewModel(
     fun deleteCustomLyrics(videoId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             CustomLyrics.delete(videoId)
-            SongLyricsSync.push(videoId, dataStoreManager)
+            SongLyricsSync.push(videoId, dataStoreManager, lyricsRemoved = true)
             if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
         }
     }
@@ -2011,6 +2011,18 @@ class SharedViewModel(
         val total = timeline.value.total
         if (total <= 0) return
         onUIEvent(UIEvent.UpdateProgress(positionMs.coerceIn(0, total) * 100f / total))
+    }
+
+    /**
+     * Keeps the player on the current song while Tap along is open: crossfade would start the next
+     * song seconds before this one ends. Returns the call that puts the previous value back, since
+     * Listen Together also writes this flag. Call on the main thread.
+     */
+    fun holdCurrentTrack(): () -> Unit {
+        val player = mediaPlayerHandler.player
+        val previous = player.crossfadeSuppressed
+        player.crossfadeSuppressed = true
+        return { player.crossfadeSuppressed = previous }
     }
 
     private fun setLyricsProvider() {

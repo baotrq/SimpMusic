@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,6 +51,7 @@ import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import com.maxrave.simpmusic.viewModel.UIEvent
 import org.jetbrains.compose.resources.stringResource
+import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.cancel
@@ -121,6 +123,27 @@ fun TapAlongLyricsDialog(
         sharedViewModel.seekToMs(0)
         if (!sharedViewModel.controllerState.value.isPlaying) sharedViewModel.onUIEvent(UIEvent.PlayPause)
         started = true
+    }
+
+    // The song plays only once Start is pressed, and never runs on into the next one: crossfade is
+    // held off, and playback pauses just before the end so the last line can be undone and redone.
+    DisposableEffect(Unit) {
+        if (sharedViewModel.controllerState.value.isPlaying) sharedViewModel.onUIEvent(UIEvent.PlayPause)
+        val release = sharedViewModel.holdCurrentTrack()
+        onDispose { release() }
+    }
+    LaunchedEffect(started) {
+        if (!started) return@LaunchedEffect
+        while (true) {
+            delay(100)
+            val total = sharedViewModel.timeline.value.total
+            if (total > 0 &&
+                sharedViewModel.controllerState.value.isPlaying &&
+                sharedViewModel.playerPositionMs() >= total - END_GUARD_MS
+            ) {
+                sharedViewModel.onUIEvent(UIEvent.PlayPause)
+            }
+        }
     }
 
     LaunchedEffect(stamps.size) {
@@ -207,6 +230,8 @@ fun TapAlongLyricsDialog(
                         stamps.removeAt(stamps.lastIndex)
                         // Back to where the line before starts, so the undone one can be tapped again.
                         sharedViewModel.seekToMs(stamps.lastOrNull() ?: 0)
+                        // Picks up again if it had stopped at the end of the song.
+                        if (!sharedViewModel.controllerState.value.isPlaying) sharedViewModel.onUIEvent(UIEvent.PlayPause)
                     },
                     modifier = Modifier.weight(1f),
                 ) {
@@ -333,6 +358,9 @@ private fun EditLineDialog(
 
 /** How long after hearing a line a tap typically lands; taken off every stamp. */
 private const val TAP_REACTION_MS = 250L
+
+// How far before the end playback stops, so the player never reaches the end and moves on.
+private const val END_GUARD_MS = 400L
 
 private fun formatStamp(ms: Long): String {
     val tenths = (ms / 100) % 10

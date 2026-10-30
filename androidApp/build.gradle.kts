@@ -97,12 +97,33 @@ android {
         }
     }
 
+    // Fork: one key for every machine, so a phone can update from a build made on any of them. The
+    // keystore lives outside the repo (the repo is public: anyone holding the key could ship an
+    // "update" over the app) and each machine names it in local.properties:
+    //   BAO_KEYSTORE=C:/path/to/bao.keystore
+    //   BAO_KEYSTORE_PASSWORD, BAO_KEY_ALIAS, BAO_KEY_PASSWORD (default: a debug keystore's values)
+    val baoSigning =
+        runCatching {
+            Properties().apply { rootProject.file("local.properties").inputStream().use(::load) }
+        }.getOrNull()
+            ?.takeIf { !it.getProperty("BAO_KEYSTORE").isNullOrBlank() }
+    signingConfigs {
+        if (baoSigning != null) {
+            create("bao") {
+                storeFile = file(baoSigning.getProperty("BAO_KEYSTORE"))
+                storePassword = baoSigning.getProperty("BAO_KEYSTORE_PASSWORD", "android")
+                keyAlias = baoSigning.getProperty("BAO_KEY_ALIAS", "androiddebugkey")
+                keyPassword = baoSigning.getProperty("BAO_KEY_PASSWORD", storePassword)
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Fork: own package so it installs beside the official app; signed with the local
-            // debug key since this build is only ever sideloaded onto my own phone.
+            // Fork: own package so it installs beside the official app; signed with the shared bao
+            // key above, or this machine's debug key when local.properties does not name one.
             applicationIdSuffix = ".bao"
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("bao") ?: signingConfigs.getByName("debug")
             // The unofficial-copy check would lock this personal build out: its package is not on
             // the official list and its key is not the release key.
             buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "true")

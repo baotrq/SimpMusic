@@ -119,7 +119,6 @@ import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.UIEvent
 import org.jetbrains.compose.resources.stringResource
 import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.crossfading
 import simpmusic.composeapp.generated.resources.live_badge
 import simpmusic.composeapp.generated.resources.lyrics
 import kotlinx.coroutines.delay
@@ -881,8 +880,9 @@ internal fun AppleMusicTimesRow(
                 val shimmerSpan = 140f
                 val shimmerHead = crossfadeSweep * (shimmerSpan * 3f) - shimmerSpan
                 val labelColor = typography.times.color
+                // Fork: a word picked per fade ("Mixing", "Cooking"…) in place of "Crossfading".
                 Text(
-                    text = stringResource(Res.string.crossfading),
+                    text = rememberCrossfadeMixWord("${state.screenData.nowPlayingTitle}\u0000${state.screenData.artistName}"),
                     style =
                         typography.times.copy(
                             brush =

@@ -2,8 +2,10 @@ package com.maxrave.simpmusic.ui.screen.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.MarqueeAnimationMode
@@ -713,25 +715,31 @@ fun SettingScreen(
                             subtitle = stringResource(Res.string.car_mode_description),
                             switch = (carMode to { viewModel.setCarMode(it) }),
                         )
-                        if (carMode) {
-                            SettingItem(
-                                title = stringResource(Res.string.car_mode_offline),
-                                subtitle = carModeOfflineSummary(carModeOffline),
-                                onClick = {
-                                    navController.navigate(
-                                        LibraryDynamicPlaylistDestination(
-                                            type = LibraryDynamicPlaylistType.Downloaded.toStringParams(),
-                                        ),
-                                    )
-                                },
-                            )
-                            SettingItem(
-                                title = stringResource(Res.string.car_mode_check_now),
-                                subtitle = stringResource(Res.string.car_mode_check_now_description),
-                                onClick = { CarModeDownloads.downloadNow() },
-                            )
+                        AnimatedVisibility(
+                            visible = carMode,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut(),
+                        ) {
+                            Column {
+                                SettingItem(
+                                    title = stringResource(Res.string.car_mode_offline),
+                                    subtitle = carModeOfflineSummary(carModeOffline),
+                                    onClick = {
+                                        navController.navigate(
+                                            LibraryDynamicPlaylistDestination(
+                                                type = LibraryDynamicPlaylistType.Downloaded.toStringParams(),
+                                            ),
+                                        )
+                                    },
+                                )
+                                SettingItem(
+                                    title = stringResource(Res.string.car_mode_check_now),
+                                    subtitle = stringResource(Res.string.car_mode_check_now_description),
+                                    onClick = { CarModeDownloads.downloadNow() },
+                                )
+                                LedStripSettingItems()
+                            }
                         }
-                        LedStripSettingItems()
                     }
                 }
                 SettingGroup(

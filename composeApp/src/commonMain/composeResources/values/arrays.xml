@@ -64,5 +64,18 @@
         <item>UY</item>
         <item>ZW</item>
     </string-array>
+    <!-- Fork: what the Apple Music player says while two songs are crossfading; one is picked per fade. -->
+    <string-array name="crossfade_mix_words">
+        <item>Mixing</item>
+        <item>Cooking</item>
+        <item>Blending</item>
+        <item>Beatmatching</item>
+        <item>Stirring the pot</item>
+        <item>Spinning it in</item>
+        <item>Passing the aux</item>
+        <item>Dropping the next one</item>
+        <item>Riding the fader</item>
+        <item>Simmering</item>
+    </string-array>
 </resources>
 <!--"US", "ZZ", "AR", "AU", "AT", "BE", "BO", "BR", "CA", "CL", "CO", "CR", "CZ", "DK", "DO", "EC", "EG", "SV", "EE", "FI", "FR", "DE", "GT", "HN", "HU", "IS", "IN", "ID", "IE", "IL", "IT", "JP", "KE", "LU", "MX", "NL", "NZ", "NI", "NG", "NO", "PA", "PY", "PE", "PL", "PT", "RO", "RU", "SA", "RS", "ZA", "KR", "ES", "SE", "CH", "TZ", "TR", "UG", "UA", "AE", "GB", "UY", "ZW"-->

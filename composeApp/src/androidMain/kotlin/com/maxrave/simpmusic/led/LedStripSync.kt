@@ -120,7 +120,11 @@ object LedStripSync {
         handler: MediaPlayerHandler,
     ) {
         appContext = context.applicationContext
-        val enabled = dataStoreManager.getString(KEY_ENABLED).map { it == "true" }
+        // The strip is part of Car mode: it runs only while both switches are on.
+        val enabled =
+            combine(dataStoreManager.getString(KEY_ENABLED), dataStoreManager.carMode) { led, car ->
+                led == "true" && car == DataStoreManager.TRUE
+            }
         val address = dataStoreManager.getString(KEY_ADDRESS)
         val brightness = dataStoreManager.getString(KEY_BRIGHTNESS).map { it?.toIntOrNull() ?: DEFAULT_BRIGHTNESS }
 
@@ -189,7 +193,9 @@ object LedStripSync {
     /** Re-reads the settings path after the user grants Bluetooth permission. */
     fun retry(dataStoreManager: DataStoreManager) {
         scope.launch {
-            val on = dataStoreManager.getString(KEY_ENABLED).first() == "true"
+            val on =
+                dataStoreManager.getString(KEY_ENABLED).first() == "true" &&
+                    dataStoreManager.carMode.first() == DataStoreManager.TRUE
             val addr = dataStoreManager.getString(KEY_ADDRESS).first()
             if (on && !addr.isNullOrBlank() && hasConnectPermission()) connect(addr)
         }

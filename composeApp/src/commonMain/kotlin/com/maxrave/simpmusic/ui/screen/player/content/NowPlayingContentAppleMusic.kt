@@ -121,6 +121,8 @@ import com.maxrave.simpmusic.ui.icon.SmartDisplay
 import com.maxrave.simpmusic.ui.icon.Subtitles
 import com.maxrave.simpmusic.ui.icon.SubtitlesOff
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicBottomCluster
+import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicCrossfadeDeck
+import com.maxrave.simpmusic.ui.screen.player.content.applemusic.rememberAppleMusicCrossfadeDeckState
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicHeaderActions
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicLyricStrip
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicLyricsView
@@ -723,9 +725,20 @@ private fun AppleMusicMainView(
         val topBand =
             if (meshPage && getPlatform() == Platform.Android) statusBarHeight + TOP_BAND_STRIP else 0.dp
 
+        // Fork: the two-cover crossfade. While it runs it stands in for the pager's cover, and hands
+        // back to it at the exact size and fade the pager's cover has.
+        val crossfadeDeck =
+            rememberAppleMusicCrossfadeDeckState(
+                isCrossfading = state.timelineState.isCrossfading,
+                title = state.screenData.nowPlayingTitle,
+                artist = state.screenData.artistName,
+                coverUrl = state.screenData.thumbnailURL,
+                enabled = meshPage && animatedArtwork == null,
+            )
+
         HorizontalPager(
             state = state.artworkPagerState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (crossfadeDeck.active) 0f else 1f },
             beyondViewportPageCount = 1,
             userScrollEnabled = !isRepeatOne && state.artworkQueue.isNotEmpty(),
             key = { idx ->
@@ -760,6 +773,17 @@ private fun AppleMusicMainView(
                 effects = { effects.value },
             )
         }
+
+        AppleMusicCrossfadeDeck(
+            state = crossfadeDeck,
+            topFade = if (artworkTop > 0.dp) artworkHeight * ARTWORK_TOP_FADE_FRACTION else 0.dp,
+            bottomFade = artworkFade,
+            modifier =
+                Modifier
+                    .padding(top = artworkTop)
+                    .fillMaxWidth()
+                    .height(artworkHeight),
+        )
 
         // Android plays the animated artwork on a SurfaceView, which no Compose mask or alpha reaches:
         // masked like the cover, the clip still ended in a hard edge across the page. So the page is

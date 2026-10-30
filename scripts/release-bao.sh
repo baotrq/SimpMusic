@@ -22,6 +22,11 @@ if [[ -z "$(git branch -r --contains HEAD)" ]]; then
   exit 1
 fi
 
+if ! grep -qE '^BAO_KEYSTORE=.+' local.properties 2>/dev/null; then
+  echo "BAO_KEYSTORE is not set in local.properties. Without the shared key, phones could not install this update." >&2
+  exit 1
+fi
+
 day=$(date +%Y.%m.%d)
 n=1
 while gh release view "bao-$day.$n" -R "$REPO" >/dev/null 2>&1; do n=$((n + 1)); done
@@ -45,6 +50,6 @@ gh release create "$tag" "$staging"/*.apk \
 
 Phones already on a bao- build offer this update on their next launch. To install by hand, most phones want \`arm64-v8a\`; \`universal\` works on any device but is larger.
 
-Signed with a debug key: an older \`.bao\` build signed on another machine cannot be updated. Back up in Settings, uninstall, install, then restore."
+Signed with the shared bao key (\`BAO_KEYSTORE\` in local.properties). A phone holding a build signed with a different key cannot update: back up in Settings, uninstall, install, then restore."
 
 echo "Published $tag"

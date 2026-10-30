@@ -3,6 +3,11 @@ package com.maxrave.simpmusic.expect.ui
 import android.bluetooth.BluetoothManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -108,60 +113,69 @@ actual fun ColumnScope.LedStripSettingItems() {
         ),
     )
 
-    val deviceSubtitle =
-        when {
-            stripName.isNullOrBlank() -> stringResource(Res.string.led_strip_not_selected)
-            !enabled -> stripName!!
-            status == LedStripSync.Status.NO_PERMISSION -> stringResource(Res.string.led_strip_status_no_permission)
-            status == LedStripSync.Status.CONNECTED -> "$stripName · ${stringResource(Res.string.led_strip_status_connected)}"
-            else -> "$stripName · ${stringResource(Res.string.led_strip_status_connecting)}"
-        }
-    SettingItem(
-        title = stringResource(Res.string.led_strip_device),
-        subtitle = deviceSubtitle,
-        onClick = { withPermission { showPicker = true } },
-    )
+    // Which strip and how bright only matter while sync is on, so they open with the switch.
+    AnimatedVisibility(
+        visible = enabled,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        Column {
+            val deviceSubtitle =
+                when {
+                    stripName.isNullOrBlank() -> stringResource(Res.string.led_strip_not_selected)
+                    !enabled -> stripName!!
+                    status == LedStripSync.Status.NO_PERMISSION -> stringResource(Res.string.led_strip_status_no_permission)
+                    status == LedStripSync.Status.CONNECTED -> "$stripName · ${stringResource(Res.string.led_strip_status_connected)}"
+                    else -> "$stripName · ${stringResource(Res.string.led_strip_status_connecting)}"
+                }
+            SettingItem(
+                title = stringResource(Res.string.led_strip_device),
+                subtitle = deviceSubtitle,
+                onClick = { withPermission { showPicker = true } },
+            )
 
-    // Held only while the thumb is moving; otherwise the slider shows the stored value.
-    var dragValue by remember { mutableStateOf<Float?>(null) }
-    val sliderValue = dragValue ?: storedBrightness.toFloat()
-    SettingItem(
-        title = stringResource(Res.string.led_strip_brightness),
-        subtitle = "${sliderValue.toInt()}%",
-        isEnable = enabled,
-        otherView = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // The colour the strip is showing, at the chosen brightness.
-                val shown = color?.let { scaled(it, sliderValue.toInt()) }
-                Box(
-                    Modifier
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(shown?.let { Color(0xFF000000.toInt() or it) } ?: MaterialTheme.colorScheme.surfaceVariant),
-                )
-                Spacer(Modifier.width(12.dp))
-                Slider(
-                    value = sliderValue,
-                    onValueChange = {
-                        dragValue = it
-                        LedStripSync.previewBrightness(it.toInt())
-                    },
-                    onValueChangeFinished = {
-                        val level = sliderValue.toInt()
-                        scope.launch {
-                            dataStore.putString(LedStripSync.KEY_BRIGHTNESS, level.toString())
-                            LedStripSync.previewBrightness(null)
-                            dragValue = null
-                        }
-                    },
-                    // The controller's lowest level that is not byte 00 (see LedStripSync).
-                    valueRange = LedStripSync.MIN_BRIGHTNESS.toFloat()..100f,
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        },
-    )
+            // Held only while the thumb is moving; otherwise the slider shows the stored value.
+            var dragValue by remember { mutableStateOf<Float?>(null) }
+            val sliderValue = dragValue ?: storedBrightness.toFloat()
+            SettingItem(
+                title = stringResource(Res.string.led_strip_brightness),
+                subtitle = "${sliderValue.toInt()}%",
+                isEnable = enabled,
+                otherView = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // The colour the strip is showing, at the chosen brightness.
+                        val shown = color?.let { scaled(it, sliderValue.toInt()) }
+                        Box(
+                            Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(shown?.let { Color(0xFF000000.toInt() or it) } ?: MaterialTheme.colorScheme.surfaceVariant),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Slider(
+                            value = sliderValue,
+                            onValueChange = {
+                                dragValue = it
+                                LedStripSync.previewBrightness(it.toInt())
+                            },
+                            onValueChangeFinished = {
+                                val level = sliderValue.toInt()
+                                scope.launch {
+                                    dataStore.putString(LedStripSync.KEY_BRIGHTNESS, level.toString())
+                                    LedStripSync.previewBrightness(null)
+                                    dragValue = null
+                                }
+                            },
+                            // The controller's lowest level that is not byte 00 (see LedStripSync).
+                            valueRange = LedStripSync.MIN_BRIGHTNESS.toFloat()..100f,
+                            enabled = enabled,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                },
+            )
+        }
+    }
 
     if (showPicker) {
         StripPickerDialog(

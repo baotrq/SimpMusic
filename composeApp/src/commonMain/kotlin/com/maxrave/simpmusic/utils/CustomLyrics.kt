@@ -45,6 +45,7 @@ object CustomLyrics {
         lyrics: Lyrics,
     ) {
         dir.mkdirs()
+        backup(videoId)
         // Write then rename, so a crash mid-write never leaves a half file that loads as nothing.
         val tmp = File(dir, "$videoId.json.tmp")
         tmp.writeText(json.encodeToString(lyrics))
@@ -52,6 +53,16 @@ object CustomLyrics {
     }
 
     fun delete(videoId: String) {
+        backup(videoId)
         file(videoId).delete()
+    }
+
+    /** Keeps the previous copy as <id>.json.bak before it is replaced or removed, so a bad sync can be undone by hand. */
+    private fun backup(videoId: String) {
+        val current = file(videoId)
+        if (!current.isFile) return
+        runCatching {
+            Files.copy(current.toPath(), File(dir, "$videoId.json.bak").toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 }
