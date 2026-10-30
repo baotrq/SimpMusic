@@ -238,6 +238,8 @@ import simpmusic.composeapp.generated.resources.lrclib
 import simpmusic.composeapp.generated.resources.lyrics
 import simpmusic.composeapp.generated.resources.lyrics_provider_for_this_song
 import simpmusic.composeapp.generated.resources.lyrics_provider_main
+import simpmusic.composeapp.generated.resources.lyrics_provider_none
+import com.maxrave.simpmusic.playbacksync.SongLyricsSync
 import simpmusic.composeapp.generated.resources.rate_lyrics
 import simpmusic.composeapp.generated.resources.tap_along
 import simpmusic.composeapp.generated.resources.tap_along_description
@@ -1518,7 +1520,14 @@ fun NowPlayingBottomSheet(
             )
         }
         val options =
-            listOf("", DataStoreManager.SIMPMUSIC, DataStoreManager.LRCLIB, DataStoreManager.YOUTUBE, DataStoreManager.BETTER_LYRICS)
+            listOf(
+                "",
+                DataStoreManager.SIMPMUSIC,
+                DataStoreManager.LRCLIB,
+                DataStoreManager.YOUTUBE,
+                DataStoreManager.BETTER_LYRICS,
+                SongLyricsSync.NO_LYRICS,
+            )
 
         AlertDialog(
             onDismissRequest = { mainLyricsProvider = false },
@@ -1546,6 +1555,8 @@ fun NowPlayingBottomSheet(
                                 text =
                                     if (option.isEmpty()) {
                                         stringResource(Res.string.lyrics_provider_main, providerName(uiState.mainLyricsProvider))
+                                    } else if (option == SongLyricsSync.NO_LYRICS) {
+                                        stringResource(Res.string.lyrics_provider_none)
                                     } else {
                                         providerName(option)
                                     },

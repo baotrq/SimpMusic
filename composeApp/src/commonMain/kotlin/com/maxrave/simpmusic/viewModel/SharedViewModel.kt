@@ -1542,6 +1542,14 @@ class SharedViewModel(
                 getAITranslationLyrics(videoId, custom)
                 return@launch
             }
+            // Fork: lyrics turned off for this song (every source had them wrong). The user's own
+            // lyrics above still win, since typing them in is a deliberate fix.
+            if (songLyricsProvider(videoId).first() == SongLyricsSync.NO_LYRICS) {
+                if (_nowPlayingState.value?.songEntity?.videoId == videoId) {
+                    _nowPlayingScreenData.update { it.copy(lyricsData = null) }
+                }
+                return@launch
+            }
             // Fork: saved lyrics show at once, and the lookup below still runs and replaces them.
             // They used to appear only after every online source had failed, which without signal
             // takes a long while. Set directly, not through updateLyrics: that one saves the lyrics

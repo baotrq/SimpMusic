@@ -48,6 +48,12 @@ object SongLyricsSync {
     private const val FETCH_TIMEOUT_MS = 2_500L
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /**
+     * The per-song source that means "show no lyrics": for songs every provider gets wrong. It rides
+     * the same synced source field as a real provider, so it reaches the other devices for free.
+     */
+    const val NO_LYRICS = "none"
+
     fun providerKey(videoId: String) = "lyrics_provider_song_$videoId"
 
     private fun syncedAtKey(videoId: String) = "lyrics_song_synced_at_$videoId"

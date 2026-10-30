@@ -733,6 +733,7 @@
     <string name="rate_lyrics">Rate lyrics</string>
     <string name="lyrics_provider_for_this_song">Lyrics source for this song</string>
     <string name="lyrics_provider_main">Main provider (%1$s)</string>
+    <string name="lyrics_provider_none">No lyrics (wrong lyrics for this song)</string>
     <string name="lyrics_provider_custom">Your own lyrics</string>
     <string name="tap_along">Tap along</string>
     <string name="tap_along_description">Time, fix or add lines yourself while the song plays</string>
