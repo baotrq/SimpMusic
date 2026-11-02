@@ -107,6 +107,9 @@ import com.maxrave.domain.utils.toSongEntity
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.PlatformBackHandler
+import com.maxrave.simpmusic.expect.ui.SongRecognitionSheet
+import com.maxrave.simpmusic.expect.ui.layerBackdrop
+import com.maxrave.simpmusic.expect.ui.rememberBackdrop
 import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.ultraThinBarStyle
 import com.maxrave.simpmusic.getPlatform
@@ -130,6 +133,7 @@ import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
 import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
 import com.maxrave.simpmusic.ui.icon.ArrowOutward
 import com.maxrave.simpmusic.ui.icon.Close
+import com.maxrave.simpmusic.ui.icon.GraphicEq
 import com.maxrave.simpmusic.ui.icon.History
 import com.maxrave.simpmusic.ui.icon.Search
 import com.maxrave.simpmusic.ui.icon.SimpIcons
@@ -139,6 +143,7 @@ import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.PlaylistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.PodcastDestination
 import com.maxrave.simpmusic.ui.navigation.destination.search.SearchDestination
+import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.SearchScreenUIState
 import com.maxrave.simpmusic.viewModel.SearchType
@@ -165,6 +170,7 @@ import simpmusic.composeapp.generated.resources.in_search
 import simpmusic.composeapp.generated.resources.no_results_found
 import simpmusic.composeapp.generated.resources.playlists
 import simpmusic.composeapp.generated.resources.podcasts
+import simpmusic.composeapp.generated.resources.recognize_song
 import simpmusic.composeapp.generated.resources.retry
 import simpmusic.composeapp.generated.resources.recent_searches
 import simpmusic.composeapp.generated.resources.search_for
@@ -221,6 +227,9 @@ fun SearchScreen(
     val moodGridColumns = if (isMobilePortrait) 2 else 4
 
     val hazeState = rememberHazeState()
+    // The floating chip row refracts the page scrolling under it, so the page is the glass source and
+    // the row its sibling (nesting the row inside the source is the RuntimeShader feedback loop).
+    val chipBackdrop = rememberBackdrop(MaterialTheme.colorScheme.background)
     val suggestionsState = rememberLazyListState()
     val historyState = rememberLazyListState()
     val moodGridState = rememberLazyGridState()
@@ -280,6 +289,15 @@ fun SearchScreen(
     val selectionViewModel: SongSelectionViewModel = koinViewModel()
     var showSelectionSheet by rememberSaveable { mutableStateOf(false) }
     var showSelectionAddToPlaylist by rememberSaveable { mutableStateOf(false) }
+    var showRecognition by rememberSaveable { mutableStateOf(false) }
+    // The sheet asked for by simpmusic://recognize (the Quick Settings tile), opened once and cleared.
+    val songRecognitionRequest by sharedViewModel.songRecognitionRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(songRecognitionRequest) {
+        if (songRecognitionRequest) {
+            showRecognition = true
+            sharedViewModel.requestSongRecognition(false)
+        }
+    }
     val currentVideoId by searchViewModel.nowPlayingVideoId.collectAsStateWithLifecycle()
     val chipRowState = rememberScrollState()
     val pullToRefreshState = rememberPullToRefreshState()
@@ -410,6 +428,24 @@ fun SearchScreen(
             song = sheetSong,
         )
     }
+    if (showRecognition) {
+        SongRecognitionSheet(
+            onFind = { query ->
+                searchText = query
+                focusManager.clearFocus()
+                isSearchSubmitted = true
+                searchViewModel.insertSearchHistory(query)
+                when (searchScreenState.searchType) {
+                    SearchType.SONGS -> searchViewModel.searchSongs(query)
+                    SearchType.ALBUMS -> searchViewModel.searchAlbums(query)
+                    SearchType.ARTISTS -> searchViewModel.searchArtists(query)
+                    SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(query)
+                    SearchType.PODCASTS -> searchViewModel.searchPodcast(query)
+                }
+            },
+            onDismiss = { showRecognition = false },
+        )
+    }
 
     Box(
         modifier =
@@ -421,7 +457,7 @@ fun SearchScreen(
         // equal to the bar's measured height to keep its first item clear of it.
         Crossfade(
             targetState = searchUIType,
-            modifier = Modifier.fillMaxSize().hazeSource(hazeState),
+            modifier = Modifier.fillMaxSize().then(if (LocalLiquidGlassEnabled.current) Modifier.layerBackdrop(chipBackdrop) else Modifier).hazeSource(hazeState),
         ) {
             when (it) {
                 SearchUIType.SEARCH_SUGGESTIONS -> {
@@ -1186,6 +1222,17 @@ fun SearchScreen(
                                     contentDescription = "Clear search",
                                 )
                             }
+                        } else if (getPlatform() == Platform.Android) {
+                            // An empty field offers song recognition instead (Android only).
+                            IconButton(
+                                modifier = Modifier.clip(CircleShape),
+                                onClick = { showRecognition = true },
+                            ) {
+                                Icon(
+                                    imageVector = SimpIcons.GraphicEq,
+                                    contentDescription = stringResource(Res.string.recognize_song),
+                                )
+                            }
                         }
                     },
                 )
@@ -1222,6 +1269,7 @@ fun SearchScreen(
                                 isAnimated = uiState is SearchScreenUIState.Loading,
                                 isSelected = isSelected,
                                 text = stringResource(id.toStringRes()),
+                                backdrop = chipBackdrop,
                             ) {
                                 searchViewModel.setSearchType(id)
                             }

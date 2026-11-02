@@ -26,8 +26,7 @@ import com.maxrave.domain.repository.SongRepository
 import com.maxrave.domain.utils.LocalResource
 import com.maxrave.logger.LogLevel
 import com.maxrave.logger.Logger
-import com.maxrave.simpmusic.Platform
-import com.maxrave.simpmusic.getPlatform
+import com.maxrave.simpmusic.expect.isOnUnmeteredNetwork
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -69,8 +68,11 @@ import simpmusic.composeapp.generated.resources.restore_failed
 import simpmusic.composeapp.generated.resources.restore_in_progress
 import simpmusic.composeapp.generated.resources.romanization_japanese_dict_failed
 import simpmusic.composeapp.generated.resources.romanization_japanese_dict_ready
+import simpmusic.composeapp.generated.resources.smart_downloads_downloading
+import simpmusic.composeapp.generated.resources.smart_downloads_waiting_for_wifi
 import simpmusic.composeapp.generated.resources.warning
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock
 
 class SettingsViewModel(
     private val dataStoreManager: DataStoreManager,
@@ -177,6 +179,10 @@ class SettingsViewModel(
 
     private val _autoDownloadLikedSongs = MutableStateFlow<Boolean>(false)
     val autoDownloadLikedSongs: StateFlow<Boolean> = _autoDownloadLikedSongs
+    private val _smartDownloadsEnabled = MutableStateFlow<Boolean>(false)
+    val smartDownloadsEnabled: StateFlow<Boolean> = _smartDownloadsEnabled
+    private val _smartDownloadsCount = MutableStateFlow<Int>(50)
+    val smartDownloadsCount: StateFlow<Int> = _smartDownloadsCount
     private val _youtubeSubtitleLanguage = MutableStateFlow<String>("")
     val youtubeSubtitleLanguage: StateFlow<String> = _youtubeSubtitleLanguage
     private val _lyricsOffsetMs = MutableStateFlow<Int>(0)
@@ -269,13 +275,6 @@ class SettingsViewModel(
         getYoutubeSubtitleLanguage()
         getPreferredAudioLanguage()
         getHelpBuildLyricsDatabase()
-        viewModelScope.launch {
-            enableLiquidGlass.collect {
-                if (getPlatform() != Platform.Android && it) {
-                    setEnableLiquidGlass(false)
-                }
-            }
-        }
     }
 
     fun getAudioSessionId() = mediaPlayerHandler.player.audioSessionId
@@ -325,6 +324,7 @@ class SettingsViewModel(
         getCrossfadeDjMode()
         getCrossfadeSkipAlbum()
         getAutoDownloadLikedSongs()
+        getSmartDownloads()
         getContributorNameAndEmail()
         getBackupDownloaded()
         getEnableLiquidGlass()
@@ -516,6 +516,47 @@ class SettingsViewModel(
                 }
             }
         }
+    }
+
+    private fun getSmartDownloads() {
+        viewModelScope.launch {
+            dataStoreManager.smartDownloadsEnabled.collect { enabled ->
+                _smartDownloadsEnabled.value = enabled == DataStoreManager.TRUE
+            }
+        }
+        viewModelScope.launch {
+            dataStoreManager.smartDownloadsCount.collect { count ->
+                _smartDownloadsCount.value = count
+            }
+        }
+    }
+
+    fun setSmartDownloadsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStoreManager.setSmartDownloadsEnabled(enabled)
+            if (enabled) runSmartDownloadsNow() else songRepository.clearSmartDownloads()
+        }
+    }
+
+    fun setSmartDownloadsCount(count: Int) {
+        viewModelScope.launch {
+            dataStoreManager.setSmartDownloadsCount(count)
+            if (dataStoreManager.smartDownloadsEnabled.first() == DataStoreManager.TRUE) runSmartDownloadsNow()
+        }
+    }
+
+    /** A change made here runs a pass at once. Off an unmetered network it waits for the next app open instead. */
+    private suspend fun runSmartDownloadsNow() {
+        if (dataStoreManager.localTrackingEnabled.first() != DataStoreManager.TRUE) return
+        if (!isOnUnmeteredNetwork()) {
+            // Zero lets the next app open on Wi-Fi run the pass straight away, not a day later.
+            dataStoreManager.setSmartDownloadsLastRun(0)
+            makeToast(getString(Res.string.smart_downloads_waiting_for_wifi))
+            return
+        }
+        dataStoreManager.setSmartDownloadsLastRun(Clock.System.now().toEpochMilliseconds())
+        val queued = songRepository.runSmartDownloads(dataStoreManager.smartDownloadsCount.first())
+        if (queued > 0) makeToast(formatString(Res.string.smart_downloads_downloading, queued))
     }
 
     private fun getDiscordLoggedIn() {

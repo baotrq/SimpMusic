@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
@@ -81,7 +82,9 @@ import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.MediaPlayerView
 import com.maxrave.simpmusic.expect.ui.MediaPlayerViewWithSubtitle
 import com.maxrave.simpmusic.expect.ui.toImageBitmap
+import com.maxrave.simpmusic.extension.LeftToRight
 import com.maxrave.simpmusic.extension.parseTimestampToMilliseconds
+import com.maxrave.simpmusic.extension.mouseDragScroll
 import com.maxrave.simpmusic.extension.smoothScrimBrush
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.AIBadge
@@ -432,59 +435,61 @@ internal fun ExpressiveArtworkCardPage(
                                                     tint = Color.White,
                                                 )
                                             }
-                                            Row(
-                                                Modifier
-                                                    .align(Alignment.Center)
-                                                    .fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                            ) {
-                                                FilledTonalIconButton(
-                                                    colors =
-                                                        IconButtonDefaults.iconButtonColors().copy(
-                                                            containerColor = Color.Transparent,
-                                                        ),
-                                                    modifier =
-                                                        Modifier
-                                                            .size(48.dp)
-                                                            .aspectRatio(1f)
-                                                            .clip(CircleShape),
-                                                    onClick = {
-                                                        actions.onUIEvent(UIEvent.Backward)
-                                                    },
+                                            LeftToRight {
+                                                Row(
+                                                    Modifier
+                                                        .align(Alignment.Center)
+                                                        .fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceEvenly,
                                                 ) {
-                                                    Icon(
-                                                        imageVector = SimpIcons.Replay5,
-                                                        tint = Color.White,
-                                                        contentDescription = "",
+                                                    FilledTonalIconButton(
+                                                        colors =
+                                                            IconButtonDefaults.iconButtonColors().copy(
+                                                                containerColor = Color.Transparent,
+                                                            ),
                                                         modifier =
                                                             Modifier
-                                                                .size(36.dp)
-                                                                .alpha(0.8f),
-                                                    )
-                                                }
-                                                FilledTonalIconButton(
-                                                    colors =
-                                                        IconButtonDefaults.iconButtonColors().copy(
-                                                            containerColor = Color.Transparent,
-                                                        ),
-                                                    modifier =
-                                                        Modifier
-                                                            .size(48.dp)
-                                                            .aspectRatio(1f)
-                                                            .clip(CircleShape),
-                                                    onClick = {
-                                                        actions.onUIEvent(UIEvent.Forward)
-                                                    },
-                                                ) {
-                                                    Icon(
-                                                        imageVector = SimpIcons.Forward5,
-                                                        tint = Color.White,
-                                                        contentDescription = "",
+                                                                .size(48.dp)
+                                                                .aspectRatio(1f)
+                                                                .clip(CircleShape),
+                                                        onClick = {
+                                                            actions.onUIEvent(UIEvent.Backward)
+                                                        },
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = SimpIcons.Replay5,
+                                                            tint = Color.White,
+                                                            contentDescription = "",
+                                                            modifier =
+                                                                Modifier
+                                                                    .size(36.dp)
+                                                                    .alpha(0.8f),
+                                                        )
+                                                    }
+                                                    FilledTonalIconButton(
+                                                        colors =
+                                                            IconButtonDefaults.iconButtonColors().copy(
+                                                                containerColor = Color.Transparent,
+                                                            ),
                                                         modifier =
                                                             Modifier
-                                                                .size(36.dp)
-                                                                .alpha(0.8f),
-                                                    )
+                                                                .size(48.dp)
+                                                                .aspectRatio(1f)
+                                                                .clip(CircleShape),
+                                                        onClick = {
+                                                            actions.onUIEvent(UIEvent.Forward)
+                                                        },
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = SimpIcons.Forward5,
+                                                            tint = Color.White,
+                                                            contentDescription = "",
+                                                            modifier =
+                                                                Modifier
+                                                                    .size(36.dp)
+                                                                    .alpha(0.8f),
+                                                        )
+                                                    }
                                                 }
                                             }
                                             if (state.screenData.lyricsData != null) {
@@ -774,8 +779,8 @@ internal fun ExpressiveBelowTheFold(
                                     .diskCacheKey(thumb)
                                     .crossfade(550)
                                     .build(),
-                            placeholder = rememberHolderPainter(isVideo = true),
-                            error = rememberHolderPainter(isVideo = true),
+                            placeholder = rememberHolderPainter(),
+                            error = rememberHolderPainter(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),
@@ -983,7 +988,12 @@ internal fun ExpressiveCollapsedToolbar(
                                             animationMode = MarqueeAnimationMode.Immediately,
                                         ).focusable(),
                             )
-                            LazyRow(verticalAlignment = Alignment.CenterVertically) {
+                            val artistRowState = rememberLazyListState()
+                            LazyRow(
+                                modifier = Modifier.mouseDragScroll(artistRowState),
+                                state = artistRowState,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 item {
                                     AnimatedVisibility(visible = state.screenData.isExplicit) {
                                         ExplicitBadge(
@@ -1046,21 +1056,23 @@ internal fun ExpressiveCollapsedToolbar(
                             .wrapContentSize(Alignment.Center)
                             .align(Alignment.BottomCenter),
                 ) {
-                    LinearProgressIndicator(
-                        progress = { state.timelineState.current.toFloat() / state.timelineState.total },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(
-                                    color = Color.Transparent,
-                                    shape = RoundedCornerShape(4.dp),
-                                ),
-                        color = colorScheme.primary,
-                        trackColor = colorScheme.surfaceContainerHighest,
-                        strokeCap = StrokeCap.Round,
-                        drawStopIndicator = {},
-                    )
+                    LeftToRight {
+                        LinearProgressIndicator(
+                            progress = { state.timelineState.current.toFloat() / state.timelineState.total },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(
+                                        color = Color.Transparent,
+                                        shape = RoundedCornerShape(4.dp),
+                                    ),
+                            color = colorScheme.primary,
+                            trackColor = colorScheme.surfaceContainerHighest,
+                            strokeCap = StrokeCap.Round,
+                            drawStopIndicator = {},
+                        )
+                    }
                 }
             }
         }

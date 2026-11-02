@@ -95,11 +95,16 @@ import com.maxrave.domain.mediaservice.handler.ControlState
 import com.maxrave.domain.mediaservice.handler.RepeatState
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
+import com.maxrave.simpmusic.extension.LeftToRight
+import com.maxrave.simpmusic.ui.component.heartBurst
+import com.maxrave.simpmusic.ui.component.rememberHeartBurstState
 import com.maxrave.simpmusic.extension.formatDuration
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
 import com.maxrave.simpmusic.ui.component.rememberHolderPainter
 import com.maxrave.simpmusic.ui.icon.KeyboardArrowUp
+import com.maxrave.simpmusic.ui.icon.Star
+import com.maxrave.simpmusic.ui.icon.StarBorder
 import com.maxrave.simpmusic.ui.icon.FastForward
 import com.maxrave.simpmusic.ui.icon.FastRewind
 import com.maxrave.simpmusic.ui.icon.Lyrics
@@ -619,6 +624,31 @@ internal fun AppleMusicHeaderActions(
                 }
             }
         }
+        val likeBurst = rememberHeartBurstState()
+        Box(
+            modifier =
+                Modifier
+                    .appleMusicPressInflate()
+                    .size(32.dp)
+                    .heartBurst(likeBurst)
+                    .clip(CircleShape)
+                    .clickable {
+                        if (!state.controllerState.isLiked) likeBurst.fire()
+                        actions.onUIEvent(UIEvent.ToggleLike)
+                    },
+            contentAlignment = Alignment.Center,
+        ) {
+            Crossfade(targetState = state.controllerState.isLiked, label = "appleMusicFavorite") { liked ->
+                // 24dp like ⊕ and ⋮ beside it; the 32dp box stays, since the burst's reach scales with it.
+                Icon(
+                    imageVector = if (liked) SimpIcons.Star else SimpIcons.StarBorder,
+                    contentDescription = "",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+        // Fork: off on the Android player, where ⋯ sits in the top bar instead.
         if (showMore) AppleMusicGlyphButton(icon = SimpIcons.MoreVert, onClick = { actions.onShowMoreSheet() })
     }
 }
@@ -995,7 +1025,7 @@ internal fun AppleMusicTransportRow(
 internal fun AppleMusicVolumeRow(
     controller: DeviceVolumeController,
     modifier: Modifier = Modifier,
-) {
+) = LeftToRight {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = SimpIcons.VolumeDown,
@@ -1123,7 +1153,7 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
     actions: NowPlayingContentActions,
     typography: AppleMusicTypography,
     showShuffleAndRepeat: Boolean = false,
-) {
+) = LeftToRight {
     // Fixed 18dp shell: the track swells on touch, but inside a CONSTANT footprint —
     // otherwise the growing slider re-measures this whole column and the artwork above
     // it visibly jumps. It also gives the bar a real 18dp touch target instead of 8.4dp.

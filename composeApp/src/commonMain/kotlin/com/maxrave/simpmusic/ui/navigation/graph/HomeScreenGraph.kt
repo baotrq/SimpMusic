@@ -54,6 +54,7 @@ fun NavGraphBuilder.homeScreenGraph(
             navController = navController,
         )
     }
+    // Fork: kept after 2.5.0 removed it; Library's Recently played opens it.
     composable<RecentlySongsDestination> {
         RecentlySongsScreen(
             navController = navController,

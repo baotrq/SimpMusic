@@ -92,6 +92,10 @@ class HomeViewModel(
     private val _mainHomeThumbnail: MutableStateFlow<String?> = MutableStateFlow(null)
     val mainHomeThumbnail: StateFlow<String?> = _mainHomeThumbnail
 
+    // The page background image YouTube sends with Home, null when it sends none.
+    private val _homeBackground: MutableStateFlow<String?> = MutableStateFlow(null)
+    val homeBackground: StateFlow<String?> = _homeBackground
+
     init {
         viewModelScope.launch {
             if (dataStoreManager.cookie.first().isEmpty() &&
@@ -186,6 +190,7 @@ class HomeViewModel(
                             is Resource.Success -> {
                                 _continuation.value = home.data?.first
                                 _homeItemList.value = home.data?.second ?: listOf()
+                                _homeBackground.value = home.data?.third
                                 _homeListState.value =
                                     if (continuation.value.isNullOrEmpty()) ListState.PAGINATION_EXHAUST else ListState.IDLE
                                 if (dataStoreManager.cookie.first().isNotEmpty()) {

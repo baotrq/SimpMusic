@@ -12,6 +12,8 @@ import cat.ereza.customactivityoncrash.config.CaocConfig
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.preferEndFirstIntrinsicSize
 import coil3.disk.DiskCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
@@ -150,6 +152,7 @@ class SimpMusicApplication :
     private fun carModeAtStart(): Boolean =
         runCatching { runBlocking { dataStoreManager.carMode.first() } == DataStoreManager.TRUE }.getOrDefault(false)
 
+    @OptIn(ExperimentalCoilApi::class)
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         lateinit var imageLoader: ImageLoader
         imageLoader =
@@ -175,6 +178,9 @@ class SimpMusicApplication :
                         .maxSizeBytes(if (carModeAtStart()) 2048L * 1024 * 1024 else 512L * 1024 * 1024)
                         .build(),
                 ).crossfade(true)
+                // CrossfadePainter otherwise sizes itself as max(placeholder, image) once and keeps it,
+                // so a square holder over a wide banner leaves the banner zoomed after the fade.
+                .preferEndFirstIntrinsicSize(true)
                 .build()
         return imageLoader
     }
