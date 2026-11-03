@@ -144,23 +144,26 @@ fun SettingItem(
 
 /**
  * One group of the Settings screen, laid out the way Apple Music groups its settings: a small
- * header above, the rows on one rounded card, and an optional note under the card ([footer]).
+ * header above (none when [title] is null), the rows on one rounded card, and an optional note under
+ * the card ([footer]).
  */
 @Composable
 fun SettingGroup(
-    title: String,
+    title: String?,
     modifier: Modifier = Modifier,
     footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val cardColor = settingGroupColor()
     Column(modifier.fillMaxWidth().padding(top = 24.dp)) {
-        Text(
-            text = title.toUpperCase(Locale.current),
-            // The headers' size from before the groups; only the weight drops, so they step back.
-            style = typo().labelMedium.copy(fontWeight = FontWeight.Normal),
-            modifier = Modifier.padding(start = SettingRowPaddingHorizontal, end = SettingRowPaddingHorizontal, bottom = 8.dp),
-        )
+        if (title != null) {
+            Text(
+                text = title.toUpperCase(Locale.current),
+                // The headers' size from before the groups; only the weight drops, so they step back.
+                style = typo().labelMedium.copy(fontWeight = FontWeight.Normal),
+                modifier = Modifier.padding(start = SettingRowPaddingHorizontal, end = SettingRowPaddingHorizontal, bottom = 8.dp),
+            )
+        }
         Column(
             modifier =
                 Modifier

@@ -88,6 +88,9 @@ object PlaybackSync : KoinComponent {
     const val KEY_URL = "playback_sync_url"
     const val KEY_SECRET = "playback_sync_key"
     const val KEY_DEVICE_NAME = "playback_sync_device_name"
+
+    /** FALSE turns every sync off (playback, settings, lyrics) and keeps the server and key. Unset = on. */
+    const val KEY_ENABLED = "playback_sync_enabled"
     private const val KEY_DEVICE_ID = "playback_sync_device_id"
 
     /** `savedAt` of the last snapshot this phone loaded, continued from or dismissed. */
@@ -286,10 +289,12 @@ object PlaybackSync : KoinComponent {
     private suspend fun endpoint(): Pair<String, String>? = server()?.let { (url, secret) -> "$url/playback" to secret }
 
     /**
-     * The sync server's base URL and key, or null until both are set. HTTPS only: the key travels in a
-     * header. Shared with [SettingsSync], which stores its own objects beside the snapshot.
+     * The sync server's base URL and key, or null until both are set or while sync is switched off
+     * ([KEY_ENABLED]). HTTPS only: the key travels in a header. Shared with [SettingsSync], which
+     * stores its own objects beside the snapshot.
      */
     internal suspend fun server(): Pair<String, String>? {
+        if (dataStore.getString(KEY_ENABLED).first() == DataStoreManager.FALSE) return null
         val url = dataStore.getString(KEY_URL).first()?.trim()?.trimEnd('/')
         val secret = dataStore.getString(KEY_SECRET).first()?.trim()
         if (url.isNullOrEmpty() || secret.isNullOrEmpty() || !url.startsWith("https://")) return null

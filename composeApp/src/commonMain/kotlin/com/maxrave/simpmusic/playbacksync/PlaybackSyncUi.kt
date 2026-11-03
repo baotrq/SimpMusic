@@ -59,6 +59,8 @@ import simpmusic.composeapp.generated.resources.continue_from_device
 import simpmusic.composeapp.generated.resources.continue_listening
 import simpmusic.composeapp.generated.resources.dismiss
 import simpmusic.composeapp.generated.resources.playback_sync_device_name
+import simpmusic.composeapp.generated.resources.playback_sync_enable
+import simpmusic.composeapp.generated.resources.playback_sync_enable_description
 import simpmusic.composeapp.generated.resources.playback_sync_failed
 import simpmusic.composeapp.generated.resources.playback_sync_incomplete
 import simpmusic.composeapp.generated.resources.playback_sync_key
@@ -85,49 +87,69 @@ fun ColumnScope.PlaybackSyncSettingItems() {
     var editing by remember { mutableStateOf<String?>(null) }
     var check by remember { mutableStateOf<PlaybackSync.ConnectionCheck?>(null) }
     var checking by remember { mutableStateOf(false) }
+    val enabledFlag by remember { dataStore.getString(PlaybackSync.KEY_ENABLED) }.collectAsStateWithLifecycle(null)
     val notSet = stringResource(Res.string.playback_sync_not_set)
+    // Unset counts as on once a server is saved, so an install that already syncs keeps syncing.
+    val enabled = enabledFlag == DataStoreManager.TRUE || (enabledFlag == null && !url.isNullOrBlank())
 
     SettingItem(
-        title = stringResource(Res.string.playback_sync_server),
-        subtitle = url?.takeIf { it.isNotBlank() } ?: notSet,
-        onClick = { editing = PlaybackSync.KEY_URL },
+        title = stringResource(Res.string.playback_sync_enable),
+        subtitle = stringResource(Res.string.playback_sync_enable_description),
+        switch =
+            enabled to { on ->
+                scope.launch { dataStore.putString(PlaybackSync.KEY_ENABLED, if (on) DataStoreManager.TRUE else DataStoreManager.FALSE) }
+            },
     )
-    SettingItem(
-        title = stringResource(Res.string.playback_sync_key),
-        subtitle = if (secret.isNullOrBlank()) notSet else stringResource(Res.string.playback_sync_key_set),
-        onClick = { editing = PlaybackSync.KEY_SECRET },
-    )
-    SettingItem(
-        title = stringResource(Res.string.playback_sync_device_name),
-        subtitle = name?.takeIf { it.isNotBlank() } ?: PlaybackSync.defaultDeviceName,
-        onClick = { editing = PlaybackSync.KEY_DEVICE_NAME },
-    )
-    SettingItem(
-        title = stringResource(Res.string.playback_sync_test),
-        subtitle =
-            stringResource(
-                when {
-                    checking -> Res.string.playback_sync_testing
-                    else ->
-                        when (check) {
-                            null -> Res.string.playback_sync_test_hint
-                            PlaybackSync.ConnectionCheck.OK -> Res.string.playback_sync_ok
-                            PlaybackSync.ConnectionCheck.NOT_SET -> Res.string.playback_sync_incomplete
-                            PlaybackSync.ConnectionCheck.UNAUTHORIZED -> Res.string.playback_sync_unauthorized
-                            PlaybackSync.ConnectionCheck.FAILED -> Res.string.playback_sync_failed
+    // The setup only matters while sync is on; the values stay saved while it is off.
+    AnimatedVisibility(
+        visible = enabled,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        Column {
+            SettingItem(
+                title = stringResource(Res.string.playback_sync_server),
+                subtitle = url?.takeIf { it.isNotBlank() } ?: notSet,
+                onClick = { editing = PlaybackSync.KEY_URL },
+            )
+            SettingItem(
+                title = stringResource(Res.string.playback_sync_key),
+                subtitle = if (secret.isNullOrBlank()) notSet else stringResource(Res.string.playback_sync_key_set),
+                onClick = { editing = PlaybackSync.KEY_SECRET },
+            )
+            SettingItem(
+                title = stringResource(Res.string.playback_sync_device_name),
+                subtitle = name?.takeIf { it.isNotBlank() } ?: PlaybackSync.defaultDeviceName,
+                onClick = { editing = PlaybackSync.KEY_DEVICE_NAME },
+            )
+            SettingItem(
+                title = stringResource(Res.string.playback_sync_test),
+                subtitle =
+                    stringResource(
+                        when {
+                            checking -> Res.string.playback_sync_testing
+                            else ->
+                                when (check) {
+                                    null -> Res.string.playback_sync_test_hint
+                                    PlaybackSync.ConnectionCheck.OK -> Res.string.playback_sync_ok
+                                    PlaybackSync.ConnectionCheck.NOT_SET -> Res.string.playback_sync_incomplete
+                                    PlaybackSync.ConnectionCheck.UNAUTHORIZED -> Res.string.playback_sync_unauthorized
+                                    PlaybackSync.ConnectionCheck.FAILED -> Res.string.playback_sync_failed
+                                }
+                        },
+                    ),
+                onClick = {
+                    if (!checking) {
+                        scope.launch {
+                            checking = true
+                            check = PlaybackSync.checkConnection()
+                            checking = false
                         }
+                    }
                 },
-            ),
-        onClick = {
-            if (!checking) {
-                scope.launch {
-                    checking = true
-                    check = PlaybackSync.checkConnection()
-                    checking = false
-                }
-            }
-        },
-    )
+            )
+        }
+    }
 
     editing?.let { key ->
         TextValueDialog(

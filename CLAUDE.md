@@ -1186,6 +1186,7 @@ if (getPlatform() == Platform.Android) {
   - **Recently played is kept**: 2.5.0 deleted `RecentlySongsScreen` and `SongRepository.getRecentSong` (core `086ff54`), but Library's Recently played, Search and Car mode use them. The screen, its destination, view model and paging source are restored, and `086ff54` is reverted in `core`.
   - The Shazam button's search dispatch skips the tabs the fork removed (All, Videos, Featured playlists).
   - `core`: `FaradayCipherEngine` asks upstream's two player tables (ours, then Metrolist's), and only ours is kept on disk, because `DiskPlayerConfigRepository` writes one fixed file name.
+- **Fork: Settings split into pages (2026-11-03)**: the one long list became a main page of six categories (Appearance, Audio & playback, Lyrics & AI, Accounts & sync, Storage & backup, About) plus Developer options, each opening its own page (`SettingPage` + `SettingHome` in `ui/screen/home/SettingPages.kt`). The pages are in-screen state (`openPage`, `rememberSaveable`), not navigation destinations, so the dialogs, file launchers and the one `SettingsViewModel` stay shared; `PlatformBackHandler` steps back a level, and pages slide with the app's own motion (`settingPageTransition`, AppNavigationGraph's slide + 0.5 fade). Each page scrolls in a plain `Column`, not a `LazyColumn`: with a page per topic, the glow and pinned bar track one `ScrollState` instead of item 0. Desktop shows the list on the left and the page on the right. Every row moved verbatim; only where it lives changed. Car mode (with LED strip) lives under Developer options. Now Playing style and Lyrics style open pages of real screenshots (`drawable/style_*.jpg`, 540 px wide, from the owner's Oppo); retake them when a style's look changes. Playback sync gained an on/off switch (`PlaybackSync.KEY_ENABLED`): FALSE makes `server()` return null, which stops playback, settings and lyrics sync alike; unset counts as on once a server is saved, so existing installs keep syncing. `SettingGroup(title = null)` draws a card with no header.
 - **Gradle daemon heap raised to 10 GB (2026-10-14)**: at `-Xmx5120m` the R8 step of `assembleRelease` thrashed in GC and never finished; at 10 GB a release build takes ~3 min. `autoUploadProguardMapping` is off in the fork, so builds never upload mappings to upstream's Sentry.
 
 ## 🔄 CLAUDE.md Auto-Update Rule (MANDATORY)
@@ -1212,6 +1213,6 @@ After completing any of the following types of changes, the AI agent **MUST** up
 
 *This document helps AI Agents quickly understand the SimpMusic project. Update regularly when there are major changes to architecture or structure.*
 
-**Last updated**: 2026-11-02
+**Last updated**: 2026-11-03
 **Project version**: Check latest release on GitHub
 **Maintained by**: maxrave-dev and contributors

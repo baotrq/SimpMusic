@@ -1145,4 +1145,21 @@
     <string name="recognize_mic_needed">Microphone access needed</string>
     <string name="recognize_mic_hint">SimpMusic listens for a few seconds to find the song playing near you</string>
     <string name="recognize_allow_mic">Allow microphone</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_appearance_summary">Language, theme, player and lyrics style</string>
+    <string name="settings_audio_playback">Audio &amp; playback</string>
+    <string name="settings_audio_playback_summary">Quality, equalizer, crossfade, SponsorBlock</string>
+    <string name="settings_lyrics_ai">Lyrics &amp; AI</string>
+    <string name="settings_lyrics_ai_summary">Lyrics source, timing, translation, AI</string>
+    <string name="settings_accounts_sync">Accounts &amp; sync</string>
+    <string name="settings_accounts_sync_summary">YouTube, Spotify, Discord, Last.fm, sync between devices</string>
+    <string name="settings_storage_backup">Storage &amp; backup</string>
+    <string name="settings_storage_backup_summary">Downloads, history, cache, backup</string>
+    <string name="settings_about_summary">Version and updates</string>
+    <string name="settings_developer_summary">App log, car mode</string>
+    <string name="settings_general">General</string>
+    <string name="settings_downloads">Downloads</string>
+    <string name="settings_style_hint">Tap a style to use it</string>
+    <string name="playback_sync_enable">Sync between devices</string>
+    <string name="playback_sync_enable_description">Continue songs and share sign-ins and lyrics with your other devices</string>
 </resources>
