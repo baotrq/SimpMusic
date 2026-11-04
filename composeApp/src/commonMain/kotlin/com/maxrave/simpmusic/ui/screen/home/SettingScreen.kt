@@ -67,6 +67,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -141,6 +142,14 @@ import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.EndOfPage
 import com.maxrave.simpmusic.ui.component.LoadingDialog
 import com.maxrave.simpmusic.ui.component.RippleIconButton
+import com.maxrave.simpmusic.ui.component.LyricsOffsetDialog
+import com.maxrave.simpmusic.ui.component.SettingChoiceDialog
+import com.maxrave.simpmusic.ui.component.SettingMultiChoiceDialog
+import com.maxrave.simpmusic.ui.component.languageName
+import com.maxrave.simpmusic.ui.component.languageNativeName
+import com.maxrave.simpmusic.ui.component.namedLanguageCodes
+import com.maxrave.simpmusic.ui.component.countryFlag
+import com.maxrave.simpmusic.ui.component.countryName
 import com.maxrave.simpmusic.ui.component.SettingGroup
 import com.maxrave.simpmusic.ui.component.SettingItem
 import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
@@ -402,6 +411,7 @@ import simpmusic.composeapp.generated.resources.romanization_punjabi
 import simpmusic.composeapp.generated.resources.romanization_russian
 import simpmusic.composeapp.generated.resources.romanization_serbian
 import simpmusic.composeapp.generated.resources.romanization_ukrainian
+import simpmusic.composeapp.generated.resources.same_as_app_language
 import simpmusic.composeapp.generated.resources.save
 import simpmusic.composeapp.generated.resources.save_all_your_playlist_data
 import simpmusic.composeapp.generated.resources.save_playback_state
@@ -640,6 +650,7 @@ fun SettingScreen(
     var showLoginSyncDialog by rememberSaveable {
         mutableStateOf(false)
     }
+    var showLyricsOffsetDialog by rememberSaveable { mutableStateOf(false) }
     var showThirdPartyLibraries by rememberSaveable {
         mutableStateOf(false)
     }
@@ -685,6 +696,7 @@ fun SettingScreen(
                             viewModel.setAlertData(
                                 SettingAlertState(
                                     title = runBlocking { getString(Res.string.language) },
+                                    closeOnSelect = true,
                                     selectOne =
                                         SettingAlertState.SelectData(
                                             listSelect =
@@ -716,7 +728,7 @@ fun SettingScreen(
                     )
                     SettingItem(
                         title = stringResource(Res.string.content_country),
-                        subtitle = location ?: "",
+                        subtitle = location?.let { code -> listOfNotNull(countryFlag(code), countryName(code)).joinToString(" ") } ?: "",
                         onClick = {
                             viewModel.setAlertData(
                                 SettingAlertState(
@@ -724,10 +736,13 @@ fun SettingScreen(
                                     selectOne =
                                         SettingAlertState.SelectData(
                                             listSelect =
-                                                SUPPORTED_LOCATION.items.map { item ->
-                                                    (item.toString() == location) to item.toString()
-                                                },
+                                                SUPPORTED_LOCATION.items
+                                                    .map { it.toString() }
+                                                    .sortedBy { countryName(it) }
+                                                    .map { code -> (code == location) to code },
                                         ),
+                                    optionLabel = ::countryName,
+                                    optionEmoji = ::countryFlag,
                                     confirm =
                                         runBlocking { getString(Res.string.change) } to { state ->
                                             viewModel.changeLocation(
@@ -1405,59 +1420,30 @@ fun SettingScreen(
                                 Res.string.lyrics_offset_value,
                                 if (lyricsOffsetMs > 0) "+$lyricsOffsetMs" else lyricsOffsetMs.toString(),
                             ),
-                        onClick = {
-                            viewModel.setAlertData(
-                                SettingAlertState(
-                                    title = runBlocking { getString(Res.string.lyrics_offset) },
-                                    // The dialog renders its text field INSIDE the `message != null`
-                                    // branch, so a state carrying a textField and no message opens an
-                                    // empty box with no error anywhere.
-                                    message = runBlocking { getString(Res.string.lyrics_offset_message) },
-                                    textField =
-                                        SettingAlertState.TextFieldData(
-                                            label = runBlocking { getString(Res.string.lyrics_offset) },
-                                            value = lyricsOffsetMs.toString(),
-                                            // Only that it is a whole number — no range. How far a
-                                            // listener's own audio path lags is theirs to say.
-                                            verifyCodeBlock = {
-                                                (it.trim().toIntOrNull() != null) to
-                                                    runBlocking { getString(Res.string.lyrics_offset_invalid) }
-                                            },
-                                        ),
-                                    confirm =
-                                        runBlocking { getString(Res.string.change) } to { state ->
-                                            state.textField
-                                                ?.value
-                                                ?.trim()
-                                                ?.toIntOrNull()
-                                                ?.let { viewModel.setLyricsOffsetMs(it) }
-                                        },
-                                    dismiss = runBlocking { getString(Res.string.cancel) },
-                                ),
-                            )
-                        },
+                        onClick = { showLyricsOffsetDialog = true },
                     )
 
+                    // Fork: both languages are picked by name from a list, not typed as a code.
+                    val sameAsAppLanguage = stringResource(Res.string.same_as_app_language)
                     SettingItem(
                         title = stringResource(Res.string.translation_language),
-                        subtitle = translationLanguage ?: "",
+                        subtitle = translationLanguage?.takeIf { it.isNotBlank() }?.let { languageName(it) } ?: sameAsAppLanguage,
                         onClick = {
                             viewModel.setAlertData(
                                 SettingAlertState(
                                     title = runBlocking { getString(Res.string.translation_language) },
-                                    textField =
-                                        SettingAlertState.TextFieldData(
-                                            label = runBlocking { getString(Res.string.translation_language) },
-                                            value = translationLanguage ?: "",
-                                            verifyCodeBlock = {
-                                                (it.length == 2 && it.isTwoLetterCode()) to
-                                                    runBlocking { getString(Res.string.invalid_language_code) }
-                                            },
+                                    selectOne =
+                                        SettingAlertState.SelectData(
+                                            listSelect =
+                                                (listOf("") + namedLanguageCodes()).map { code ->
+                                                    (code == (translationLanguage ?: "").lowercase()) to code
+                                                },
                                         ),
-                                    message = runBlocking { getString(Res.string.translation_language_message) },
+                                    optionLabel = { code -> if (code.isEmpty()) sameAsAppLanguage else languageName(code) },
+                                    optionSecondary = { code -> if (code.isEmpty()) null else languageNativeName(code) },
                                     confirm =
                                         runBlocking { getString(Res.string.change) } to { state ->
-                                            viewModel.setTranslationLanguage(state.textField?.value ?: "")
+                                            viewModel.setTranslationLanguage(state.selectOne?.getSelected() ?: "")
                                         },
                                     dismiss = runBlocking { getString(Res.string.cancel) },
                                 ),
@@ -1467,24 +1453,25 @@ fun SettingScreen(
                     )
                     SettingItem(
                         title = stringResource(Res.string.youtube_subtitle_language),
-                        subtitle = youtubeSubtitleLanguage,
+                        subtitle = languageName(youtubeSubtitleLanguage),
                         onClick = {
                             viewModel.setAlertData(
                                 SettingAlertState(
                                     title = runBlocking { getString(Res.string.youtube_subtitle_language) },
-                                    textField =
-                                        SettingAlertState.TextFieldData(
-                                            label = runBlocking { getString(Res.string.youtube_subtitle_language) },
-                                            value = youtubeSubtitleLanguage,
-                                            verifyCodeBlock = {
-                                                (it.length == 2 && it.isTwoLetterCode()) to
-                                                    runBlocking { getString(Res.string.invalid_language_code) }
-                                            },
+                                    selectOne =
+                                        SettingAlertState.SelectData(
+                                            listSelect =
+                                                namedLanguageCodes().map { code ->
+                                                    (code == youtubeSubtitleLanguage.lowercase()) to code
+                                                },
                                         ),
-                                    message = runBlocking { getString(Res.string.youtube_subtitle_language_message) },
+                                    optionLabel = ::languageName,
+                                    optionSecondary = ::languageNativeName,
                                     confirm =
                                         runBlocking { getString(Res.string.change) } to { state ->
-                                            viewModel.setYoutubeSubtitleLanguage(state.textField?.value ?: "")
+                                            state.selectOne?.getSelected()?.takeIf { it.isNotEmpty() }?.let {
+                                                viewModel.setYoutubeSubtitleLanguage(it)
+                                            }
                                         },
                                     dismiss = runBlocking { getString(Res.string.cancel) },
                                 ),
@@ -3098,7 +3085,65 @@ fun SettingScreen(
         }
     }
     val alertData by viewModel.alertData.collectAsStateWithLifecycle()
-    if (alertData != null) {
+    // Fork: pick-one and pick-several lists open as the Settings choice popup: a tap applies at once,
+    // the popup stays, tapping outside closes it. Everything else stays the plain dialog below.
+    // `message` is checked first because that dialog shows only the text when both are set.
+    val choiceState = alertData?.takeIf { it.message == null && it.selectOne != null }
+    if (choiceState != null) {
+        key(choiceState) {
+            SettingChoiceDialog(
+                title = choiceState.title,
+                options = choiceState.selectOne!!.listSelect.map { it.second },
+                selected = choiceState.selectOne.listSelect.firstOrNull { it.first }?.second,
+                onSelect = { option ->
+                    val chosen =
+                        choiceState.copy(
+                            selectOne =
+                                choiceState.selectOne.copy(
+                                    listSelect = choiceState.selectOne.listSelect.map { (it.second == option) to it.second },
+                                ),
+                        )
+                    if (choiceState.closeOnSelect) viewModel.setAlertData(null)
+                    choiceState.confirm.second.invoke(chosen)
+                },
+                onDismiss = { if (viewModel.alertData.value === choiceState) viewModel.setAlertData(null) },
+                label = choiceState.optionLabel ?: { it },
+                secondary = choiceState.optionSecondary ?: { null },
+                emoji = choiceState.optionEmoji ?: { null },
+            )
+        }
+    }
+    val multiChoiceState = alertData?.takeIf { it.message == null && it.selectOne == null && it.multipleSelect != null }
+    if (multiChoiceState != null) {
+        key(multiChoiceState) {
+            SettingMultiChoiceDialog(
+                title = multiChoiceState.title,
+                options = multiChoiceState.multipleSelect!!.listSelect.map { it.second },
+                initiallySelected = multiChoiceState.multipleSelect.getListSelected(),
+                onChange = { picked ->
+                    multiChoiceState.confirm.second.invoke(
+                        multiChoiceState.copy(
+                            multipleSelect =
+                                multiChoiceState.multipleSelect.copy(
+                                    listSelect = multiChoiceState.multipleSelect.listSelect.map { (it.second in picked) to it.second },
+                                ),
+                        ),
+                    )
+                },
+                onDismiss = { viewModel.setAlertData(null) },
+            )
+        }
+    }
+    if (showLyricsOffsetDialog) {
+        LyricsOffsetDialog(
+            title = stringResource(Res.string.lyrics_offset),
+            message = stringResource(Res.string.lyrics_offset_message),
+            valueMs = lyricsOffsetMs,
+            onChange = { viewModel.setLyricsOffsetMs(it) },
+            onDismiss = { showLyricsOffsetDialog = false },
+        )
+    }
+    if (alertData != null && choiceState == null && multiChoiceState == null) {
         val alertState = alertData ?: return
         // AlertDialog
         AlertDialog(

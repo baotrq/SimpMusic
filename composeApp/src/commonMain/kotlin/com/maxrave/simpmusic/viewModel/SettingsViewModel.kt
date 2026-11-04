@@ -2117,6 +2117,13 @@ data class SettingAlertState(
     val multipleSelect: SelectData? = null,
     val confirm: Pair<String, (SettingAlertState) -> Unit>,
     val dismiss: String,
+    // Fork: how a pick-one sheet shows an option (the stored value stays the option itself), e.g. a
+    // country code as its flag and full name.
+    val optionLabel: ((String) -> String)? = null,
+    val optionSecondary: ((String) -> String?)? = null,
+    val optionEmoji: ((String) -> String?)? = null,
+    // Fork: a pick-one popup stays open after a choice; this closes it instead.
+    val closeOnSelect: Boolean = false,
 ) {
     data class TextFieldData(
         val label: String,
