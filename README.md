@@ -1,3 +1,22 @@
+<!-- Fork: download section for this fork. Everything below the line is the original README. -->
+# Nhạc Nhẽo — tải về / download
+
+### 👉 [**Bấm vào đây để tải về**](https://github.com/baotrq/SimpMusic/releases/latest/download/SimpMusic-Bao.apk) 👈
+
+**Cách cài (trên điện thoại Android):**
+
+1. Mở trang này **trên điện thoại** và bấm vào link ở trên. Điện thoại sẽ tải về file `SimpMusic-Bao.apk` (khoảng 30 MB).
+2. Khi tải xong, bấm vào file đó (trong thông báo, hoặc mở ứng dụng **Tệp / Files → Tải xuống**).
+3. Nếu điện thoại hỏi có cho phép cài ứng dụng từ nguồn này không, chọn **Cài đặt** → bật **Cho phép từ nguồn này**, rồi quay lại.
+4. Bấm **Cài đặt**. Nếu Google Play Protect cảnh báo, chọn **Thêm chi tiết → Vẫn cài đặt**.
+5. Mở ứng dụng **Nhạc Nhẽo**. Khi có bản mới, ứng dụng sẽ tự hỏi để cập nhật lúc mở lên.
+
+**How to install (English):** open this page on an Android phone, tap the link above, open the downloaded `SimpMusic-Bao.apk`, allow installing from this source if asked, and tap Install (choose "Install anyway" if Play Protect warns). The app appears as **Nhạc Nhẽo** and offers new versions by itself when opened.
+
+<sub>A personal build of [SimpMusic](https://github.com/maxrave-dev/SimpMusic) by baotrq. Android only. It installs next to the official SimpMusic app and keeps its own data. Older versions: [Releases](https://github.com/baotrq/SimpMusic/releases).</sub>
+
+---
+
 <div align="center"> <img src="https://raw.githubusercontent.com/maxrave-dev/SimpMusic/dev/fastlane/metadata/android/en-US/images/featureGraphic.png"> <h1>SimpMusic</h1>  
 A FOSS YouTube Music client for Android and Desktop with many features from<br>Spotify, SponsorBlock, ReturnYouTubeDislike using Compose Multiplatform to develop.
 <br> 
