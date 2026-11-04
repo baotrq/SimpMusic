@@ -836,6 +836,9 @@ fun HomeScreen(
                                 listOf<(HomeItem) -> Boolean>(
                                     { it.isSpeedDialShelf(speedDialAccount) },
                                     { it.title == quickPicksTitle },
+                                    // The other 4-row song shelves (Song mixes, Trending songs for
+                                    // you…), found by shape so it works in every language.
+                                    { it.isSongListShelf() },
                                     { it.title.trim().equals("Forgotten favorites", ignoreCase = true) },
                                     { it.title.trim().startsWith("Trending songs", ignoreCase = true) },
                                     { it.title.trim().startsWith("New release", ignoreCase = true) },
@@ -937,26 +940,11 @@ fun HomeScreen(
                                             onDismiss = PlaybackSync::markHandled,
                                         )
                                     }
-                                    if (item.title == stringResource(Res.string.quick_picks)) {
-                                        AnimatedVisibility(
-                                            visible =
-                                                homeData.find {
-                                                    it.title ==
-                                                        stringResource(
-                                                            Res.string.quick_picks,
-                                                        )
-                                                } != null,
-                                        ) {
+                                    if (!item.isSpeedDialShelf(accountInfo?.first) && item.isSongListShelf()) {
+                                        run {
                                             QuickPicks(
                                                 homeItem =
-                                                    (
-                                                        homeData.find {
-                                                            it.title ==
-                                                                stringResource(
-                                                                    Res.string.quick_picks,
-                                                                )
-                                                        } ?: return@AnimatedVisibility
-                                                    ).let { content ->
+                                                    item.let { content ->
                                                         content.copy(
                                                             contents =
                                                                 content.contents.mapNotNull { ct ->
@@ -1516,6 +1504,14 @@ private fun HomeItem.isSongCardShelf(): Boolean =
         contents.isNotEmpty() &&
         contents.all { it != null && !it.videoId.isNullOrEmpty() && it.homeCardAspectRatio() == 1f }
 
+// Fork: a shelf YouTube stacks 4 rows per column, all songs or videos. Quick picks is one, but YouTube
+// titles the same shelf "Song mixes" on some loads, and "Trending songs for you" has the same shape, so
+// matching the title alone made the grid come and go. All of them get the Quick picks grid.
+private fun HomeItem.isSongListShelf(): Boolean =
+    itemsPerColumn != null &&
+        contents.isNotEmpty() &&
+        contents.all { it != null && !it.videoId.isNullOrEmpty() }
+
 @ExperimentalFoundationApi
 @Composable
 fun QuickPicks(
@@ -1557,7 +1553,7 @@ fun QuickPicks(
                     style = typo().bodySmall,
                 )
                 Text(
-                    text = stringResource(Res.string.quick_picks),
+                    text = homeItem.title,
                     style = typo().headlineMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
