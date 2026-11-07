@@ -63,16 +63,16 @@ import simpmusic.composeapp.generated.resources.share_lyrics_saved_desktop
 
 private const val KEY_NEXT_PROMPT_AT = "donate_next_prompt_at"
 private const val DAY_MS = 24L * 60 * 60 * 1000
-private const val FIRST_PROMPT_AFTER_MS = 7 * DAY_MS
-private const val REPEAT_PROMPT_AFTER_MS = 14 * DAY_MS
+private const val REPEAT_PROMPT_AFTER_MS = 7 * DAY_MS
 private const val SETTLE_MS = 1_000L
 private const val CLEAR_MS = 400L
 
 /**
- * Fork: the occasional donate box on Home, 7 days after this feature first runs and at most every 14
- * days after that. It follows the launch banners' manners: one decision per launch, never over another
+ * Fork: the occasional donate box on Home, on a new install's first launch and at most every 7 days
+ * after that. It follows the launch banners' manners: one decision per launch, never over another
  * dialog or Now Playing, and a launch where the user has already started leaves it for a later one.
- * The next date is stored as soon as the box appears, so dismissing it any way counts as "later".
+ * The next date is stored as soon as the box appears, so dismissing it any way counts as "later", and
+ * a first prompt put off this way is still due on the next launch, since no date has been stored yet.
  */
 @Composable
 fun DonatePrompt(
@@ -94,13 +94,8 @@ fun DonatePrompt(
         delay(SETTLE_MS)
         // The owner's own build, with the personal tools shown, is never asked.
         if (dataStore.getString(PERSONAL_TOOLS_KEY).first() == DataStoreManager.TRUE) return@LaunchedEffect
-        val now = System.currentTimeMillis()
         val nextAt = dataStore.getString(KEY_NEXT_PROMPT_AT).first()?.toLongOrNull()
-        if (nextAt == null) {
-            dataStore.putString(KEY_NEXT_PROMPT_AT, (now + FIRST_PROMPT_AFTER_MS).toString())
-        } else {
-            due = now >= nextAt
-        }
+        due = nextAt == null || System.currentTimeMillis() >= nextAt
     }
     LaunchedEffect(blocked, due) {
         if (blocked || !due) return@LaunchedEffect
