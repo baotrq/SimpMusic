@@ -2,6 +2,8 @@
 
 package com.maxrave.simpmusic.ui.screen.player
 
+import com.maxrave.simpmusic.ui.screen.player.content.nhacnheo.NowPlayingContentNhacNheo
+import com.maxrave.simpmusic.ui.screen.player.content.NOW_PLAYING_STYLE_NHAC_NHEO
 import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -546,8 +548,8 @@ fun NowPlayingScreenContent(
     LaunchedEffect(key1 = showHideJob) {
         if (!showHideJob) {
             delay(5000)
-            // Fork: the Apple Music style keeps its controls over a Spotify canvas at all times.
-            if (mainScrollState.value == 0 && nowPlayingStyle != DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC) {
+            // Fork: the Nhạc Nhẽo style keeps its controls over a Spotify canvas at all times.
+            if (mainScrollState.value == 0 && nowPlayingStyle != NOW_PLAYING_STYLE_NHAC_NHEO) {
                 showHideControlLayout = false
             }
             showHideJob = true
@@ -685,9 +687,9 @@ fun NowPlayingScreenContent(
             },
             onToggleControls = {
                 showHideJob = true
-                // Fork: in the Apple Music style a tap can only show the controls, never hide them.
+                // Fork: in the Nhạc Nhẽo style a tap can only show the controls, never hide them.
                 showHideControlLayout =
-                    nowPlayingStyle == DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC || !showHideControlLayout
+                    nowPlayingStyle == NOW_PLAYING_STYLE_NHAC_NHEO || !showHideControlLayout
             },
             onNavigateToArtist = {
                 val song = sharedViewModel.nowPlayingState.value?.songEntity
@@ -982,6 +984,12 @@ fun NowPlayingScreenContent(
     when (nowPlayingStyle) {
         DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE ->
             NowPlayingContentM3Expressive(
+                state = state,
+                actions = actions,
+            )
+
+        NOW_PLAYING_STYLE_NHAC_NHEO ->
+            NowPlayingContentNhacNheo(
                 state = state,
                 actions = actions,
             )

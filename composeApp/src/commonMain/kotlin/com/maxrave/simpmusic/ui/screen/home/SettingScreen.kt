@@ -1,5 +1,12 @@
 package com.maxrave.simpmusic.ui.screen.home
 
+import simpmusic.composeapp.generated.resources.personal_tools_shown
+import simpmusic.composeapp.generated.resources.personal_tools_hidden
+import simpmusic.composeapp.generated.resources.check_for_update_description
+import simpmusic.composeapp.generated.resources.ai_translation_off
+import simpmusic.composeapp.generated.resources.ai_translation_on
+import simpmusic.composeapp.generated.resources.ai_translation_not_set_up
+import simpmusic.composeapp.generated.resources.ai_translation
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -239,8 +246,6 @@ import simpmusic.composeapp.generated.resources.car_mode_title
 import simpmusic.composeapp.generated.resources.categories_sponsor_block
 import simpmusic.composeapp.generated.resources.change
 import simpmusic.composeapp.generated.resources.change_language_warning
-import simpmusic.composeapp.generated.resources.check_for_new_build
-import simpmusic.composeapp.generated.resources.check_for_new_build_description
 import simpmusic.composeapp.generated.resources.check_for_update
 import simpmusic.composeapp.generated.resources.checking
 import simpmusic.composeapp.generated.resources.clear
@@ -685,6 +690,44 @@ fun SettingScreen(
     }
     // The list's side margin, which the in-list toolbar stretches back across.
     val listSidePadding = 16.dp
+    val dataStoreManager: DataStoreManager = koinInject()
+    // Fork: Car mode, the LED strip and Playback sync are the owner's own tools. Seven taps on Version
+    // shows or hides them on this device; they keep running either way.
+    val personalTools by remember(dataStoreManager) { dataStoreManager.getString(PERSONAL_TOOLS_KEY) }
+        .collectAsStateWithLifecycle(null)
+    val personalToolsShown = personalTools == DataStoreManager.TRUE
+    var versionTaps by remember { mutableIntStateOf(0) }
+    val settingsScope = rememberCoroutineScope()
+    val translationLanguageRow: @Composable () -> Unit = {
+                    // Fork: both languages are picked by name from a list, not typed as a code.
+                    val sameAsAppLanguage = stringResource(Res.string.same_as_app_language)
+                    SettingItem(
+                        title = stringResource(Res.string.translation_language),
+                        subtitle = translationLanguage?.takeIf { it.isNotBlank() }?.let { languageName(it) } ?: sameAsAppLanguage,
+                        onClick = {
+                            viewModel.setAlertData(
+                                SettingAlertState(
+                                    title = runBlocking { getString(Res.string.translation_language) },
+                                    selectOne =
+                                        SettingAlertState.SelectData(
+                                            listSelect =
+                                                (listOf("") + namedLanguageCodes()).map { code ->
+                                                    (code == (translationLanguage ?: "").lowercase()) to code
+                                                },
+                                        ),
+                                    optionLabel = { code -> if (code.isEmpty()) sameAsAppLanguage else languageName(code) },
+                                    optionSecondary = { code -> if (code.isEmpty()) null else languageNativeName(code) },
+                                    confirm =
+                                        runBlocking { getString(Res.string.change) } to { state ->
+                                            viewModel.setTranslationLanguage(state.selectOne?.getSelected() ?: "")
+                                        },
+                                    dismiss = runBlocking { getString(Res.string.cancel) },
+                                ),
+                            )
+                        },
+                        isEnable = true,
+                    )
+    }
     val pageContent: @Composable ColumnScope.(SettingPage) -> Unit = { shown ->
         when (shown) {
             SettingPage.APPEARANCE -> {
@@ -1423,34 +1466,7 @@ fun SettingScreen(
                         onClick = { showLyricsOffsetDialog = true },
                     )
 
-                    // Fork: both languages are picked by name from a list, not typed as a code.
-                    val sameAsAppLanguage = stringResource(Res.string.same_as_app_language)
-                    SettingItem(
-                        title = stringResource(Res.string.translation_language),
-                        subtitle = translationLanguage?.takeIf { it.isNotBlank() }?.let { languageName(it) } ?: sameAsAppLanguage,
-                        onClick = {
-                            viewModel.setAlertData(
-                                SettingAlertState(
-                                    title = runBlocking { getString(Res.string.translation_language) },
-                                    selectOne =
-                                        SettingAlertState.SelectData(
-                                            listSelect =
-                                                (listOf("") + namedLanguageCodes()).map { code ->
-                                                    (code == (translationLanguage ?: "").lowercase()) to code
-                                                },
-                                        ),
-                                    optionLabel = { code -> if (code.isEmpty()) sameAsAppLanguage else languageName(code) },
-                                    optionSecondary = { code -> if (code.isEmpty()) null else languageNativeName(code) },
-                                    confirm =
-                                        runBlocking { getString(Res.string.change) } to { state ->
-                                            viewModel.setTranslationLanguage(state.selectOne?.getSelected() ?: "")
-                                        },
-                                    dismiss = runBlocking { getString(Res.string.cancel) },
-                                ),
-                            )
-                        },
-                        isEnable = true,
-                    )
+                    translationLanguageRow()
                     SettingItem(
                         title = stringResource(Res.string.youtube_subtitle_language),
                         subtitle = languageName(youtubeSubtitleLanguage),
@@ -1537,6 +1553,23 @@ fun SettingScreen(
                         },
                     )
                 }
+                SettingGroup(title = stringResource(Res.string.ai)) {
+                    SettingItem(
+                        title = stringResource(Res.string.ai_translation),
+                        subtitle =
+                            stringResource(
+                                when {
+                                    !isHasApiKey -> Res.string.ai_translation_not_set_up
+                                    useAITranslation -> Res.string.ai_translation_on
+                                    else -> Res.string.ai_translation_off
+                                },
+                            ),
+                        onClick = { openPage = SettingPage.AI_TRANSLATION.name },
+                    )
+                }
+            }
+            SettingPage.AI_TRANSLATION -> {
+                AiKeyGuide(aiProvider)
                 SettingGroup(title = stringResource(Res.string.ai)) {
                     SettingItem(
                         title = stringResource(Res.string.ai_provider),
@@ -1717,6 +1750,7 @@ fun SettingScreen(
                         switch = (useAITranslation to { viewModel.setAITranslation(it) }),
                         isEnable = isHasApiKey,
                     )
+                    translationLanguageRow()
                 }
             }
             SettingPage.ACCOUNTS_SYNC -> {
@@ -1890,11 +1924,13 @@ fun SettingScreen(
                         onClick = { showLoginSyncDialog = true },
                     )
                 }
-                SettingGroup(
-                    title = stringResource(Res.string.playback_sync),
-                    footer = { Text(stringResource(Res.string.playback_sync_footer), style = typo().bodySmall) },
-                ) {
-                    PlaybackSyncSettingItems()
+                if (personalToolsShown) {
+                    SettingGroup(
+                        title = stringResource(Res.string.playback_sync),
+                        footer = { Text(stringResource(Res.string.playback_sync_footer), style = typo().bodySmall) },
+                    ) {
+                        PlaybackSyncSettingItems()
+                    }
                 }
                 SettingGroup(title = stringResource(Res.string.proxy)) {
                     SettingItem(
@@ -2624,29 +2660,43 @@ fun SettingScreen(
                     SettingItem(
                         title = stringResource(Res.string.version),
                         subtitle = stringResource(Res.string.version_format, VersionManager.getVersionName()),
+                        onClick = {
+                            versionTaps++
+                            if (versionTaps == 7) {
+                                versionTaps = 0
+                                settingsScope.launch {
+                                    dataStoreManager.putString(
+                                        PERSONAL_TOOLS_KEY,
+                                        if (personalToolsShown) DataStoreManager.FALSE else DataStoreManager.TRUE,
+                                    )
+                                }
+                                viewModel.makeToast(
+                                    runBlocking {
+                                        getString(if (personalToolsShown) Res.string.personal_tools_hidden else Res.string.personal_tools_shown)
+                                    },
+                                )
+                            }
+                        },
                     )
                     SettingItem(
                         title = stringResource(Res.string.author),
                         subtitle = "baotrq",
                         onClick = {
-                            uriHandler.openUri("https://github.com/baotrq/SimpMusic")
+                            uriHandler.openUri("https://github.com/baotrq/simpmusic-bao-showcase")
                         },
                     )
+                    // Fork: one button. This app's own releases where they exist, upstream's elsewhere.
+                    val checkForNewBuild = ForkBuildCheck.check
                     SettingItem(
                         title = stringResource(Res.string.check_for_update),
-                        subtitle = checkForUpdateSubtitle,
-                        onClick = {
-                            sharedViewModel.checkForUpdate()
-                        },
+                        subtitle =
+                            if (checkForNewBuild != null) {
+                                stringResource(Res.string.check_for_update_description)
+                            } else {
+                                checkForUpdateSubtitle
+                            },
+                        onClick = { checkForNewBuild?.invoke() ?: sharedViewModel.checkForUpdate() },
                     )
-                    // Fork: newer bao- builds of this app. Android release builds only (ForkBuildCheck).
-                    ForkBuildCheck.check?.let { checkForNewBuild ->
-                        SettingItem(
-                            title = stringResource(Res.string.check_for_new_build),
-                            subtitle = stringResource(Res.string.check_for_new_build_description),
-                            onClick = checkForNewBuild,
-                        )
-                    }
                     SettingItem(
                         title = stringResource(Res.string.third_party_libraries),
                         subtitle = stringResource(Res.string.description_and_licenses),
@@ -2666,7 +2716,7 @@ fun SettingScreen(
                         },
                     )
                 }
-                if (getPlatform() == Platform.Android) {
+                if (getPlatform() == Platform.Android && personalToolsShown) {
                     SettingGroup(title = stringResource(Res.string.car_mode)) {
                         SettingItem(
                             title = stringResource(Res.string.car_mode_title),
@@ -3578,3 +3628,5 @@ private fun ImportProgressDialog(
         },
     )
 }
+
+private const val PERSONAL_TOOLS_KEY = "personal_tools_shown"

@@ -1,5 +1,6 @@
 package com.maxrave.simpmusic.ui.component
 
+import com.maxrave.simpmusic.ui.screen.player.content.NOW_PLAYING_STYLE_NHAC_NHEO
 import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -109,8 +110,8 @@ import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.VolumeOff
 import com.maxrave.simpmusic.ui.icon.VolumeUp
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
-import com.maxrave.simpmusic.ui.screen.player.content.AppleMusicArtworkBackdrop
-import com.maxrave.simpmusic.ui.screen.player.content.AppleMusicMainTitleRow
+import com.maxrave.simpmusic.ui.screen.player.content.nhacnheo.AppleMusicArtworkBackdrop
+import com.maxrave.simpmusic.ui.screen.player.content.nhacnheo.AppleMusicMainTitleRow
 import com.maxrave.simpmusic.ui.screen.player.content.ExpressivePlaybackControls
 import com.maxrave.simpmusic.ui.screen.player.content.ExpressiveTrackInfoRow
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
@@ -118,8 +119,8 @@ import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingExpressiveTheme
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingTrackInfoRow
 import com.maxrave.simpmusic.ui.screen.player.content.SpotifyPlaybackControls
-import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicPlaybackControls
-import com.maxrave.simpmusic.ui.screen.player.content.applemusic.rememberAppleMusicTypography
+import com.maxrave.simpmusic.ui.screen.player.content.nhacnheo.AppleMusicPlaybackControls
+import com.maxrave.simpmusic.ui.screen.player.content.nhacnheo.rememberAppleMusicTypography
 import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
 import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
@@ -821,7 +822,7 @@ private fun FullscreenLyricsLandscape(
         // The glass backdrop source. The Desktop chrome drawn over this layout is a sibling of this
         // whole Box, never a child of it.
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
-            if (nowPlayingStyle == DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC) {
+            if (nowPlayingStyle == DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC || nowPlayingStyle == NOW_PLAYING_STYLE_NHAC_NHEO) {
                 // The same seed rule the Apple Music page applies: the shell's colour starts on black
                 // and only turns into the palette colour once the palette resolves.
                 val paletteColor = state.startColor.value
@@ -916,7 +917,7 @@ private fun FullscreenLyricsLandscape(
                                     }
                                 }
 
-                            DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC -> {
+                            DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC, NOW_PLAYING_STYLE_NHAC_NHEO -> {
                                 val typography = rememberAppleMusicTypography()
                                 AppleMusicMainTitleRow(state = state, actions = actions, typography = typography)
                                 Spacer(modifier = Modifier.height(16.dp))

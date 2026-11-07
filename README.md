@@ -13,7 +13,7 @@
 
 **How to install (English):** open this page on an Android phone, tap the link above to open the latest release, download the `arm64-v8a.apk` file under **Assets** and open it, allow installing from this source if asked, and tap Install (choose "Install anyway" if Play Protect warns). The app appears as **Nhạc Nhẽo** and offers new versions by itself when opened.
 
-<sub>A personal build of [SimpMusic](https://github.com/maxrave-dev/SimpMusic) by baotrq. Android only. It installs next to the official SimpMusic app and keeps its own data. Older versions: [Releases](https://github.com/baotrq/SimpMusic/releases).</sub>
+<sub>A personal build of [SimpMusic](https://github.com/maxrave-dev/SimpMusic) by baotrq. Android only. It installs next to the official SimpMusic app and keeps its own data. Older versions: [Releases](https://github.com/baotrq/simpmusic-bao-showcase/releases).</sub>
 
 ---
 
