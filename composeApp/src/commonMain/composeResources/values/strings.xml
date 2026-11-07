@@ -104,6 +104,14 @@
     <string name="prefer_320kbps_stream">Prefer 320kbps stream</string>
     <string name="prefer_320kbps_stream_description">Automatically search for 320kbps audio stream when available on the internet. Falls back to default quality if not found.</string>
     <string name="download_quality">Download quality</string>
+    <string name="quality_mobile">Mobile data</string>
+    <string name="quality_mobile_same">Same as Wi-Fi</string>
+    <string name="quality_wifi">Wi-Fi</string>
+    <string name="quality_streaming">Streaming</string>
+    <string name="quality_downloads">Downloads</string>
+    <string name="quality_audio_group">Audio quality</string>
+    <string name="quality_video_group">Video quality</string>
+    <string name="quality_premium_note">256 kbps needs YouTube Music Premium.</string>
     <string name="video_download_quality">Video download quality</string>
     <string name="clear_downloaded_cache">Clear Downloaded Cache</string>
     <string name="clear_thumbnail_cache">Clear Thumbnail Cache</string>
@@ -535,6 +543,14 @@
     <string name="five_seconds">Five seconds</string>
     <string name="lrclib" translatable="false">LRCLIB</string>
     <string name="better_lyrics" translatable="false">BetterLyrics</string>
+    <string name="lrc_red" translatable="false">lrc.red</string>
+    <string name="kugou" translatable="false">KuGou</string>
+    <string name="lyrics_provider_lrc_red">Lyrics provided by lrc.red</string>
+    <string name="megalobiz" translatable="false">Megalobiz</string>
+    <string name="youtube_music_lyrics" translatable="false">YouTube Music</string>
+    <string name="lyrics_provider_kugou">Lyrics provided by KuGou</string>
+    <string name="lyrics_provider_megalobiz">Lyrics provided by Megalobiz</string>
+    <string name="lyrics_provider_youtube_music">Lyrics provided by YouTube Music</string>
     <string name="lyrics_provider_lrc">Lyrics provided by LRCLIB</string>
     <string name="sync_first">Sync this playlist to YouTube Music first</string>
     <string name="endless_queue">Endless queue</string>
@@ -749,6 +765,12 @@
     <string name="rate_lyrics">Rate lyrics</string>
     <string name="lyrics_provider_for_this_song">Lyrics source for this song</string>
     <string name="lyrics_provider_main">Main provider (%1$s)</string>
+    <string name="lyrics_source_automatic">Automatic</string>
+    <string name="lyrics_source_now">Showing now: %1$s, %2$s</string>
+    <string name="lyrics_source_looking">Looking for lyrics…</string>
+    <string name="lyrics_source_none">No source has lyrics for this song</string>
+    <string name="lyrics_source_in_use">In use</string>
+    <string name="lyrics_source_saved">Saved copy</string>
     <string name="lyrics_provider_none">No lyrics (wrong lyrics for this song)</string>
     <string name="lyrics_provider_custom">Your own lyrics</string>
     <string name="tap_along">Tap along</string>

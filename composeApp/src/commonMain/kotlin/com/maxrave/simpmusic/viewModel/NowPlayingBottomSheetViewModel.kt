@@ -124,6 +124,10 @@ class NowPlayingBottomSheetViewModel(
                                 _uiState.update { it.copy(mainLyricsProvider = BETTER_LYRICS) }
                             }
 
+                            DataStoreManager.LRC_RED, DataStoreManager.KUGOU, DataStoreManager.MEGALOBIZ, DataStoreManager.YOUTUBE_MUSIC -> {
+                                _uiState.update { it.copy(mainLyricsProvider = lyricsProvider) }
+                            }
+
                             else -> {
                                 log("Unknown lyrics provider", LogLevel.ERROR)
                             }

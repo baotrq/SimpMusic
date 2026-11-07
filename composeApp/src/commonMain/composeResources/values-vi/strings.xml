@@ -86,6 +86,14 @@
     <string name="prefer_320kbps_stream">Ưu tiên luồng 320kbps</string>
     <string name="prefer_320kbps_stream_description">Tự động tìm kiếm luồng âm thanh 320kbps khi có sẵn trên internet. Nếu không tìm thấy, sẽ chuyển sang chất lượng mặc định.</string>
     <string name="download_quality">Chất lượng tải xuống</string>
+    <string name="quality_mobile">Dữ liệu di động</string>
+    <string name="quality_mobile_same">Giống Wi-Fi</string>
+    <string name="quality_wifi">Wi-Fi</string>
+    <string name="quality_streaming">Phát trực tuyến</string>
+    <string name="quality_downloads">Tải xuống</string>
+    <string name="quality_audio_group">Chất lượng âm thanh</string>
+    <string name="quality_video_group">Chất lượng video</string>
+    <string name="quality_premium_note">256 kbps cần YouTube Music Premium.</string>
     <string name="video_download_quality">Chất lượng video tải xuống</string>
     <string name="clear_downloaded_cache">Xoá tất cả nội dung tải xuống</string>
     <string name="clear_thumbnail_cache">Xoá bộ nhớ cache của trình tải ảnh</string>
@@ -1011,6 +1019,12 @@
     <string name="video_tag">Video</string>
     <string name="lyrics_provider_for_this_song">Nguồn lời cho bài này</string>
     <string name="lyrics_provider_main">Nguồn chính (%1$s)</string>
+    <string name="lyrics_source_automatic">Tự động</string>
+    <string name="lyrics_source_now">Đang hiện: %1$s, %2$s</string>
+    <string name="lyrics_source_looking">Đang tìm lời…</string>
+    <string name="lyrics_source_none">Không nguồn nào có lời bài này</string>
+    <string name="lyrics_source_in_use">Đang dùng</string>
+    <string name="lyrics_source_saved">Bản đã lưu</string>
     <string name="lyrics_provider_none">Không hiện lời (lời bài này bị sai)</string>
     <string name="lyrics_provider_custom">Lời của bạn</string>
     <string name="tap_along">Gõ theo nhịp</string>

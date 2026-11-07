@@ -89,12 +89,6 @@ class HomeViewModel(
             .dataSyncId
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
-    private val _mainHomeThumbnail: MutableStateFlow<String?> = MutableStateFlow(null)
-    val mainHomeThumbnail: StateFlow<String?> = _mainHomeThumbnail
-
-    // The page background image YouTube sends with Home, null when it sends none.
-    private val _homeBackground: MutableStateFlow<String?> = MutableStateFlow(null)
-    val homeBackground: StateFlow<String?> = _homeBackground
 
     init {
         viewModelScope.launch {
@@ -137,18 +131,6 @@ class HomeViewModel(
                     )
                 }
         }
-        viewModelScope.launch {
-            homeItemList.collectLatest { list ->
-                _mainHomeThumbnail.value =
-                    list
-                        .firstOrNull()
-                        ?.contents
-                        ?.firstOrNull()
-                        ?.thumbnails
-                        ?.lastOrNull()
-                        ?.url
-            }
-        }
     }
 
     private data class HomeLoadKey(
@@ -190,7 +172,6 @@ class HomeViewModel(
                             is Resource.Success -> {
                                 _continuation.value = home.data?.first
                                 _homeItemList.value = home.data?.second ?: listOf()
-                                _homeBackground.value = home.data?.third
                                 _homeListState.value =
                                     if (continuation.value.isNullOrEmpty()) ListState.PAGINATION_EXHAUST else ListState.IDLE
                                 if (dataStoreManager.cookie.first().isNotEmpty()) {

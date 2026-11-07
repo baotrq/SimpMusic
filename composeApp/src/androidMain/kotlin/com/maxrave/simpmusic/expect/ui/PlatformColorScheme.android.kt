@@ -1,24 +1,11 @@
 package com.maxrave.simpmusic.expect.ui
 
-import android.os.Build
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.maxrave.simpmusic.extension.getActivityOrNull
-
-@Composable
-actual fun platformDynamicColorScheme(isDark: Boolean): ColorScheme? {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
-    val context = LocalContext.current
-    return if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-}
-
-actual fun isWallpaperDynamicColorSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 @Composable
 actual fun SystemBarAppearanceEffect(isDark: Boolean) {

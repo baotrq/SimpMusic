@@ -122,6 +122,10 @@ import simpmusic.composeapp.generated.resources.line_synced
 import simpmusic.composeapp.generated.resources.lyrics
 import simpmusic.composeapp.generated.resources.lyrics_offset
 import simpmusic.composeapp.generated.resources.lyrics_provider_betterlyrics
+import simpmusic.composeapp.generated.resources.lyrics_provider_kugou
+import simpmusic.composeapp.generated.resources.lyrics_provider_lrc_red
+import simpmusic.composeapp.generated.resources.lyrics_provider_megalobiz
+import simpmusic.composeapp.generated.resources.lyrics_provider_youtube_music
 import simpmusic.composeapp.generated.resources.lyrics_provider_lrc
 import simpmusic.composeapp.generated.resources.lyrics_provider_simpmusic
 import simpmusic.composeapp.generated.resources.lyrics_provider_youtube
@@ -735,6 +739,22 @@ internal fun ExpressiveBelowTheFold(
 
                                     LyricsProvider.BETTER_LYRICS -> {
                                         stringResource(Res.string.lyrics_provider_betterlyrics)
+                                    }
+
+                                    LyricsProvider.LRC_RED -> {
+                                        stringResource(Res.string.lyrics_provider_lrc_red)
+                                    }
+
+                                    LyricsProvider.KUGOU -> {
+                                        stringResource(Res.string.lyrics_provider_kugou)
+                                    }
+
+                                    LyricsProvider.MEGALOBIZ -> {
+                                        stringResource(Res.string.lyrics_provider_megalobiz)
+                                    }
+
+                                    LyricsProvider.YOUTUBE_MUSIC -> {
+                                        stringResource(Res.string.lyrics_provider_youtube_music)
                                     }
 
                                     else -> {

@@ -20,12 +20,14 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.maxrave.common.AppIdentity
 import com.maxrave.data.di.loader.loadAllModules
+import com.maxrave.domain.data.player.MeteredNetwork
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.carmode.CarMode
 import com.maxrave.simpmusic.carmode.CarModeDownloads
 import com.maxrave.simpmusic.di.viewModelModule
+import com.maxrave.simpmusic.expect.isOnUnmeteredNetwork
 import com.maxrave.simpmusic.led.LedStripSync
 import com.maxrave.simpmusic.playbacksync.PlaybackSync
 import com.maxrave.simpmusic.playbacksync.SettingsSync
@@ -94,6 +96,8 @@ class SimpMusicApplication :
 
         // initialize WorkManager
         WorkManager.initialize(this, workConfig)
+
+        MeteredNetwork.check = { !isOnUnmeteredNetwork() }
 
         // Fork: Car mode's switch, mirrored for the image loader (cover TTL).
         CarMode.start(dataStoreManager, applicationScope)

@@ -19,7 +19,6 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.rememberDynamicColorScheme
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.simpmusic.expect.ui.SystemBarAppearanceEffect
-import com.maxrave.simpmusic.expect.ui.platformDynamicColorScheme
 
 /**
  * Semantic colors that sit outside the Material 3 ColorScheme.
@@ -72,18 +71,6 @@ val LocalLiquidGlassEnabled = staticCompositionLocalOf { true }
  */
 val LocalForcedDarkColorScheme = staticCompositionLocalOf<ColorScheme?> { null }
 
-/** Parses "RRGGBB" or "AARRGGBB" (optionally "#"-prefixed) into a [Color]; null if malformed. */
-fun parseThemeColorHex(hex: String): Color? {
-    val clean = hex.trim().removePrefix("#")
-    val argb =
-        when (clean.length) {
-            6 -> "FF$clean"
-            8 -> clean
-            else -> return null
-        }
-    return argb.toLongOrNull(16)?.let { Color(it) }
-}
-
 /**
  * Neutral surfaces for the light theme, on a pure neutral-grey ramp (R=G=B, no seed tint);
  * primary/secondary/tertiary stay seed-derived. The page background is #FAFAFA (neutral tone 98,
@@ -119,36 +106,22 @@ private fun ColorScheme.withNeutralLightSurfaces(): ColorScheme =
 @Composable
 fun AppTheme(
     themeMode: String = DataStoreManager.THEME_MODE_DARK,
-    themeColorSource: String = DataStoreManager.THEME_COLOR_DEFAULT,
-    customThemeColor: Color? = null,
     liquidGlassEnabled: Boolean = true,
     content:
         @Composable()
         () -> Unit,
 ) {
     val isDark = isDarkTheme(themeMode)
-    val wallpaperScheme =
-        if (themeColorSource == DataStoreManager.THEME_COLOR_WALLPAPER) {
-            platformDynamicColorScheme(isDark)
-        } else {
-            null
-        }
-    val seedColor =
-        if (themeColorSource == DataStoreManager.THEME_COLOR_CUSTOM) {
-            customThemeColor ?: seed
-        } else {
-            seed
-        }
-    // Light pins the neutrals to a neutral-grey ramp (the seed otherwise tints them warm/cream);
-    // dark keeps the generated neutrals as they are.
+    // Black and white, no colour anywhere: Monochrome makes primary white in dark and black in light,
+    // and takes all chroma out of the surfaces, so the seed colour plays no part. Light keeps its
+    // neutral ramp; dark keeps the generated one.
     val colorScheme =
-        wallpaperScheme
-            ?: rememberDynamicColorScheme(
-                seedColor = seedColor,
-                isDark = isDark,
-                style = PaletteStyle.TonalSpot,
-                modifyColorScheme = { cs -> if (isDark) cs else cs.withNeutralLightSurfaces() },
-            )
+        rememberDynamicColorScheme(
+            seedColor = Color.White,
+            isDark = isDark,
+            style = PaletteStyle.Monochrome,
+            modifyColorScheme = { cs -> if (isDark) cs else cs.withNeutralLightSurfaces() },
+        )
     // Immersive screens stay dark even at light theme (see [ForceDarkContent]). Resolve their scheme
     // once here instead of letting every such subtree build a palette of its own.
     val forcedDarkScheme =
@@ -156,9 +129,9 @@ fun AppTheme(
             colorScheme
         } else {
             rememberDynamicColorScheme(
-                seedColor = seedColor,
+                seedColor = Color.White,
                 isDark = true,
-                style = PaletteStyle.TonalSpot,
+                style = PaletteStyle.Monochrome,
             )
         }
     SystemBarAppearanceEffect(isDark)

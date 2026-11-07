@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -25,6 +27,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toUpperCase
@@ -33,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.extension.greyScale
 import com.maxrave.simpmusic.getPlatform
+import com.maxrave.simpmusic.ui.icon.ArrowForwardIos
+import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.typo
 
@@ -45,6 +50,7 @@ fun SettingItem(
     onClick: (() -> Unit)? = null,
     switch: Pair<Boolean, ((Boolean) -> Unit)>? = null,
     otherView: @Composable (() -> Unit)? = null,
+    icon: ImageVector? = null,
 ) {
     // isEnable only greys the row out; it deliberately writes nothing.
     //
@@ -68,7 +74,7 @@ fun SettingItem(
             // so a row hidden by a condition never leaves a stray line at the top of the card.
             .drawBehind {
                 val y = SettingDividerThickness.toPx() / 2
-                val inset = SettingRowPaddingHorizontal.toPx()
+                val inset = (if (icon != null) SettingRowTextInset else SettingRowPaddingHorizontal).toPx()
                 val rtl = layoutDirection == LayoutDirection.Rtl
                 drawLine(
                     color = dividerColor,
@@ -100,6 +106,9 @@ fun SettingItem(
                     ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (icon != null) {
+                SettingRowIcon(icon, if (isEnable) MaterialTheme.colorScheme.onSurface else disabledContentColor)
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.Start,
@@ -127,6 +136,7 @@ fun SettingItem(
                     it.invoke()
                 }
             }
+            if (switch == null && onClick != null && isEnable) SettingChevron()
             if (switch != null) {
                 Spacer(Modifier.width(10.dp))
                 Switch(
@@ -142,6 +152,66 @@ fun SettingItem(
     }
 }
 
+/** A one-line row: the name on the start side, its current value on the end side. */
+@Composable
+fun SettingValueRow(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    val y = SettingDividerThickness.toPx() / 2
+                    val inset = SettingRowTextInset.toPx()
+                    val rtl = layoutDirection == LayoutDirection.Rtl
+                    drawLine(
+                        color = dividerColor,
+                        start = Offset(if (rtl) 0f else inset, y),
+                        end = Offset(if (rtl) size.width - inset else size.width, y),
+                        strokeWidth = SettingDividerThickness.toPx(),
+                    )
+                }.clickable(onClick = onClick)
+                .padding(vertical = 14.dp, horizontal = SettingRowPaddingHorizontal),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingRowIcon(icon, MaterialTheme.colorScheme.onSurface)
+        Text(
+            text = title,
+            style = typo().labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(text = value, style = typo().bodySmall)
+        SettingChevron()
+    }
+}
+
+@Composable
+private fun SettingRowIcon(
+    icon: ImageVector,
+    tint: Color,
+) {
+    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(SettingRowIconSize))
+    Spacer(Modifier.width(SettingRowIconGap))
+}
+
+@Composable
+private fun SettingChevron() {
+    Spacer(Modifier.width(8.dp))
+    Icon(
+        SimpIcons.ArrowForwardIos,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(12.dp),
+    )
+}
+
 /**
  * One group of the Settings screen, laid out the way Apple Music groups its settings: a small
  * header above (none when [title] is null), the rows on one rounded card, and an optional note under
@@ -155,12 +225,12 @@ fun SettingGroup(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val cardColor = settingGroupColor()
-    Column(modifier.fillMaxWidth().padding(top = 24.dp)) {
+    Column(modifier.fillMaxWidth().padding(top = 26.dp)) {
         if (title != null) {
             Text(
                 text = title.toUpperCase(Locale.current),
-                // The headers' size from before the groups; only the weight drops, so they step back.
-                style = typo().labelMedium.copy(fontWeight = FontWeight.Normal),
+                style = typo().labelSmall.copy(fontWeight = FontWeight.Normal),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = SettingRowPaddingHorizontal, end = SettingRowPaddingHorizontal, bottom = 8.dp),
             )
         }
@@ -196,6 +266,11 @@ private fun settingGroupColor(): Color =
         MaterialTheme.colorScheme.surfaceContainer
     }
 
-private val SettingGroupShape = RoundedCornerShape(20.dp)
+private val SettingGroupShape = RoundedCornerShape(14.dp)
 private val SettingRowPaddingHorizontal = 16.dp
+private val SettingRowIconSize = 22.dp
+private val SettingRowIconGap = 14.dp
+
+// Where a row's text starts; the hairline above it starts here too.
+private val SettingRowTextInset = SettingRowPaddingHorizontal + SettingRowIconSize + SettingRowIconGap
 private val SettingDividerThickness = 0.5.dp

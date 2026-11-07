@@ -1238,6 +1238,15 @@ class SettingsViewModel(
         }
     }
 
+    /** The mobile-data quality label; blank means use the main quality. */
+    fun mobileQuality() = dataStoreManager.getString(DataStoreManager.MOBILE_QUALITY_KEY)
+
+    fun setMobileQuality(label: String) {
+        viewModelScope.launch {
+            dataStoreManager.putString(DataStoreManager.MOBILE_QUALITY_KEY, label)
+        }
+    }
+
     private val _cacheSize: MutableStateFlow<Long?> = MutableStateFlow(null)
     var cacheSize: StateFlow<Long?> = _cacheSize
 

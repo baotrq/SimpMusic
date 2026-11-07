@@ -46,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -65,7 +64,6 @@ import com.maxrave.domain.data.entities.NotificationEntity
 import com.maxrave.simpmusic.extension.barBlurStyle
 import com.maxrave.simpmusic.extension.formatTimeAgo
 import com.maxrave.simpmusic.extension.mouseDragScroll
-import com.maxrave.simpmusic.ui.component.AmbientThemeGlow
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.EndOfPage
 import com.maxrave.simpmusic.ui.component.RippleIconButton
@@ -106,20 +104,6 @@ fun NotificationScreen(
         derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0 }
     }
 
-    // Home-family ambient ground — scrolls away with the list (see SettingScreen's note on the
-    // draw-phase translation). Tinted with the app's primary, as Settings is.
-    AmbientThemeGlow(
-        tint = MaterialTheme.colorScheme.primary,
-        modifier =
-            Modifier.graphicsLayer {
-                translationY =
-                    if (listState.firstVisibleItemIndex == 0) {
-                        -listState.firstVisibleItemScrollOffset.toFloat()
-                    } else {
-                        -size.height
-                    }
-            },
-    )
     Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
         Crossfade(targetState = listNotification) {
             if (it == null) {
@@ -205,8 +189,6 @@ fun NotificationScreen(
                         navController.navigateUp()
                     }
                 },
-                // Transparent, or the default surface container paints an opaque strip over the
-                // very top of AmbientThemeGlow — the one part of it that actually carries colour.
                 colors =
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,

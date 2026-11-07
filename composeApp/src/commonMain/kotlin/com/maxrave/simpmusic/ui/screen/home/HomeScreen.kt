@@ -1,7 +1,7 @@
 package com.maxrave.simpmusic.ui.screen.home
 
-import com.maxrave.simpmusic.ui.component.DonatePrompt
 import com.maxrave.simpmusic.ui.component.ForkUpdateCard
+import com.maxrave.simpmusic.ui.component.DonatePrompt
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -33,8 +33,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -90,10 +88,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -113,8 +108,6 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.eygraber.uri.Uri
-import com.kmpalette.loader.rememberNetworkLoader
-import com.kmpalette.rememberDominantColorState
 import com.maxrave.common.CHART_SUPPORTED_COUNTRY
 import com.maxrave.common.Config
 import com.maxrave.domain.data.model.browse.album.Track
@@ -134,12 +127,9 @@ import com.maxrave.simpmusic.expect.openUrl
 import com.maxrave.simpmusic.expect.ui.HorizontalScrollBar
 import com.maxrave.simpmusic.expect.ui.layerBackdrop
 import com.maxrave.simpmusic.expect.ui.rememberBackdrop
-import com.maxrave.simpmusic.extension.angledGradientBackground
-import com.maxrave.simpmusic.extension.artworkScrimBrush
 import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.isScrollingUp
 import com.maxrave.simpmusic.extension.mouseDragScroll
-import com.maxrave.simpmusic.extension.rgbFactor
 import com.maxrave.simpmusic.extension.ultraThinBarStyle
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.playbacksync.ContinueFromDeviceSlot
@@ -187,7 +177,6 @@ import com.maxrave.simpmusic.ui.navigation.destination.list.PlaylistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.login.LoginDestination
 import com.maxrave.simpmusic.ui.screen.library.LibraryDynamicPlaylistType
 import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
-import com.maxrave.simpmusic.ui.theme.desktopPanelDark
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.eligiblePromos
@@ -210,9 +199,6 @@ import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.http.Url
 import kotlin.random.Random
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -278,9 +264,6 @@ private const val BLOG_PROMO_KEY = "blog_promo_v1_seen"
 private const val PROMO_SETTLE_MS = 1_000L
 private const val PROMO_CLEAR_MS = 400L
 
-// The height the first item lost with the old app bar (64dp + the 50dp chip row, now one 56dp row) and
-// the Welcome back row (81dp), which Home's top glow still has to cover.
-private val HomeGlowOverflow = 140.dp
 
 // The moods behind the Mood chip, each with the Home params it loads.
 // Fork: the mood chips under the greeting bar (no "All" chip is shown; it stays as the fallback).
@@ -378,51 +361,6 @@ fun HomeScreen(
     // The language part of the BCP 47 tag: Android's Locale.language still reports the legacy "in"
     // for Indonesian and "iw" for Hebrew, while the config is keyed "id" and "he".
     val language = Locale.current.toLanguageTag().substringBefore('-')
-
-    val backgroundColor = MaterialTheme.colorScheme.background
-    val isLightTheme = backgroundColor.luminance() > 0.5f
-    // What is ACTUALLY painted behind this screen. The desktop shell wraps content in a rounded
-    // panel (App.kt: surfaceContainer on light, desktopPanelDark on dark) — deliberately not
-    // colorScheme.background — so a gradient tail aimed at colorScheme.background ends on the
-    // wrong colour and draws a seam where the first item stops. Same light check as App.kt's
-    // isLightScheme.
-    val pageBackground =
-        if (getPlatform() == Platform.Desktop) {
-            if (isLightTheme) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
-        } else {
-            backgroundColor
-        }
-    var topHeaderColor by remember {
-        mutableStateOf(backgroundColor)
-    }
-    val animatedColor by animateColorAsState(topHeaderColor, tween(500))
-    val mainHomeThumbnail by viewModel.mainHomeThumbnail.collectAsStateWithLifecycle()
-    // YouTube's Home backdrop, drawn over the tint taken from the first card's artwork. A response
-    // that carries none keeps the tint alone, and a failed load drops the image and its scrim,
-    // leaving the tint as it was.
-    val headerImage by viewModel.homeBackground.collectAsStateWithLifecycle()
-    var headerImageFailed by remember(headerImage) { mutableStateOf(false) }
-    val networkLoader = rememberNetworkLoader(HttpClient(CIO))
-    val dominantColorState =
-        rememberDominantColorState(
-            defaultColor = backgroundColor,
-            defaultOnColor = backgroundColor,
-            loader = networkLoader,
-        )
-
-    LaunchedEffect(mainHomeThumbnail) {
-        mainHomeThumbnail?.let {
-            dominantColorState.updateFrom(Url(it))
-        }
-    }
-
-    LaunchedEffect(dominantColorState, isLightTheme) {
-        snapshotFlow { dominantColorState.color }.collect {
-            // Light theme: pull the artwork color toward white for a soft pastel header;
-            // dark theme keeps the original darkened tone.
-            topHeaderColor = if (isLightTheme) lerp(it, Color.White, 0.85f) else it.rgbFactor(0.3f)
-        }
-    }
 
     var showReviewDialog by rememberSaveable {
         mutableStateOf(false)
@@ -865,70 +803,8 @@ fun HomeScreen(
                         state = scrollState,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        itemsIndexed(orderedHome, key = { _, item ->
-                            item.hashCode().toString() + (mainHomeThumbnail ?: "nothumb")
-                        }) { index, item ->
+                        itemsIndexed(orderedHome, key = { _, item -> item.hashCode().toString() }) { index, item ->
                             Box {
-                                if (index == 0) {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                // matchParentSize, not height(300.dp): 300 is the
-                                                // height of this shelf ON A PHONE. On a desktop
-                                                // window the first item is taller, the gradient
-                                                // stopped mid-item and everything below it fell
-                                                // back to the flat background — a hard colour seam
-                                                // straight across Home. Sized by the item, the
-                                                // bottom scrim always lands on the item's edge.
-                                                .matchParentSize()
-                                                // The glow used to reach down past the old app bar and
-                                                // the Welcome back row, both gone with the Spotify
-                                                // header. It keeps that reach by running on below the
-                                                // first item instead of making the item taller; what
-                                                // runs over is the scrim's tail, already faded out.
-                                                .layout { measurable, constraints ->
-                                                    val height = constraints.maxHeight + HomeGlowOverflow.roundToPx()
-                                                    val placeable =
-                                                        measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
-                                                    layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
-                                                }.angledGradientBackground(listOf(animatedColor, pageBackground), 25f),
-                                    ) {
-                                        if (headerImage != null && !headerImageFailed) {
-                                            AsyncImage(
-                                                model =
-                                                    ImageRequest
-                                                        .Builder(LocalPlatformContext.current)
-                                                        .data(headerImage)
-                                                        .crossfade(550)
-                                                        .build(),
-                                                contentDescription = null,
-                                                contentScale = ContentScale.Crop,
-                                                onError = { headerImageFailed = true },
-                                                modifier = Modifier.fillMaxSize(),
-                                            )
-                                            // Always over the image, which can be very bright: a layer of the
-                                            // page's own colour tones it down in either theme and fades it
-                                            // into the page along the tint's own 25° line, not in a flat
-                                            // band at the bottom.
-                                            Box(
-                                                Modifier
-                                                    .fillMaxSize()
-                                                    .angledGradientBackground(listOf(pageBackground.copy(alpha = 0.6f), pageBackground), 25f),
-                                            )
-                                        }
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    // A share of the glow, not a fixed 180dp: on a glow
-                                                    // ~560dp tall, 180dp made a long flat field that
-                                                    // dropped off in one short step.
-                                                    .fillMaxHeight(0.6f)
-                                                    .align(Alignment.BottomCenter)
-                                                    .background(artworkScrimBrush(pageBackground)),
-                                        )
-                                    }
-                                }
                                 Column(
                                     modifier =
                                         Modifier

@@ -20,7 +20,6 @@ import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -86,7 +85,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -133,7 +131,6 @@ import com.maxrave.simpmusic.expect.ui.PlatformBackHandler
 import com.maxrave.simpmusic.expect.ui.filePickerResult
 import com.maxrave.simpmusic.expect.ui.fileSaverResult
 import com.maxrave.simpmusic.expect.ui.isLyricsBlurSupported
-import com.maxrave.simpmusic.expect.ui.isWallpaperDynamicColorSupported
 import com.maxrave.simpmusic.expect.ui.openEqResult
 import com.maxrave.simpmusic.expect.ui.rememberLocalNetworkPermission
 import com.maxrave.simpmusic.extension.barBlurStyle
@@ -144,7 +141,6 @@ import com.maxrave.simpmusic.extension.isValidProxyHost
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.playbacksync.PlaybackSyncSettingItems
 import com.maxrave.simpmusic.ui.component.ActionButton
-import com.maxrave.simpmusic.ui.component.AmbientThemeGlow
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.EndOfPage
 import com.maxrave.simpmusic.ui.component.LoadingDialog
@@ -159,12 +155,80 @@ import com.maxrave.simpmusic.ui.component.countryFlag
 import com.maxrave.simpmusic.ui.component.countryName
 import com.maxrave.simpmusic.ui.component.SettingGroup
 import com.maxrave.simpmusic.ui.component.SettingItem
+import com.maxrave.simpmusic.ui.component.SettingValueRow
+import com.maxrave.simpmusic.ui.icon.Abc
+import com.maxrave.simpmusic.ui.icon.Album
+import com.maxrave.simpmusic.ui.icon.Animation
 import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
+import com.maxrave.simpmusic.ui.icon.AutoAwesome
+import com.maxrave.simpmusic.ui.icon.AvTimer
+import com.maxrave.simpmusic.ui.icon.Backup
+import com.maxrave.simpmusic.ui.icon.Block
+import com.maxrave.simpmusic.ui.icon.CalendarToday
 import com.maxrave.simpmusic.ui.icon.Close
+import com.maxrave.simpmusic.ui.icon.Code
+import com.maxrave.simpmusic.ui.icon.CompareArrows
+import com.maxrave.simpmusic.ui.icon.DarkMode
+import com.maxrave.simpmusic.ui.icon.DataUsage
+import com.maxrave.simpmusic.ui.icon.Delete
+import com.maxrave.simpmusic.ui.icon.DirectionsCar
+import com.maxrave.simpmusic.ui.icon.Dns
+import com.maxrave.simpmusic.ui.icon.Download
+import com.maxrave.simpmusic.ui.icon.DownloadForOffline
 import com.maxrave.simpmusic.ui.icon.Error
+import com.maxrave.simpmusic.ui.icon.Explicit
+import com.maxrave.simpmusic.ui.icon.Favorite
+import com.maxrave.simpmusic.ui.icon.FileOpen
+import com.maxrave.simpmusic.ui.icon.Flag
+import com.maxrave.simpmusic.ui.icon.FormatListBulleted
+import com.maxrave.simpmusic.ui.icon.GraphicEq
+import com.maxrave.simpmusic.ui.icon.Groups
+import com.maxrave.simpmusic.ui.icon.Headphones
+import com.maxrave.simpmusic.ui.icon.History
+import com.maxrave.simpmusic.ui.icon.Image
+import com.maxrave.simpmusic.ui.icon.Info
+import com.maxrave.simpmusic.ui.icon.Insights
+import com.maxrave.simpmusic.ui.icon.Key
+import com.maxrave.simpmusic.ui.icon.Language
+import com.maxrave.simpmusic.ui.icon.Link
+import com.maxrave.simpmusic.ui.icon.Lyrics
+import com.maxrave.simpmusic.ui.icon.Mail
+import com.maxrave.simpmusic.ui.icon.Memory
+import com.maxrave.simpmusic.ui.icon.Movie
+import com.maxrave.simpmusic.ui.icon.MusicNote
+import com.maxrave.simpmusic.ui.icon.Numbers
+import com.maxrave.simpmusic.ui.icon.OpenInNew
+import com.maxrave.simpmusic.ui.icon.Password
 import com.maxrave.simpmusic.ui.icon.PeopleAlt
+import com.maxrave.simpmusic.ui.icon.Person
+import com.maxrave.simpmusic.ui.icon.PlayCircle
 import com.maxrave.simpmusic.ui.icon.PlaylistAdd
+import com.maxrave.simpmusic.ui.icon.PowerSettingsNew
+import com.maxrave.simpmusic.ui.icon.QrCodeScanner
+import com.maxrave.simpmusic.ui.icon.ReceiptLong
+import com.maxrave.simpmusic.ui.icon.RecordVoiceOver
+import com.maxrave.simpmusic.ui.icon.Refresh
+import com.maxrave.simpmusic.ui.icon.Restore
+import com.maxrave.simpmusic.ui.icon.Save
+import com.maxrave.simpmusic.ui.icon.Send
+import com.maxrave.simpmusic.ui.icon.SignalCellularAlt
 import com.maxrave.simpmusic.ui.icon.SimpIcons
+import com.maxrave.simpmusic.ui.icon.SmartDisplay
+import com.maxrave.simpmusic.ui.icon.SportsEsports
+import com.maxrave.simpmusic.ui.icon.Storage
+import com.maxrave.simpmusic.ui.icon.Subtitles
+import com.maxrave.simpmusic.ui.icon.SurroundSound
+import com.maxrave.simpmusic.ui.icon.Sync
+import com.maxrave.simpmusic.ui.icon.Timer
+import com.maxrave.simpmusic.ui.icon.TipsAndUpdates
+import com.maxrave.simpmusic.ui.icon.Translate
+import com.maxrave.simpmusic.ui.icon.Tune
+import com.maxrave.simpmusic.ui.icon.Update
+import com.maxrave.simpmusic.ui.icon.VolumeOff
+import com.maxrave.simpmusic.ui.icon.VolumeUp
+import com.maxrave.simpmusic.ui.icon.VpnLock
+import com.maxrave.simpmusic.ui.icon.WaterDrop
+import com.maxrave.simpmusic.ui.icon.Wifi
 import com.maxrave.simpmusic.ui.navigation.destination.home.AppLogDestination
 import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDynamicPlaylistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.login.DiscordLoginDestination
@@ -173,7 +237,6 @@ import com.maxrave.simpmusic.ui.navigation.destination.login.LoginDestination
 import com.maxrave.simpmusic.ui.navigation.destination.login.SpotifyLoginDestination
 import com.maxrave.simpmusic.ui.screen.library.LibraryDynamicPlaylistType
 import com.maxrave.simpmusic.ui.theme.md_theme_dark_primary
-import com.maxrave.simpmusic.ui.theme.parseThemeColorHex
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.utils.ForkBuildCheck
 import com.maxrave.simpmusic.utils.VersionManager
@@ -235,6 +298,10 @@ import simpmusic.composeapp.generated.resources.backup_frequency
 import simpmusic.composeapp.generated.resources.balance_media_loudness
 import simpmusic.composeapp.generated.resources.base_url
 import simpmusic.composeapp.generated.resources.better_lyrics
+import simpmusic.composeapp.generated.resources.kugou
+import simpmusic.composeapp.generated.resources.lrc_red
+import simpmusic.composeapp.generated.resources.megalobiz
+import simpmusic.composeapp.generated.resources.youtube_music_lyrics
 import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.canvas_info
 import simpmusic.composeapp.generated.resources.car_mode
@@ -272,7 +339,6 @@ import simpmusic.composeapp.generated.resources.crossfade_skip_album_description
 import simpmusic.composeapp.generated.resources.custom_ai_model_id
 import simpmusic.composeapp.generated.resources.custom_base_url
 import simpmusic.composeapp.generated.resources.custom_base_url_message
-import simpmusic.composeapp.generated.resources.custom_color
 import simpmusic.composeapp.generated.resources.custom_headers
 import simpmusic.composeapp.generated.resources.custom_headers_json
 import simpmusic.composeapp.generated.resources.custom_headers_message
@@ -397,6 +463,14 @@ import simpmusic.composeapp.generated.resources.proxy_type
 import simpmusic.composeapp.generated.resources.proxy_username
 import simpmusic.composeapp.generated.resources.proxy_username_message
 import simpmusic.composeapp.generated.resources.quality
+import simpmusic.composeapp.generated.resources.quality_mobile
+import simpmusic.composeapp.generated.resources.quality_audio_group
+import simpmusic.composeapp.generated.resources.quality_downloads
+import simpmusic.composeapp.generated.resources.quality_mobile_same
+import simpmusic.composeapp.generated.resources.quality_premium_note
+import simpmusic.composeapp.generated.resources.quality_streaming
+import simpmusic.composeapp.generated.resources.quality_video_group
+import simpmusic.composeapp.generated.resources.quality_wifi
 import simpmusic.composeapp.generated.resources.radio_audio_only
 import simpmusic.composeapp.generated.resources.radio_audio_only_description
 import simpmusic.composeapp.generated.resources.restore_your_data
@@ -448,10 +522,6 @@ import simpmusic.composeapp.generated.resources.such_as_music_video_lyrics_video
 import simpmusic.composeapp.generated.resources.sync_follow_to_youtube
 import simpmusic.composeapp.generated.resources.sync_follow_to_youtube_description
 import simpmusic.composeapp.generated.resources.theme
-import simpmusic.composeapp.generated.resources.theme_color
-import simpmusic.composeapp.generated.resources.theme_color_custom
-import simpmusic.composeapp.generated.resources.theme_color_default
-import simpmusic.composeapp.generated.resources.theme_color_wallpaper
 import simpmusic.composeapp.generated.resources.theme_mode_dark
 import simpmusic.composeapp.generated.resources.theme_mode_light
 import simpmusic.composeapp.generated.resources.theme_mode_system
@@ -543,6 +613,10 @@ fun SettingScreen(
     val location by viewModel.location.collectAsStateWithLifecycle()
     val quality by viewModel.quality.collectAsStateWithLifecycle()
     val downloadQuality by viewModel.downloadQuality.collectAsStateWithLifecycle()
+    // Blank stays blank: QUALITY.normalize would read it as the lowest quality.
+    val mobileQuality by remember {
+        viewModel.mobileQuality().map { stored -> stored?.takeIf { it.isNotBlank() }?.let(QUALITY::normalize).orEmpty() }
+    }.collectAsStateWithLifecycle("")
     val autoDownloadLikedSongs by viewModel.autoDownloadLikedSongs.collectAsStateWithLifecycle()
     val smartDownloadsEnabled by viewModel.smartDownloadsEnabled.collectAsStateWithLifecycle()
     val smartDownloadsCount by viewModel.smartDownloadsCount.collectAsStateWithLifecycle()
@@ -599,13 +673,10 @@ fun SettingScreen(
     val autoBackupLastTime by viewModel.autoBackupLastTime.collectAsStateWithLifecycle()
     val enableLiquidGlass by viewModel.enableLiquidGlass.collectAsStateWithLifecycle()
     val themeMode by sharedViewModel.getThemeMode().collectAsStateWithLifecycle(DataStoreManager.THEME_MODE_DARK)
-    val themeColorSource by sharedViewModel.getThemeColorSource().collectAsStateWithLifecycle(DataStoreManager.THEME_COLOR_DEFAULT)
-    val customThemeColorHex by sharedViewModel.getCustomThemeColor().collectAsStateWithLifecycle(DataStoreManager.DEFAULT_THEME_COLOR_HEX)
     val nowPlayingStyle by sharedViewModel.getNowPlayingStyle().collectAsStateWithLifecycle(DataStoreManager.NOW_PLAYING_STYLE_SPOTIFY)
     val lyricsStyle by sharedViewModel.getLyricsStyle().collectAsStateWithLifecycle(DataStoreManager.LYRICS_STYLE_CLASSIC)
     val romanizationStored by sharedViewModel.getRomanizationLanguages().collectAsStateWithLifecycle("")
     val japaneseDictionaryState by viewModel.japaneseDictionaryState.collectAsStateWithLifecycle()
-    var showColorPickerDialog by rememberSaveable { mutableStateOf(false) }
     val discordLoggedIn by viewModel.discordLoggedIn.collectAsStateWithLifecycle()
     val loggedIn by viewModel.loggedIn.collectAsStateWithLifecycle()
     val syncFollowToYouTube by viewModel.syncFollowToYouTube.collectAsStateWithLifecycle()
@@ -702,6 +773,7 @@ fun SettingScreen(
                     // Fork: both languages are picked by name from a list, not typed as a code.
                     val sameAsAppLanguage = stringResource(Res.string.same_as_app_language)
                     SettingItem(
+                        icon = SimpIcons.Translate,
                         title = stringResource(Res.string.translation_language),
                         subtitle = translationLanguage?.takeIf { it.isNotBlank() }?.let { languageName(it) } ?: sameAsAppLanguage,
                         onClick = {
@@ -733,6 +805,7 @@ fun SettingScreen(
             SettingPage.APPEARANCE -> {
                 SettingGroup(title = stringResource(Res.string.settings_general)) {
                     SettingItem(
+                        icon = SimpIcons.Language,
                         title = stringResource(Res.string.language),
                         subtitle = SUPPORTED_LANGUAGE.getLanguageFromCode(language ?: "en-US"),
                         onClick = {
@@ -770,6 +843,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Flag,
                         title = stringResource(Res.string.content_country),
                         subtitle = location?.let { code -> listOfNotNull(countryFlag(code), countryName(code)).joinToString(" ") } ?: "",
                         onClick = {
@@ -806,6 +880,7 @@ fun SettingScreen(
                             DataStoreManager.THEME_MODE_LIGHT to stringResource(Res.string.theme_mode_light),
                         )
                     SettingItem(
+                        icon = SimpIcons.DarkMode,
                         title = stringResource(Res.string.theme),
                         subtitle = themeModeLabels.firstOrNull { it.first == themeMode }?.second ?: "",
                         onClick = {
@@ -829,6 +904,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.PlayCircle,
                         title = stringResource(Res.string.now_playing_style),
                         subtitle = playerStyleOptions().firstOrNull { it.key == nowPlayingStyle }?.label.orEmpty(),
                         onClick = { openPage = SettingPage.PLAYER_STYLE.name },
@@ -836,54 +912,14 @@ fun SettingScreen(
                     // Hidden below Android 12: the Apple Music treatment IS the blur, a no-op there.
                     if (isLyricsBlurSupported()) {
                         SettingItem(
+                            icon = SimpIcons.Lyrics,
                             title = stringResource(Res.string.lyrics_style),
                             subtitle = lyricsStyleOptions().firstOrNull { it.key == lyricsStyle }?.label.orEmpty(),
                             onClick = { openPage = SettingPage.LYRICS_STYLE.name },
                         )
                     }
-                    val colorSourceLabels =
-                        buildList {
-                            add(DataStoreManager.THEME_COLOR_DEFAULT to stringResource(Res.string.theme_color_default))
-                            if (isWallpaperDynamicColorSupported()) {
-                                add(DataStoreManager.THEME_COLOR_WALLPAPER to stringResource(Res.string.theme_color_wallpaper))
-                            }
-                            add(DataStoreManager.THEME_COLOR_CUSTOM to stringResource(Res.string.theme_color_custom))
-                        }
                     SettingItem(
-                        title = stringResource(Res.string.theme_color),
-                        subtitle = colorSourceLabels.firstOrNull { it.first == themeColorSource }?.second ?: "",
-                        onClick = {
-                            viewModel.setAlertData(
-                                SettingAlertState(
-                                    title = runBlocking { getString(Res.string.theme_color) },
-                                    selectOne =
-                                        SettingAlertState.SelectData(
-                                            listSelect = colorSourceLabels.map { (it.first == themeColorSource) to it.second },
-                                        ),
-                                    confirm =
-                                        runBlocking { getString(Res.string.change) } to { state ->
-                                            val selected = state.selectOne?.getSelected()
-                                            colorSourceLabels.firstOrNull { it.second == selected }?.first?.let {
-                                                sharedViewModel.setThemeColorSource(it)
-                                                if (it == DataStoreManager.THEME_COLOR_CUSTOM) {
-                                                    showColorPickerDialog = true
-                                                }
-                                            }
-                                        },
-                                    dismiss = runBlocking { getString(Res.string.cancel) },
-                                ),
-                            )
-                        },
-                    )
-                    if (themeColorSource == DataStoreManager.THEME_COLOR_CUSTOM) {
-                        SettingItem(
-                            title = stringResource(Res.string.custom_color),
-                            subtitle = "#${customThemeColorHex.takeLast(6)}",
-                            smallSubtitle = true,
-                            onClick = { showColorPickerDialog = true },
-                        )
-                    }
-                    SettingItem(
+                        icon = SimpIcons.WaterDrop,
                         title = stringResource(Res.string.enable_liquid_glass_effect),
                         subtitle = stringResource(Res.string.enable_liquid_glass_effect_description),
                         smallSubtitle = true,
@@ -892,102 +928,63 @@ fun SettingScreen(
                 }
             }
             SettingPage.AUDIO_PLAYBACK -> {
-                SettingGroup(title = stringResource(Res.string.quality)) {
-                    SettingItem(
-                        title = stringResource(Res.string.quality),
-                        subtitle = quality ?: "",
-                        smallSubtitle = true,
-                        onClick = {
-                            viewModel.setAlertData(
-                                SettingAlertState(
-                                    title = runBlocking { getString(Res.string.quality) },
-                                    selectOne =
-                                        SettingAlertState.SelectData(
-                                            listSelect =
-                                                QUALITY.items.map { item ->
-                                                    (item.toString() == quality) to item.toString()
-                                                },
-                                        ),
-                                    confirm =
-                                        runBlocking { getString(Res.string.change) } to { state ->
-                                            viewModel.changeQuality(state.selectOne?.getSelected())
-                                        },
-                                    dismiss = runBlocking { getString(Res.string.cancel) },
-                                ),
-                            )
-                        },
+                // Each row picks through the same list; a value shows on the row's end instead of a subtitle.
+                val pickFrom = { title: String, options: List<String>, selected: String, onPick: (String) -> Unit ->
+                    viewModel.setAlertData(
+                        SettingAlertState(
+                            title = title,
+                            selectOne = SettingAlertState.SelectData(listSelect = options.map { (it == selected) to it }),
+                            confirm =
+                                runBlocking { getString(Res.string.change) } to { state ->
+                                    state.selectOne?.getSelected()?.let(onPick)
+                                },
+                            dismiss = runBlocking { getString(Res.string.cancel) },
+                        ),
                     )
+                }
+                val audioOptions = QUALITY.items.map { qualityShortLabel(it.toString()) }
+                val fullQualityLabel = { short: String -> QUALITY.items[audioOptions.indexOf(short)].toString() }
+                val videoOptions = VIDEO_QUALITY.items.map { it.toString() }
+                val playbackTitle =
+                    stringResource(if (getPlatform() == Platform.Android) Res.string.quality_wifi else Res.string.quality_streaming)
+                val mobileTitle = stringResource(Res.string.quality_mobile)
+                val sameAsWifi = stringResource(Res.string.quality_mobile_same)
+                val downloadsTitle = stringResource(Res.string.quality_downloads)
+                val streamingTitle = stringResource(Res.string.quality_streaming)
+                SettingGroup(
+                    title = stringResource(Res.string.quality_audio_group),
+                    footer = { Text(stringResource(Res.string.quality_premium_note), style = typo().bodySmall) },
+                ) {
+                    SettingValueRow(playbackTitle, qualityShortLabel(quality.orEmpty()), if (getPlatform() == Platform.Android) SimpIcons.Wifi else SimpIcons.Headphones) {
+                        pickFrom(playbackTitle, audioOptions, qualityShortLabel(quality.orEmpty())) {
+                            viewModel.changeQuality(fullQualityLabel(it))
+                        }
+                    }
+                    if (getPlatform() == Platform.Android) {
+                        val shown = if (mobileQuality.isBlank()) sameAsWifi else qualityShortLabel(mobileQuality)
+                        SettingValueRow(mobileTitle, shown, SimpIcons.SignalCellularAlt) {
+                            pickFrom(mobileTitle, listOf(sameAsWifi) + audioOptions, shown) {
+                                viewModel.setMobileQuality(if (it == sameAsWifi) "" else fullQualityLabel(it))
+                            }
+                        }
+                    }
+                    SettingValueRow(downloadsTitle, qualityShortLabel(downloadQuality.orEmpty()), SimpIcons.Download) {
+                        pickFrom(downloadsTitle, audioOptions, qualityShortLabel(downloadQuality.orEmpty())) {
+                            viewModel.setDownloadQuality(fullQualityLabel(it))
+                        }
+                    }
+                }
+                SettingGroup(title = stringResource(Res.string.quality_video_group)) {
+                    SettingValueRow(streamingTitle, videoQuality.orEmpty(), SimpIcons.SmartDisplay) {
+                        pickFrom(streamingTitle, videoOptions, videoQuality.orEmpty()) { viewModel.changeVideoQuality(it) }
+                    }
+                    SettingValueRow(downloadsTitle, videoDownloadQuality.orEmpty(), SimpIcons.Download) {
+                        pickFrom(downloadsTitle, videoOptions, videoDownloadQuality.orEmpty()) { viewModel.setVideoDownloadQuality(it) }
+                    }
+                }
+                SettingGroup(title = null) {
                     SettingItem(
-                        title = stringResource(Res.string.download_quality),
-                        subtitle = downloadQuality ?: "",
-                        smallSubtitle = true,
-                        onClick = {
-                            viewModel.setAlertData(
-                                SettingAlertState(
-                                    title = runBlocking { getString(Res.string.download_quality) },
-                                    selectOne =
-                                        SettingAlertState.SelectData(
-                                            listSelect =
-                                                QUALITY.items.map { item ->
-                                                    (item.toString() == downloadQuality) to item.toString()
-                                                },
-                                        ),
-                                    confirm =
-                                        runBlocking { getString(Res.string.change) } to { state ->
-                                            state.selectOne?.getSelected()?.let { viewModel.setDownloadQuality(it) }
-                                        },
-                                    dismiss = runBlocking { getString(Res.string.cancel) },
-                                ),
-                            )
-                        },
-                    )
-                    SettingItem(
-                        title = stringResource(Res.string.video_quality),
-                        subtitle = videoQuality ?: "",
-                        onClick = {
-                            viewModel.setAlertData(
-                                SettingAlertState(
-                                    title = runBlocking { getString(Res.string.video_quality) },
-                                    selectOne =
-                                        SettingAlertState.SelectData(
-                                            listSelect =
-                                                VIDEO_QUALITY.items.map { item ->
-                                                    (item.toString() == videoQuality) to item.toString()
-                                                },
-                                        ),
-                                    confirm =
-                                        runBlocking { getString(Res.string.change) } to { state ->
-                                            viewModel.changeVideoQuality(state.selectOne?.getSelected() ?: "")
-                                        },
-                                    dismiss = runBlocking { getString(Res.string.cancel) },
-                                ),
-                            )
-                        },
-                    )
-                    SettingItem(
-                        title = stringResource(Res.string.video_download_quality),
-                        subtitle = videoDownloadQuality ?: "",
-                        onClick = {
-                            viewModel.setAlertData(
-                                SettingAlertState(
-                                    title = runBlocking { getString(Res.string.video_download_quality) },
-                                    selectOne =
-                                        SettingAlertState.SelectData(
-                                            listSelect =
-                                                VIDEO_QUALITY.items.map { item ->
-                                                    (item.toString() == videoDownloadQuality) to item.toString()
-                                                },
-                                        ),
-                                    confirm =
-                                        runBlocking { getString(Res.string.change) } to { state ->
-                                            viewModel.setVideoDownloadQuality(state.selectOne?.getSelected() ?: "")
-                                        },
-                                    dismiss = runBlocking { getString(Res.string.cancel) },
-                                ),
-                            )
-                        },
-                    )
-                    SettingItem(
+                        icon = SimpIcons.RecordVoiceOver,
                         title = stringResource(Res.string.preferred_audio_language),
                         subtitle = preferredAudioLanguage.ifEmpty { stringResource(Res.string.original_audio) },
                         onClick = {
@@ -1018,11 +1015,13 @@ fun SettingScreen(
                 if (getPlatform() == Platform.Android) {
                     SettingGroup(title = stringResource(Res.string.audio)) {
                         SettingItem(
+                            icon = SimpIcons.VolumeUp,
                             title = stringResource(Res.string.normalize_volume),
                             subtitle = stringResource(Res.string.balance_media_loudness),
                             switch = (normalizeVolume to { viewModel.setNormalizeVolume(it) }),
                         )
                         SettingItem(
+                            icon = SimpIcons.VolumeOff,
                             title = stringResource(Res.string.skip_silent),
                             subtitle = stringResource(Res.string.skip_no_music_part),
                             switch = (skipSilent to { viewModel.setSkipSilent(it) }),
@@ -1033,6 +1032,7 @@ fun SettingScreen(
                                 DataStoreManager.EQUALIZER_TYPE_SYSTEM to stringResource(Res.string.equalizer_type_system),
                             )
                         SettingItem(
+                            icon = SimpIcons.Tune,
                             title = stringResource(Res.string.equalizer_type),
                             subtitle = equalizerTypeLabels.firstOrNull { it.first == equalizerType }?.second ?: "",
                             onClick = {
@@ -1057,6 +1057,7 @@ fun SettingScreen(
                         )
                         AnimatedVisibility(visible = equalizerType == DataStoreManager.EQUALIZER_TYPE_SYSTEM) {
                             SettingItem(
+                                icon = SimpIcons.OpenInNew,
                                 title = stringResource(Res.string.open_system_equalizer),
                                 subtitle =
                                     if (castState.isRemote) {
@@ -1082,6 +1083,7 @@ fun SettingScreen(
                     AnimatedVisibility(visible = getPlatform() != Platform.Android || equalizerType != DataStoreManager.EQUALIZER_TYPE_SYSTEM) {
                         Column {
                             SettingItem(
+                                icon = SimpIcons.GraphicEq,
                                 title = stringResource(Res.string.equalizer),
                                 subtitle = stringResource(Res.string.equalizer_description),
                                 smallSubtitle = true,
@@ -1100,6 +1102,7 @@ fun SettingScreen(
                     // hunting for "reverb" looks wherever the sound settings are, not under a heading
                     // they have to guess.
                     SettingItem(
+                        icon = SimpIcons.AvTimer,
                         title = stringResource(Res.string.audio_delay),
                         subtitle = stringResource(Res.string.audio_delay_description),
                         smallSubtitle = true,
@@ -1111,6 +1114,7 @@ fun SettingScreen(
                         DelaySection()
                     }
                     SettingItem(
+                        icon = SimpIcons.SurroundSound,
                         title = stringResource(Res.string.audio_reverb),
                         subtitle = stringResource(Res.string.audio_reverb_description),
                         smallSubtitle = true,
@@ -1121,12 +1125,14 @@ fun SettingScreen(
                         ReverbSection()
                     }
                     SettingItem(
+                        icon = SimpIcons.Save,
                         title = stringResource(Res.string.save_playback_state),
                         subtitle = stringResource(Res.string.save_shuffle_and_repeat_mode),
                         switch = (savePlaybackState to { viewModel.setSavedPlaybackState(it) }),
                     )
                     if (getPlatform() == Platform.Android) {
                         SettingItem(
+                            icon = SimpIcons.PowerSettingsNew,
                             title = stringResource(Res.string.kill_service_on_exit),
                             subtitle = stringResource(Res.string.kill_service_on_exit_description),
                             switch = (killServiceOnExit to { viewModel.setKillServiceOnExit(it) }),
@@ -1134,6 +1140,7 @@ fun SettingScreen(
                     }
                     // Crossfade (all platforms)
                     SettingItem(
+                        icon = SimpIcons.CompareArrows,
                         title = stringResource(Res.string.crossfade),
                         subtitle =
                             if (castState.isRemote) {
@@ -1148,6 +1155,7 @@ fun SettingScreen(
                     AnimatedVisibility(visible = crossfadeEnabled) {
                         Column {
                             SettingItem(
+                                icon = SimpIcons.Timer,
                                 title = stringResource(Res.string.crossfade_duration),
                                 subtitle =
                                     if (castState.isRemote) {
@@ -1211,6 +1219,7 @@ fun SettingScreen(
                             )
     //                        if (getPlatform() == Platform.Android) {
                             SettingItem(
+                                icon = SimpIcons.MusicNote,
                                 title = stringResource(Res.string.crossfade_dj_mode),
                                 subtitle =
                                     if (castState.isRemote) {
@@ -1223,6 +1232,7 @@ fun SettingScreen(
                                 isEnable = !castState.isRemote,
                             )
                             SettingItem(
+                                icon = SimpIcons.Album,
                                 title = stringResource(Res.string.crossfade_skip_album),
                                 subtitle =
                                     if (castState.isRemote) {
@@ -1240,18 +1250,21 @@ fun SettingScreen(
                 }
                 SettingGroup(title = stringResource(Res.string.content)) {
                     SettingItem(
+                        icon = SimpIcons.Movie,
                         title = stringResource(Res.string.play_video_for_video_track_instead_of_audio_only),
                         subtitle = stringResource(Res.string.such_as_music_video_lyrics_video_podcasts_and_more),
                         smallSubtitle = true,
                         switch = (playVideo to { viewModel.setPlayVideoInsteadOfAudio(it) }),
                     )
                     SettingItem(
+                        icon = SimpIcons.Headphones,
                         title = stringResource(Res.string.radio_audio_only),
                         subtitle = stringResource(Res.string.radio_audio_only_description),
                         smallSubtitle = true,
                         switch = (radioAudioOnly to { viewModel.setRadioAudioOnly(it) }),
                     )
                     SettingItem(
+                        icon = SimpIcons.Explicit,
                         title = stringResource(Res.string.play_explicit_content),
                         subtitle = stringResource(Res.string.play_explicit_content_description),
                         switch = (explicitContentEnabled to { viewModel.setExplicitContentEnabled(it) }),
@@ -1281,6 +1294,7 @@ fun SettingScreen(
                     },
                 ) {
                     SettingItem(
+                        icon = SimpIcons.Block,
                         title = stringResource(Res.string.enable_sponsor_block),
                         subtitle = stringResource(Res.string.skip_sponsor_part_of_video),
                         switch = (enableSponsorBlock to { viewModel.setSponsorBlockEnabled(it) }),
@@ -1288,6 +1302,7 @@ fun SettingScreen(
                     val listName =
                         SponsorBlockType.toList().map { it.displayString() }
                     SettingItem(
+                        icon = SimpIcons.FormatListBulleted,
                         title = stringResource(Res.string.categories_sponsor_block),
                         subtitle = stringResource(Res.string.what_segments_will_be_skipped),
                         onClick = {
@@ -1354,6 +1369,7 @@ fun SettingScreen(
                         )
                     val romanizationSelected = RomanizationLanguage.parse(romanizationStored)
                     SettingItem(
+                        icon = SimpIcons.Abc,
                         title = stringResource(Res.string.lyrics_romanization),
                         // Two different jobs for one line. Off, the row has to explain what the
                         // feature IS — nobody guesses "romanization" from the title alone. On, the only
@@ -1412,6 +1428,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Lyrics,
                         title = stringResource(Res.string.main_lyrics_provider),
                         subtitle =
                             when (mainLyricsProvider) {
@@ -1419,6 +1436,10 @@ fun SettingScreen(
                                 DataStoreManager.YOUTUBE -> stringResource(Res.string.youtube_transcript)
                                 DataStoreManager.LRCLIB -> stringResource(Res.string.lrclib)
                                 DataStoreManager.BETTER_LYRICS -> stringResource(Res.string.better_lyrics)
+                                DataStoreManager.LRC_RED -> stringResource(Res.string.lrc_red)
+                                DataStoreManager.KUGOU -> stringResource(Res.string.kugou)
+                                DataStoreManager.MEGALOBIZ -> stringResource(Res.string.megalobiz)
+                                DataStoreManager.YOUTUBE_MUSIC -> stringResource(Res.string.youtube_music_lyrics)
                                 else -> stringResource(Res.string.unknown)
                             },
                         onClick = {
@@ -1436,6 +1457,11 @@ fun SettingScreen(
                                                     (mainLyricsProvider == DataStoreManager.LRCLIB) to runBlocking { getString(Res.string.lrclib) },
                                                     (mainLyricsProvider == DataStoreManager.BETTER_LYRICS) to
                                                         runBlocking { getString(Res.string.better_lyrics) },
+                                                    (mainLyricsProvider == DataStoreManager.LRC_RED) to runBlocking { getString(Res.string.lrc_red) },
+                                                    (mainLyricsProvider == DataStoreManager.KUGOU) to runBlocking { getString(Res.string.kugou) },
+                                                    (mainLyricsProvider == DataStoreManager.MEGALOBIZ) to runBlocking { getString(Res.string.megalobiz) },
+                                                    (mainLyricsProvider == DataStoreManager.YOUTUBE_MUSIC) to
+                                                        runBlocking { getString(Res.string.youtube_music_lyrics) },
                                                 ),
                                         ),
                                     confirm =
@@ -1446,6 +1472,10 @@ fun SettingScreen(
                                                     runBlocking { getString(Res.string.youtube_transcript) } -> DataStoreManager.YOUTUBE
                                                     runBlocking { getString(Res.string.lrclib) } -> DataStoreManager.LRCLIB
                                                     runBlocking { getString(Res.string.better_lyrics) } -> DataStoreManager.BETTER_LYRICS
+                                                    runBlocking { getString(Res.string.lrc_red) } -> DataStoreManager.LRC_RED
+                                                    runBlocking { getString(Res.string.kugou) } -> DataStoreManager.KUGOU
+                                                    runBlocking { getString(Res.string.megalobiz) } -> DataStoreManager.MEGALOBIZ
+                                                    runBlocking { getString(Res.string.youtube_music_lyrics) } -> DataStoreManager.YOUTUBE_MUSIC
                                                     else -> DataStoreManager.SIMPMUSIC
                                                 },
                                             )
@@ -1457,6 +1487,7 @@ fun SettingScreen(
                     )
 
                     SettingItem(
+                        icon = SimpIcons.AvTimer,
                         title = stringResource(Res.string.lyrics_offset),
                         subtitle =
                             stringResource(
@@ -1468,6 +1499,7 @@ fun SettingScreen(
 
                     translationLanguageRow()
                     SettingItem(
+                        icon = SimpIcons.Subtitles,
                         title = stringResource(Res.string.youtube_subtitle_language),
                         subtitle = languageName(youtubeSubtitleLanguage),
                         onClick = {
@@ -1495,11 +1527,13 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Groups,
                         title = stringResource(Res.string.help_build_lyrics_database),
                         subtitle = stringResource(Res.string.help_build_lyrics_database_description),
                         switch = (helpBuildLyricsDatabase to { viewModel.setHelpBuildLyricsDatabase(it) }),
                     )
                     SettingItem(
+                        icon = SimpIcons.Person,
                         title = stringResource(Res.string.contributor_name),
                         subtitle = contributor.first.ifEmpty { stringResource(Res.string.anonymous) },
                         isEnable = helpBuildLyricsDatabase,
@@ -1523,6 +1557,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Mail,
                         title = stringResource(Res.string.contributor_email),
                         subtitle = contributor.second.ifEmpty { stringResource(Res.string.anonymous) },
                         isEnable = helpBuildLyricsDatabase,
@@ -1555,6 +1590,7 @@ fun SettingScreen(
                 }
                 SettingGroup(title = stringResource(Res.string.ai)) {
                     SettingItem(
+                        icon = SimpIcons.AutoAwesome,
                         title = stringResource(Res.string.ai_translation),
                         subtitle =
                             stringResource(
@@ -1572,6 +1608,7 @@ fun SettingScreen(
                 AiKeyGuide(aiProvider)
                 SettingGroup(title = stringResource(Res.string.ai)) {
                     SettingItem(
+                        icon = SimpIcons.AutoAwesome,
                         title = stringResource(Res.string.ai_provider),
                         subtitle =
                             when (aiProvider) {
@@ -1619,6 +1656,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Key,
                         title = stringResource(Res.string.ai_api_key),
                         subtitle = if (isHasApiKey) "XXXXXXXXXX" else "N/A",
                         onClick = {
@@ -1644,6 +1682,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Memory,
                         title = stringResource(Res.string.custom_ai_model_id),
                         subtitle = customModelId.ifEmpty { stringResource(Res.string.default_models) },
                         onClick = {
@@ -1682,6 +1721,7 @@ fun SettingScreen(
                         val customHeadersMessage =
                             stringResource(Res.string.custom_headers_message) + "\n{\"key1\":\"value1\",\"key2\":\"value2\"}"
                         SettingItem(
+                            icon = SimpIcons.Link,
                             title = customBaseUrlTitle,
                             subtitle = customOpenAIBaseUrl.ifEmpty { defaultBaseUrl },
                             onClick = {
@@ -1709,6 +1749,7 @@ fun SettingScreen(
                             },
                         )
                         SettingItem(
+                            icon = SimpIcons.Code,
                             title = stringResource(Res.string.custom_headers),
                             subtitle = stringResource(if (customOpenAIHeaders.isNotEmpty()) Res.string.configured else Res.string.not_set),
                             onClick = {
@@ -1745,6 +1786,7 @@ fun SettingScreen(
                         )
                     }
                     SettingItem(
+                        icon = SimpIcons.Translate,
                         title = stringResource(Res.string.use_ai_translation),
                         subtitle = stringResource(Res.string.use_ai_translation_description),
                         switch = (useAITranslation to { viewModel.setAITranslation(it) }),
@@ -1756,6 +1798,7 @@ fun SettingScreen(
             SettingPage.ACCOUNTS_SYNC -> {
                 SettingGroup(title = stringResource(Res.string.youtube_account)) {
                     SettingItem(
+                        icon = SimpIcons.Person,
                         title = stringResource(Res.string.youtube_account),
                         subtitle = stringResource(Res.string.manage_your_youtube_accounts),
                         onClick = {
@@ -1764,6 +1807,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Sync,
                         title = stringResource(Res.string.sync_follow_to_youtube),
                         subtitle = stringResource(Res.string.sync_follow_to_youtube_description),
                         smallSubtitle = true,
@@ -1775,6 +1819,7 @@ fun SettingScreen(
                         isEnable = loggedIn == DataStoreManager.TRUE,
                     )
                     SettingItem(
+                        icon = SimpIcons.Send,
                         title = stringResource(Res.string.send_back_listening_data_to_google),
                         subtitle =
                             stringResource(
@@ -1786,6 +1831,7 @@ fun SettingScreen(
                     )
                     /*
                     SettingItem(
+                        icon = SimpIcons.Favorite,
                         title = stringResource(Res.string.combine_local_and_youtube_liked_songs),
                         subtitle = stringResource(Res.string.combine_local_and_youtube_liked_songs_description),
                         switch = (combineLocalAndYouTubeLiked to { viewModel.setCombineLocalAndYouTubeLiked(it) })
@@ -1794,6 +1840,7 @@ fun SettingScreen(
                 }
                 SettingGroup(title = stringResource(Res.string.spotify)) {
                     SettingItem(
+                        icon = SimpIcons.Person,
                         // The title follows the state: a row that still reads "Log in" while logged in
                         // gives no clue that tapping it signs you out.
                         title =
@@ -1819,12 +1866,14 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Lyrics,
                         title = stringResource(Res.string.enable_spotify_lyrics),
                         subtitle = stringResource(Res.string.spotify_lyrícs_info),
                         switch = (spotifyLyrics to { viewModel.setSpotifyLyrics(it) }),
                         isEnable = spotifyLoggedIn,
                     )
                     SettingItem(
+                        icon = SimpIcons.Movie,
                         title = stringResource(Res.string.enable_canvas),
                         subtitle = stringResource(Res.string.canvas_info),
                         switch = (spotifyCanvas to { viewModel.setSpotifyCanvas(it) }),
@@ -1834,6 +1883,7 @@ fun SettingScreen(
                     // rows above need a Spotify session and this one needs no account at all, so
                     // gating it on spotifyLoggedIn would lock it away from the users it works for.
                     SettingItem(
+                        icon = SimpIcons.Animation,
                         title = stringResource(Res.string.enable_animated_artwork),
                         subtitle = stringResource(Res.string.animated_artwork_info),
                         switch = (amAnimatedArtwork to { viewModel.setAMAnimatedArtwork(it) }),
@@ -1841,6 +1891,7 @@ fun SettingScreen(
                 }
                 SettingGroup(title = stringResource(Res.string.discord_integration)) {
                     SettingItem(
+                        icon = SimpIcons.Person,
                         title =
                             if (discordLoggedIn) {
                                 stringResource(Res.string.log_out_from_discord)
@@ -1864,6 +1915,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.SportsEsports,
                         title = stringResource(Res.string.enable_rich_presence),
                         subtitle = stringResource(Res.string.rich_presence_info),
                         switch = (richPresenceEnabled to { viewModel.setDiscordRichPresenceEnabled(it) }),
@@ -1875,6 +1927,7 @@ fun SettingScreen(
                 if (viewModel.lastfmAvailable) {
                     SettingGroup(title = stringResource(Res.string.lastfm_integration)) {
                         SettingItem(
+                            icon = SimpIcons.Person,
                             title =
                                 if (lastfmLoggedIn) {
                                     stringResource(Res.string.log_out_from_lastfm)
@@ -1898,6 +1951,7 @@ fun SettingScreen(
                             },
                         )
                         SettingItem(
+                            icon = SimpIcons.Insights,
                             title = stringResource(Res.string.enable_scrobbling),
                             subtitle = stringResource(Res.string.scrobbling_info),
                             switch = (lastfmScrobbleEnabled to { viewModel.setLastfmScrobbleEnabled(it) }),
@@ -1909,6 +1963,7 @@ fun SettingScreen(
                     title = stringResource(Res.string.login_sync_section),
                 ) {
                     SettingItem(
+                        icon = SimpIcons.QrCodeScanner,
                         title =
                             stringResource(
                                 if (getPlatform() == Platform.Android) Res.string.login_sync_android_title else Res.string.login_sync_desktop_title,
@@ -1934,6 +1989,7 @@ fun SettingScreen(
                 }
                 SettingGroup(title = stringResource(Res.string.proxy)) {
                     SettingItem(
+                        icon = SimpIcons.VpnLock,
                         title = stringResource(Res.string.proxy),
                         subtitle = stringResource(Res.string.proxy_description),
                         switch = (usingProxy to { viewModel.setUsingProxy(it) }),
@@ -1942,6 +1998,7 @@ fun SettingScreen(
                         if (it) {
                             Column {
                                 SettingItem(
+                                    icon = SimpIcons.Tune,
                                     title = stringResource(Res.string.proxy_type),
                                     subtitle =
                                         when (proxyType) {
@@ -1984,6 +2041,7 @@ fun SettingScreen(
                                     },
                                 )
                                 SettingItem(
+                                    icon = SimpIcons.Dns,
                                     title = stringResource(Res.string.proxy_host),
                                     subtitle = proxyHost,
                                     onClick = {
@@ -2013,6 +2071,7 @@ fun SettingScreen(
                                     },
                                 )
                                 SettingItem(
+                                    icon = SimpIcons.Numbers,
                                     title = stringResource(Res.string.proxy_port),
                                     subtitle = proxyPort.toString(),
                                     onClick = {
@@ -2042,6 +2101,7 @@ fun SettingScreen(
                                     },
                                 )
                                 SettingItem(
+                                    icon = SimpIcons.Person,
                                     title = stringResource(Res.string.proxy_username),
                                     subtitle = proxyUsername,
                                     onClick = {
@@ -2067,6 +2127,7 @@ fun SettingScreen(
                                     },
                                 )
                                 SettingItem(
+                                    icon = SimpIcons.Password,
                                     title = stringResource(Res.string.proxy_password),
                                     subtitle =
                                         if (proxyPassword.isEmpty()) {
@@ -2104,6 +2165,7 @@ fun SettingScreen(
             SettingPage.STORAGE_BACKUP -> {
                 SettingGroup(title = stringResource(Res.string.settings_downloads)) {
                     SettingItem(
+                        icon = SimpIcons.Download,
                         title = stringResource(Res.string.auto_download_liked_songs),
                         subtitle = stringResource(Res.string.auto_download_liked_songs_description),
                         smallSubtitle = true,
@@ -2112,6 +2174,7 @@ fun SettingScreen(
                     // Smart downloads are Android only.
                     if (getPlatform() == Platform.Android) {
                         SettingItem(
+                            icon = SimpIcons.TipsAndUpdates,
                             title = stringResource(Res.string.smart_downloads),
                             subtitle =
                                 stringResource(
@@ -2129,6 +2192,7 @@ fun SettingScreen(
                         )
                         if (smartDownloadsEnabled) {
                             SettingItem(
+                                icon = SimpIcons.Numbers,
                                 title = stringResource(Res.string.smart_downloads_size),
                                 subtitle = stringResource(Res.string.smart_downloads_size_value, smartDownloadsCount),
                                 smallSubtitle = true,
@@ -2155,6 +2219,7 @@ fun SettingScreen(
                         }
                     }
                     SettingItem(
+                        icon = SimpIcons.DownloadForOffline,
                         title = stringResource(Res.string.keep_your_youtube_playlist_offline),
                         subtitle = stringResource(Res.string.keep_your_youtube_playlist_offline_description),
                         switch = (keepYoutubePlaylistOffline to { viewModel.setKeepYouTubePlaylistOffline(it) }),
@@ -2165,11 +2230,13 @@ fun SettingScreen(
                 // and the button that erases it belong together.
                 SettingGroup(title = stringResource(Res.string.listening_history)) {
                     SettingItem(
+                        icon = SimpIcons.Insights,
                         title = stringResource(Res.string.local_tracking_title),
                         subtitle = stringResource(Res.string.local_tracking_description),
                         switch = (localTrackingEnabled to { viewModel.setLocalTrackingEnabled(it) }),
                     )
                     SettingItem(
+                        icon = SimpIcons.Delete,
                         title = stringResource(Res.string.clear_listening_history),
                         subtitle = stringResource(Res.string.clear_listening_history_description),
                         onClick = {
@@ -2190,6 +2257,7 @@ fun SettingScreen(
                 if (getPlatform() == Platform.Android) {
                     SettingGroup(title = stringResource(Res.string.storage)) {
                         SettingItem(
+                            icon = SimpIcons.Storage,
                             title = stringResource(Res.string.player_cache),
                             subtitle = "${playerCache.bytesToMB()} MB",
                             onClick = {
@@ -2207,6 +2275,7 @@ fun SettingScreen(
                             },
                         )
                         SettingItem(
+                            icon = SimpIcons.Download,
                             title = stringResource(Res.string.downloaded_cache),
                             subtitle = "${downloadedCache.bytesToMB()} MB",
                             onClick = {
@@ -2224,6 +2293,7 @@ fun SettingScreen(
                             },
                         )
                         SettingItem(
+                            icon = SimpIcons.Image,
                             title = stringResource(Res.string.thumbnail_cache),
                             subtitle = "${thumbnailCache.bytesToMB()} MB",
                             onClick = {
@@ -2241,6 +2311,7 @@ fun SettingScreen(
                             },
                         )
                         SettingItem(
+                            icon = SimpIcons.Movie,
                             title = stringResource(Res.string.spotify_canvas_cache),
                             subtitle = "${canvasCache.bytesToMB()} MB",
                             onClick = {
@@ -2258,6 +2329,7 @@ fun SettingScreen(
                             },
                         )
                         SettingItem(
+                            icon = SimpIcons.DataUsage,
                             title = stringResource(Res.string.limit_player_cache),
                             subtitle = LIMIT_CACHE_SIZE.getItemFromData(limitPlayerCache).toString(),
                             onClick = {
@@ -2515,6 +2587,7 @@ fun SettingScreen(
                     },
                 ) {
                     SettingItem(
+                        icon = SimpIcons.Download,
                         title = stringResource(Res.string.backup_downloaded),
                         subtitle = stringResource(Res.string.backup_downloaded_description),
                         switch = (backupDownloaded to { viewModel.setBackupDownloaded(it) }),
@@ -2522,6 +2595,7 @@ fun SettingScreen(
                     // Auto Backup (Android only)
                     if (getPlatform() == Platform.Android) {
                         SettingItem(
+                            icon = SimpIcons.Backup,
                             title = stringResource(Res.string.auto_backup),
                             subtitle = stringResource(Res.string.auto_backup_description),
                             switch = (autoBackupEnabled to { viewModel.setAutoBackupEnabled(it) }),
@@ -2529,6 +2603,7 @@ fun SettingScreen(
                         AnimatedVisibility(visible = autoBackupEnabled) {
                             Column {
                                 SettingItem(
+                                    icon = SimpIcons.CalendarToday,
                                     title = stringResource(Res.string.backup_frequency),
                                     subtitle =
                                         when (autoBackupFrequency) {
@@ -2585,6 +2660,7 @@ fun SettingScreen(
                                     },
                                 )
                                 SettingItem(
+                                    icon = SimpIcons.History,
                                     title = stringResource(Res.string.keep_backups),
                                     subtitle = stringResource(Res.string.keep_backups_format, "$autoBackupMaxFiles"),
                                     onClick = {
@@ -2612,6 +2688,7 @@ fun SettingScreen(
                                     },
                                 )
                                 SettingItem(
+                                    icon = SimpIcons.Update,
                                     title = stringResource(Res.string.last_backup),
                                     subtitle =
                                         if (autoBackupLastTime == 0L) {
@@ -2627,6 +2704,7 @@ fun SettingScreen(
                         }
                     }
                     SettingItem(
+                        icon = SimpIcons.Backup,
                         title = stringResource(Res.string.backup),
                         subtitle = stringResource(Res.string.save_all_your_playlist_data),
                         onClick = {
@@ -2636,6 +2714,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Restore,
                         title = stringResource(Res.string.restore_your_data),
                         subtitle = stringResource(Res.string.restore_your_saved_data),
                         onClick = {
@@ -2645,6 +2724,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.FileOpen,
                         title = stringResource(Res.string.import_data),
                         subtitle = stringResource(Res.string.import_playlists_from_other_apps),
                         onClick = {
@@ -2658,6 +2738,7 @@ fun SettingScreen(
             SettingPage.ABOUT -> {
                 SettingGroup(title = stringResource(Res.string.about)) {
                     SettingItem(
+                        icon = SimpIcons.Info,
                         title = stringResource(Res.string.version),
                         subtitle = stringResource(Res.string.version_format, VersionManager.getVersionName()),
                         onClick = {
@@ -2679,6 +2760,7 @@ fun SettingScreen(
                         },
                     )
                     SettingItem(
+                        icon = SimpIcons.Person,
                         title = stringResource(Res.string.author),
                         subtitle = "baotrq",
                         onClick = {
@@ -2688,6 +2770,7 @@ fun SettingScreen(
                     // Fork: one button. This app's own releases where they exist, upstream's elsewhere.
                     val checkForNewBuild = ForkBuildCheck.check
                     SettingItem(
+                        icon = SimpIcons.Update,
                         title = stringResource(Res.string.check_for_update),
                         subtitle =
                             if (checkForNewBuild != null) {
@@ -2698,6 +2781,7 @@ fun SettingScreen(
                         onClick = { checkForNewBuild?.invoke() ?: sharedViewModel.checkForUpdate() },
                     )
                     SettingItem(
+                        icon = SimpIcons.Code,
                         title = stringResource(Res.string.third_party_libraries),
                         subtitle = stringResource(Res.string.description_and_licenses),
                         onClick = {
@@ -2709,6 +2793,7 @@ fun SettingScreen(
             SettingPage.DEVELOPER -> {
                 SettingGroup(title = stringResource(Res.string.developer_option)) {
                     SettingItem(
+                        icon = SimpIcons.ReceiptLong,
                         title = stringResource(Res.string.app_log),
                         subtitle = stringResource(Res.string.app_log_description),
                         onClick = {
@@ -2719,6 +2804,7 @@ fun SettingScreen(
                 if (getPlatform() == Platform.Android && personalToolsShown) {
                     SettingGroup(title = stringResource(Res.string.car_mode)) {
                         SettingItem(
+                            icon = SimpIcons.DirectionsCar,
                             title = stringResource(Res.string.car_mode_title),
                             subtitle = stringResource(Res.string.car_mode_description),
                             switch = (carMode to { viewModel.setCarMode(it) }),
@@ -2730,6 +2816,7 @@ fun SettingScreen(
                         ) {
                             Column {
                                 SettingItem(
+                                    icon = SimpIcons.DownloadForOffline,
                                     title = stringResource(Res.string.car_mode_offline),
                                     subtitle = carModeOfflineSummary(carModeOffline),
                                     onClick = {
@@ -2741,6 +2828,7 @@ fun SettingScreen(
                                     },
                                 )
                                 SettingItem(
+                                    icon = SimpIcons.Refresh,
                                     title = stringResource(Res.string.car_mode_check_now),
                                     subtitle = stringResource(Res.string.car_mode_check_now_description),
                                     onClick = { CarModeDownloads.downloadNow() },
@@ -2772,6 +2860,7 @@ fun SettingScreen(
                     title = stringResource(Res.string.settings),
                     onBack = { navController.navigateUp() },
                     windowInsets = WindowInsets(0),
+                    largeTitle = true,
                 )
                 SettingHome(selected = page?.parent ?: page, showDonate = !personalToolsShown, onOpen = { openPage = it.name })
             }
@@ -2792,6 +2881,7 @@ fun SettingScreen(
                             onBack = goBack,
                             showBack = shown.parent != null,
                             windowInsets = WindowInsets(0),
+                            largeTitle = true,
                         )
                         pageContent(shown)
                     }
@@ -2800,13 +2890,6 @@ fun SettingScreen(
             }
         }
     } else {
-        // Home-family ambient ground; it scrolls away with the page instead of hanging off the ceiling.
-        // graphicsLayer reads the scroll in the DRAW phase, so scrolling redraws without recomposing.
-        // Tinted with the app's own primary rather than the song playing: this page is about the app.
-        AmbientThemeGlow(
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.graphicsLayer { translationY = -pageScroll.value.toFloat() },
-        )
         // Pages slide the way the app's screens do (AppNavigationGraph): in from the right going
         // deeper, back out to the right on Back.
         AnimatedContent(
@@ -2827,6 +2910,7 @@ fun SettingScreen(
                     title = shown?.title() ?: stringResource(Res.string.settings),
                     onBack = goBack,
                     windowInsets = WindowInsets(0),
+                    largeTitle = true,
                     modifier =
                         Modifier
                             .onSizeChanged { topBarHeightPx = it.height }
@@ -2888,80 +2972,6 @@ fun SettingScreen(
                     },
                 ) {
                     Text(text = alertBasicState.dismiss)
-                }
-            },
-        )
-    }
-    if (showColorPickerDialog) {
-        val presetColors =
-            listOf(
-                "FF8ECAE6",
-                "FF4C82EF",
-                "FF9B72CF",
-                "FFEF6C9B",
-                "FFEF5350",
-                "FFF4A340",
-                "FFFFCA28",
-                "FF66BB6A",
-                "FF26A69A",
-                "FFBDBDBD",
-            )
-        var pendingHex by rememberSaveable { mutableStateOf(customThemeColorHex.takeLast(6)) }
-        val parsedColor = parseThemeColorHex(pendingHex)
-        AlertDialog(
-            onDismissRequest = { showColorPickerDialog = false },
-            title = { Text(text = stringResource(Res.string.custom_color), style = typo().titleSmall) },
-            text = {
-                Column {
-                    presetColors.chunked(5).forEach { rowColors ->
-                        Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                            rowColors.forEach { hex ->
-                                val color = parseThemeColorHex(hex) ?: Color.Gray
-                                val isSelected = pendingHex.equals(hex.takeLast(6), ignoreCase = true)
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .padding(4.dp)
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(color)
-                                            .border(
-                                                width = if (isSelected) 3.dp else 0.dp,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                                                shape = CircleShape,
-                                            ).clickable { pendingHex = hex.takeLast(6) },
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    TextField(
-                        value = pendingHex,
-                        onValueChange = { pendingHex = it.removePrefix("#").take(8).uppercase() },
-                        label = { Text("HEX") },
-                        prefix = { Text("#") },
-                        singleLine = true,
-                        isError = parsedColor == null,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = parsedColor != null,
-                    onClick = {
-                        parsedColor?.let {
-                            val argb = "FF${pendingHex.takeLast(6).uppercase()}"
-                            sharedViewModel.setCustomThemeColor(argb)
-                            sharedViewModel.setThemeColorSource(DataStoreManager.THEME_COLOR_CUSTOM)
-                        }
-                        showColorPickerDialog = false
-                    },
-                ) { Text(text = stringResource(Res.string.change)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showColorPickerDialog = false }) {
-                    Text(text = stringResource(Res.string.cancel))
                 }
             },
         )
@@ -3506,12 +3516,13 @@ private fun SettingTopBar(
     modifier: Modifier = Modifier,
     showBack: Boolean = true,
     windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
+    largeTitle: Boolean = false,
 ) {
     TopAppBar(
         title = {
             Text(
                 text = title,
-                style = typo().titleMedium,
+                style = if (largeTitle) typo().titleLarge else typo().titleMedium,
             )
         },
         navigationIcon = {
@@ -3630,3 +3641,9 @@ private fun ImportProgressDialog(
 }
 
 internal const val PERSONAL_TOOLS_KEY = "personal_tools_shown"
+
+// Parallel to QUALITY.items, whose stored labels ("High Opus - 256kps (YT Premium)") are too long for a row.
+private val QUALITY_SHORT_LABELS = listOf("Low · 66 kbps", "Medium · 129 kbps", "Opus · 256 kbps", "AAC · 256 kbps")
+
+private fun qualityShortLabel(stored: String): String =
+    QUALITY_SHORT_LABELS[QUALITY.items.indexOfFirst { it.toString() == QUALITY.normalize(stored) }]

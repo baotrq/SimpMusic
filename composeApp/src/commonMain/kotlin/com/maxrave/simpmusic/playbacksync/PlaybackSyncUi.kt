@@ -47,7 +47,12 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.simpmusic.extension.formatDuration
 import com.maxrave.simpmusic.ui.component.SettingItem
 import com.maxrave.simpmusic.ui.icon.Close
+import com.maxrave.simpmusic.ui.icon.CloudSync
+import com.maxrave.simpmusic.ui.icon.Devices
+import com.maxrave.simpmusic.ui.icon.Key
+import com.maxrave.simpmusic.ui.icon.Link
 import com.maxrave.simpmusic.ui.icon.PlayArrow
+import com.maxrave.simpmusic.ui.icon.Refresh
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.theme.typo
 import kotlinx.coroutines.launch
@@ -93,6 +98,7 @@ fun ColumnScope.PlaybackSyncSettingItems() {
     val enabled = enabledFlag == DataStoreManager.TRUE || (enabledFlag == null && !url.isNullOrBlank())
 
     SettingItem(
+        icon = SimpIcons.CloudSync,
         title = stringResource(Res.string.playback_sync_enable),
         subtitle = stringResource(Res.string.playback_sync_enable_description),
         switch =
@@ -108,21 +114,25 @@ fun ColumnScope.PlaybackSyncSettingItems() {
     ) {
         Column {
             SettingItem(
+                icon = SimpIcons.Link,
                 title = stringResource(Res.string.playback_sync_server),
                 subtitle = url?.takeIf { it.isNotBlank() } ?: notSet,
                 onClick = { editing = PlaybackSync.KEY_URL },
             )
             SettingItem(
+                icon = SimpIcons.Key,
                 title = stringResource(Res.string.playback_sync_key),
                 subtitle = if (secret.isNullOrBlank()) notSet else stringResource(Res.string.playback_sync_key_set),
                 onClick = { editing = PlaybackSync.KEY_SECRET },
             )
             SettingItem(
+                icon = SimpIcons.Devices,
                 title = stringResource(Res.string.playback_sync_device_name),
                 subtitle = name?.takeIf { it.isNotBlank() } ?: PlaybackSync.defaultDeviceName,
                 onClick = { editing = PlaybackSync.KEY_DEVICE_NAME },
             )
             SettingItem(
+                icon = SimpIcons.Refresh,
                 title = stringResource(Res.string.playback_sync_test),
                 subtitle =
                     stringResource(

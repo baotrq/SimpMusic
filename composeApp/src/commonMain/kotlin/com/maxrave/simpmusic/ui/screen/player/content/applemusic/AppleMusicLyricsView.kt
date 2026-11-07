@@ -68,6 +68,10 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.lyrics_provider_custom
+import simpmusic.composeapp.generated.resources.lyrics_provider_kugou
+import simpmusic.composeapp.generated.resources.lyrics_provider_lrc_red
+import simpmusic.composeapp.generated.resources.lyrics_provider_megalobiz
+import simpmusic.composeapp.generated.resources.lyrics_provider_youtube_music
 import simpmusic.composeapp.generated.resources.ai_translated
 import simpmusic.composeapp.generated.resources.line_synced
 import simpmusic.composeapp.generated.resources.lyrics_provider_betterlyrics
@@ -382,6 +386,10 @@ private fun appleMusicLyricsProviderText(lyricsData: NowPlayingScreenData.Lyrics
         LyricsProvider.SPOTIFY -> stringResource(Res.string.spotify_lyrics_provider)
         LyricsProvider.OFFLINE -> stringResource(Res.string.offline_mode)
         LyricsProvider.BETTER_LYRICS -> stringResource(Res.string.lyrics_provider_betterlyrics)
+        LyricsProvider.LRC_RED -> stringResource(Res.string.lyrics_provider_lrc_red)
+        LyricsProvider.KUGOU -> stringResource(Res.string.lyrics_provider_kugou)
+        LyricsProvider.MEGALOBIZ -> stringResource(Res.string.lyrics_provider_megalobiz)
+        LyricsProvider.YOUTUBE_MUSIC -> stringResource(Res.string.lyrics_provider_youtube_music)
         LyricsProvider.AI -> ""
         LyricsProvider.CUSTOM -> stringResource(Res.string.lyrics_provider_custom)
     }

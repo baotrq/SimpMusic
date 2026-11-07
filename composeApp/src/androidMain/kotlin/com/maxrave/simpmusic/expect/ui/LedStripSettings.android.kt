@@ -1,5 +1,8 @@
 package com.maxrave.simpmusic.expect.ui
 
+import com.maxrave.simpmusic.ui.icon.Bluetooth
+import com.maxrave.simpmusic.ui.icon.SimpIcons
+import com.maxrave.simpmusic.ui.icon.Lightbulb
 import android.bluetooth.BluetoothManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -101,6 +104,7 @@ actual fun ColumnScope.LedStripSettingItems() {
     }
 
     SettingItem(
+        icon = SimpIcons.Lightbulb,
         title = stringResource(Res.string.led_strip_sync),
         subtitle = stringResource(Res.string.led_strip_sync_info),
         smallSubtitle = true,
@@ -129,6 +133,7 @@ actual fun ColumnScope.LedStripSettingItems() {
                     else -> "$stripName · ${stringResource(Res.string.led_strip_status_connecting)}"
                 }
             SettingItem(
+                icon = SimpIcons.Bluetooth,
                 title = stringResource(Res.string.led_strip_device),
                 subtitle = deviceSubtitle,
                 onClick = { withPermission { showPicker = true } },
@@ -138,6 +143,7 @@ actual fun ColumnScope.LedStripSettingItems() {
             var dragValue by remember { mutableStateOf<Float?>(null) }
             val sliderValue = dragValue ?: storedBrightness.toFloat()
             SettingItem(
+                icon = SimpIcons.Lightbulb,
                 title = stringResource(Res.string.led_strip_brightness),
                 subtitle = "${sliderValue.toInt()}%",
                 isEnable = enabled,

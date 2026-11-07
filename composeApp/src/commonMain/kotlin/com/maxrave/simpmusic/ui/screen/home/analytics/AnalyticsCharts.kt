@@ -154,6 +154,7 @@ fun FingerprintChart(
     val prevColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
 
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+        val accent = seed
         Canvas(Modifier.size(diameter)) {
             val radius = size.minDimension / 2f * 0.78f
             fun ring(fraction: Float) = polygonPath(center, radius * fraction, 5)
@@ -165,8 +166,8 @@ fun FingerprintChart(
                 drawPath(valuePath(center, radius, it.axes), prevColor, style = Stroke(1.5f))
             }
             val now = valuePath(center, radius, current.axes)
-            drawPath(now, seed.copy(alpha = 0.22f))
-            drawPath(now, seed, style = Stroke(2f))
+            drawPath(now, accent.copy(alpha = 0.22f))
+            drawPath(now, accent, style = Stroke(2f))
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             labels.forEachIndexed { i, label ->
@@ -259,6 +260,7 @@ fun ListeningClockChart(
     val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
 
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+        val accent = seed
         Canvas(Modifier.size(diameter)) {
             val outer = size.minDimension / 2f
             val inner = outer * 0.46f
@@ -271,7 +273,7 @@ fun ListeningClockChart(
                     val valueOuter = inner + (outer - inner) * (count.toFloat() / max)
                     drawWedge(
                         center, inner, valueOuter, start, sweep,
-                        if (count > max * 0.55f) seed else seed.copy(alpha = 0.45f),
+                        if (count > max * 0.55f) accent else accent.copy(alpha = 0.45f),
                     )
                 }
             }

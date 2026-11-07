@@ -229,7 +229,7 @@ private fun SettingHomeRow(
                 // Hairline above each row from where the text starts, like SettingItem's; the card
                 // clips the first row's away.
                 .drawBehind {
-                    val inset = (16 + 36 + 16).dp.toPx()
+                    val inset = (16 + 22 + 14).dp.toPx()
                     val rtl = layoutDirection == LayoutDirection.Rtl
                     drawLine(
                         color = dividerColor,
@@ -241,17 +241,8 @@ private fun SettingHomeRow(
                 .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier =
-                Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
-        }
-        Spacer(Modifier.width(16.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = typo().titleSmall, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(2.dp))

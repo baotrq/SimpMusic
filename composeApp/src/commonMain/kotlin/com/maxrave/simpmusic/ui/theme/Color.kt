@@ -1,14 +1,18 @@
 package com.maxrave.simpmusic.ui.theme
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 // ===== Brand =====
 
 /**
- * Brand seed color. The whole Material 3 ColorScheme is generated from this
- * color at runtime — see [AppTheme].
+ * The app's accent: white in dark, black in light, from the Monochrome scheme in [AppTheme]. Read from
+ * the scheme so an accent on a page can never land on a page of its own colour.
  */
-val seed = Color(0xFF8ECAE6)
+val seed: Color
+    @Composable
+    get() = MaterialTheme.colorScheme.primary
 
 // ===== Semantic colors (not derivable from the color scheme) =====
 

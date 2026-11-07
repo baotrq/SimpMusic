@@ -940,13 +940,22 @@ class SharedViewModel(
      * copy is the offline fallback it always was.
      */
     private fun finishLyricsSearch(track: Track) {
-        val backup = plainLyricsBackup?.takeIf { it.videoId == track.videoId }
-        if (backup == null) {
-            getSavedLyrics(track)
-            return
-        }
-        plainLyricsBackup = null
         viewModelScope.launch {
+            val artist = track.artists?.firstOrNull()?.name.orEmpty()
+            val duration = track.durationSeconds ?: 0
+            // Fork: the last sources before giving up. YouTube Music's lyrics are plain, so they are
+            // only worth asking for when nothing plain has been fetched already.
+            for (provider in listOf(DataStoreManager.KUGOU, DataStoreManager.MEGALOBIZ, DataStoreManager.YOUTUBE_MUSIC)) {
+                if (_nowPlayingState.value?.songEntity?.videoId != track.videoId) return@launch
+                if (provider == DataStoreManager.YOUTUBE_MUSIC && plainLyricsBackup?.videoId == track.videoId) continue
+                if (tryExtraLyrics(provider, track.videoId, track.title, artist, duration)) return@launch
+            }
+            val backup = plainLyricsBackup?.takeIf { it.videoId == track.videoId }
+            if (backup == null) {
+                getSavedLyrics(track)
+                return@launch
+            }
+            plainLyricsBackup = null
             updateLyrics(backup.videoId, backup.duration, backup.lyrics, false, backup.provider)
             insertLyrics(backup.lyrics.toLyricsEntity(backup.videoId))
             if (backup.provider == LyricsProvider.SIMPMUSIC) {
@@ -955,6 +964,30 @@ class SharedViewModel(
                 getAITranslationLyrics(backup.videoId, backup.lyrics)
             }
         }
+    }
+
+    /** True when [provider] answered with timed lyrics, now on screen. Plain ones are held for later. */
+    private suspend fun tryExtraLyrics(
+        provider: String,
+        videoId: String,
+        title: String,
+        artist: String,
+        duration: Int,
+    ): Boolean {
+        val source =
+            when (provider) {
+                DataStoreManager.LRC_RED -> LyricsProvider.LRC_RED
+                DataStoreManager.KUGOU -> LyricsProvider.KUGOU
+                DataStoreManager.MEGALOBIZ -> LyricsProvider.MEGALOBIZ
+                else -> LyricsProvider.YOUTUBE_MUSIC
+            }
+        val response = lyricsCanvasRepository.getExtraLyrics(provider, videoId, artist, title, duration).first()
+        val data = response.data
+        if (response !is Resource.Success || data == null || holdIfPlain(videoId, duration, data, source)) return false
+        updateLyrics(videoId, duration, data, false, source)
+        insertLyrics(data.toLyricsEntity(videoId))
+        getAITranslationLyrics(videoId, data)
+        return true
     }
 
     private fun getSavedLyrics(track: Track) {
@@ -1524,7 +1557,9 @@ class SharedViewModel(
             } &&
                 lyricsProvider != LyricsProvider.SIMPMUSIC &&
                 // Tap-along timing is personal and stays on the device.
-                lyricsProvider != LyricsProvider.CUSTOM
+                lyricsProvider != LyricsProvider.CUSTOM &&
+                // A copy of Apple's lyrics, not something to republish in the community database.
+                lyricsProvider != LyricsProvider.LRC_RED
         if (_nowPlayingState.value?.songEntity?.videoId == videoId) {
             val track = _nowPlayingState.value?.track
             when (isTranslatedLyrics) {
@@ -1623,6 +1658,8 @@ class SharedViewModel(
         }
     }
 
+    private var lyricsLookupJob: Job? = null
+
     private fun getLyricsFromFormat(
         isVideo: Boolean,
         song: SongEntity,
@@ -1634,7 +1671,9 @@ class SharedViewModel(
         // A fetch in flight is not "no lyrics": switching the provider re-fetches the same song, and
         // Add lyrics offered meanwhile could be saved over the lyrics the new provider finds.
         _nowPlayingScreenData.update { it.copy(lyricsNotFound = false) }
-        viewModelScope.launch {
+        // Trying sources one after another must not let an earlier, slower answer land on top.
+        lyricsLookupJob?.cancel()
+        lyricsLookupJob = viewModelScope.launch {
             val videoId = song.videoId
             log("Get Lyrics From Format for $videoId", LogLevel.WARN)
             val artistName = song.artistName
@@ -1681,9 +1720,16 @@ class SharedViewModel(
                     }
                 }
             }
-            val lyricsProvider =
-                songLyricsProvider(videoId).first()?.takeIf { it.isNotEmpty() }
-                    ?: dataStoreManager.lyricsProvider.first()
+            val songProvider = songLyricsProvider(videoId).first()?.takeIf { it.isNotEmpty() }
+            val lyricsProvider = songProvider ?: dataStoreManager.lyricsProvider.first()
+            // Fork: word timing for the exact recording goes first, unless a source was picked on
+            // purpose for this song or as a main provider other than the default.
+            if (songProvider == null &&
+                lyricsProvider == DataStoreManager.SIMPMUSIC &&
+                tryExtraLyrics(DataStoreManager.LRC_RED, videoId, song.title, artist.orEmpty(), duration)
+            ) {
+                return@launch
+            }
             when (lyricsProvider) {
                 DataStoreManager.SIMPMUSIC -> {
                     getSimpMusicLyrics(
@@ -1717,6 +1763,12 @@ class SharedViewModel(
                         (artist ?: "").toString(),
                         duration,
                     )
+                }
+
+                DataStoreManager.LRC_RED, DataStoreManager.KUGOU, DataStoreManager.MEGALOBIZ, DataStoreManager.YOUTUBE_MUSIC -> {
+                    if (!tryExtraLyrics(lyricsProvider, videoId, song.title, artist.orEmpty(), duration)) {
+                        getSimpMusicLyrics(videoId, song, artist.orEmpty(), duration)
+                    }
                 }
             }
         }
@@ -2102,7 +2154,11 @@ class SharedViewModel(
         viewModelScope.launch {
             dataStoreManager.putString(SongLyricsSync.providerKey(videoId), provider)
             SongLyricsSync.push(videoId, dataStoreManager)
-            if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
+            if (nowPlayingState.value?.songEntity?.videoId == videoId) {
+                // Cleared so the words on screen, and the source named for them, are never the old pick's.
+                _nowPlayingScreenData.update { it.copy(lyricsData = null) }
+                setLyricsProvider()
+            }
         }
     }
 
@@ -2257,10 +2313,6 @@ class SharedViewModel(
 
     fun getThemeMode() = dataStoreManager.themeMode
 
-    fun getThemeColorSource() = dataStoreManager.themeColorSource
-
-    fun getCustomThemeColor() = dataStoreManager.customThemeColor
-
     fun getNowPlayingStyle() = dataStoreManager.nowPlayingStyle
 
     fun getLyricsStyle() = dataStoreManager.lyricsStyle
@@ -2276,18 +2328,6 @@ class SharedViewModel(
     fun setThemeMode(mode: String) {
         viewModelScope.launch {
             dataStoreManager.setThemeMode(mode)
-        }
-    }
-
-    fun setThemeColorSource(source: String) {
-        viewModelScope.launch {
-            dataStoreManager.setThemeColorSource(source)
-        }
-    }
-
-    fun setCustomThemeColor(argbHex: String) {
-        viewModelScope.launch {
-            dataStoreManager.setCustomThemeColor(argbHex)
         }
     }
 
@@ -2555,6 +2595,10 @@ enum class LyricsProvider {
     SPOTIFY,
     LRCLIB,
     BETTER_LYRICS,
+    LRC_RED,
+    KUGOU,
+    MEGALOBIZ,
+    YOUTUBE_MUSIC,
     AI,
     OFFLINE,
     CUSTOM,

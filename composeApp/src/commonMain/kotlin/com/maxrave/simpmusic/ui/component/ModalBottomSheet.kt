@@ -215,10 +215,15 @@ import simpmusic.composeapp.generated.resources.album
 import simpmusic.composeapp.generated.resources.artists
 import simpmusic.composeapp.generated.resources.baseline_favorite_24
 import simpmusic.composeapp.generated.resources.better_lyrics
+import simpmusic.composeapp.generated.resources.kugou
+import simpmusic.composeapp.generated.resources.lrc_red
+import simpmusic.composeapp.generated.resources.megalobiz
+import simpmusic.composeapp.generated.resources.youtube_music_lyrics
 import simpmusic.composeapp.generated.resources.bitrate
 import simpmusic.composeapp.generated.resources.bpm
 import simpmusic.composeapp.generated.resources.can_not_be_empty
 import simpmusic.composeapp.generated.resources.cancel
+import simpmusic.composeapp.generated.resources.donate_close
 import simpmusic.composeapp.generated.resources.crop_cover
 import simpmusic.composeapp.generated.resources.codec
 import simpmusic.composeapp.generated.resources.copied_to_clipboard
@@ -251,9 +256,19 @@ import simpmusic.composeapp.generated.resources.liked
 import simpmusic.composeapp.generated.resources.list_all_cookies_of_this_page
 import simpmusic.composeapp.generated.resources.lrclib
 import simpmusic.composeapp.generated.resources.lyrics
+import simpmusic.composeapp.generated.resources.lyrics_provider_custom
 import simpmusic.composeapp.generated.resources.lyrics_provider_for_this_song
-import simpmusic.composeapp.generated.resources.lyrics_provider_main
 import simpmusic.composeapp.generated.resources.lyrics_provider_none
+import simpmusic.composeapp.generated.resources.rich_synced
+import simpmusic.composeapp.generated.resources.line_synced
+import simpmusic.composeapp.generated.resources.unsynced
+import simpmusic.composeapp.generated.resources.spotify
+import simpmusic.composeapp.generated.resources.lyrics_source_automatic
+import simpmusic.composeapp.generated.resources.lyrics_source_in_use
+import simpmusic.composeapp.generated.resources.lyrics_source_looking
+import simpmusic.composeapp.generated.resources.lyrics_source_none
+import simpmusic.composeapp.generated.resources.lyrics_source_now
+import simpmusic.composeapp.generated.resources.lyrics_source_saved
 import com.maxrave.simpmusic.playbacksync.SongLyricsSync
 import simpmusic.composeapp.generated.resources.rate_lyrics
 import simpmusic.composeapp.generated.resources.tap_along
@@ -1551,6 +1566,10 @@ fun NowPlayingBottomSheet(
                     DataStoreManager.LRCLIB -> Res.string.lrclib
                     DataStoreManager.YOUTUBE -> Res.string.youtube_transcript
                     DataStoreManager.BETTER_LYRICS -> Res.string.better_lyrics
+                    DataStoreManager.LRC_RED -> Res.string.lrc_red
+                    DataStoreManager.KUGOU -> Res.string.kugou
+                    DataStoreManager.MEGALOBIZ -> Res.string.megalobiz
+                    DataStoreManager.YOUTUBE_MUSIC -> Res.string.youtube_music_lyrics
                     else -> Res.string.simpmusic_lyrics
                 },
             )
@@ -1562,6 +1581,10 @@ fun NowPlayingBottomSheet(
                 DataStoreManager.LRCLIB,
                 DataStoreManager.YOUTUBE,
                 DataStoreManager.BETTER_LYRICS,
+                DataStoreManager.LRC_RED,
+                DataStoreManager.KUGOU,
+                DataStoreManager.MEGALOBIZ,
+                DataStoreManager.YOUTUBE_MUSIC,
                 SongLyricsSync.NO_LYRICS,
             )
 
@@ -1575,29 +1598,69 @@ fun NowPlayingBottomSheet(
                 )
             },
             text = {
-                Column {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    // What is really on screen: a source that misses hands over to the next one, so the
+                    // picked row says nothing about where the words came from.
+                    Text(
+                        text =
+                            when {
+                                lyricsData != null -> {
+                                    stringResource(
+                                        Res.string.lyrics_source_now,
+                                        shownSourceName(lyricsData.lyricsProvider),
+                                        stringResource(
+                                            when (lyricsData.lyrics.syncType) {
+                                                "RICH_SYNCED" -> Res.string.rich_synced
+                                                "LINE_SYNCED" -> Res.string.line_synced
+                                                else -> Res.string.unsynced
+                                            },
+                                        ),
+                                    )
+                                }
+                                screenData.lyricsNotFound -> stringResource(Res.string.lyrics_source_none)
+                                selected == SongLyricsSync.NO_LYRICS -> stringResource(Res.string.lyrics_provider_none)
+                                else -> stringResource(Res.string.lyrics_source_looking)
+                            },
+                        style = typo().bodySmall,
+                        modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
+                    )
+                    val inUse = lyricsData?.lyricsProvider?.sourceKey()
+                    // A tap applies at once and the dialog stays, so sources can be tried one after another.
+                    val pick = { option: String ->
+                        selected = option
+                        sharedViewModel.setSongLyricsProvider(videoId, option)
+                    }
                     options.forEach { option ->
                         Row(
                             modifier =
                                 Modifier
                                     .padding(horizontal = 4.dp)
                                     .fillMaxWidth()
-                                    .clickable { selected = option },
+                                    .clickable { pick(option) },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            RadioButton(selected = selected == option, onClick = { selected = option })
+                            RadioButton(selected = selected == option, onClick = { pick(option) })
                             Spacer(modifier = Modifier.size(10.dp))
                             Text(
                                 text =
                                     if (option.isEmpty()) {
-                                        stringResource(Res.string.lyrics_provider_main, providerName(uiState.mainLyricsProvider))
+                                        stringResource(Res.string.lyrics_source_automatic)
                                     } else if (option == SongLyricsSync.NO_LYRICS) {
                                         stringResource(Res.string.lyrics_provider_none)
                                     } else {
                                         providerName(option)
                                     },
                                 style = typo().labelSmall,
+                                modifier = Modifier.weight(1f),
                             )
+                            if (option.isNotEmpty() && option == inUse) {
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(
+                                    text = stringResource(Res.string.lyrics_source_in_use),
+                                    style = typo().bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
                     // Only lyrics that actually came from SimpMusic can be rated: the other
@@ -1670,18 +1733,8 @@ fun NowPlayingBottomSheet(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        sharedViewModel.setSongLyricsProvider(videoId, selected)
-                        mainLyricsProvider = false
-                    },
-                ) {
-                    Text(text = stringResource(Res.string.yes), style = typo().labelSmall)
-                }
-            },
-            dismissButton = {
                 TextButton(onClick = { mainLyricsProvider = false }) {
-                    Text(text = stringResource(Res.string.cancel), style = typo().labelSmall)
+                    Text(text = stringResource(Res.string.donate_close), style = typo().labelSmall)
                 }
             },
         )
@@ -3586,3 +3639,34 @@ sealed class DevLogInType {
             is Discord -> getString(Res.string.your_discord_token)
         }
 }
+
+/** The source list's key for a provider; null for those with no row of their own. */
+private fun LyricsProvider.sourceKey(): String? =
+    when (this) {
+        LyricsProvider.SIMPMUSIC -> DataStoreManager.SIMPMUSIC
+        LyricsProvider.LRCLIB -> DataStoreManager.LRCLIB
+        LyricsProvider.YOUTUBE -> DataStoreManager.YOUTUBE
+        LyricsProvider.BETTER_LYRICS -> DataStoreManager.BETTER_LYRICS
+        LyricsProvider.LRC_RED -> DataStoreManager.LRC_RED
+        LyricsProvider.KUGOU -> DataStoreManager.KUGOU
+        LyricsProvider.MEGALOBIZ -> DataStoreManager.MEGALOBIZ
+        LyricsProvider.YOUTUBE_MUSIC -> DataStoreManager.YOUTUBE_MUSIC
+        LyricsProvider.SPOTIFY, LyricsProvider.AI, LyricsProvider.OFFLINE, LyricsProvider.CUSTOM -> null
+    }
+
+@Composable
+private fun shownSourceName(provider: LyricsProvider): String =
+    when (provider) {
+        LyricsProvider.SIMPMUSIC -> stringResource(Res.string.simpmusic_lyrics)
+        LyricsProvider.LRCLIB -> stringResource(Res.string.lrclib)
+        LyricsProvider.YOUTUBE -> stringResource(Res.string.youtube_transcript)
+        LyricsProvider.BETTER_LYRICS -> stringResource(Res.string.better_lyrics)
+        LyricsProvider.LRC_RED -> stringResource(Res.string.lrc_red)
+        LyricsProvider.KUGOU -> stringResource(Res.string.kugou)
+        LyricsProvider.MEGALOBIZ -> stringResource(Res.string.megalobiz)
+        LyricsProvider.YOUTUBE_MUSIC -> stringResource(Res.string.youtube_music_lyrics)
+        LyricsProvider.SPOTIFY -> stringResource(Res.string.spotify)
+        LyricsProvider.OFFLINE -> stringResource(Res.string.lyrics_source_saved)
+        LyricsProvider.CUSTOM -> stringResource(Res.string.lyrics_provider_custom)
+        LyricsProvider.AI -> "AI"
+    }
