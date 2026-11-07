@@ -40,6 +40,7 @@ import com.maxrave.logger.Logger
 import com.maxrave.media3.di.setServiceActivitySession
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.expect.ui.rememberDesktopModeScale
+import com.maxrave.simpmusic.extension.applyPhoneOrientationLock
 import com.maxrave.simpmusic.service.test.notification.NotifyWork
 import com.maxrave.simpmusic.update.ForkUpdater
 import com.maxrave.simpmusic.utils.ComposeResUtils
@@ -111,6 +112,7 @@ class MainActivity : AppCompatActivity() {
     @ExperimentalFoundationApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyPhoneOrientationLock()
         loadKoinModules(
             module {
                 single<AppCompatActivity> { this@MainActivity }
@@ -313,6 +315,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        applyPhoneOrientationLock()
         viewModel.activityRecreate()
     }
 }

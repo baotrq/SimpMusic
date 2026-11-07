@@ -526,9 +526,9 @@ fun App(
     val isTabletLandscape = isTablet && currentOrientation() == Orientation.LANDSCAPE
     // Fork: Samsung DeX (see rememberDesktopModeScale), where the player is hosted in-window.
     val inDesktopMode = rememberDesktopModeScale() > 1f
-    // Fork: Android always uses the bottom bar, even in a wide window (DeX, a tablet, a phone on its
-    // side). Only the desktop app keeps the side rail.
-    val useNavigationRail = isTablet && getPlatform() != Platform.Android
+    // A wide window (Desktop, an unfolded Fold, a tablet, DeX) navigates with the side rail and has no
+    // bottom bar. Bar phones never get here: they stay in portrait (applyPhoneOrientationLock).
+    val useNavigationRail = isTablet
 
     AppTheme(
         themeMode = themeMode,
@@ -646,6 +646,8 @@ fun App(
                     Modifier
                         .fillMaxSize()
                         .then(
+                            // Never true alongside the tablet source further down, which sits inside this Box: one
+                            // backdrop nested in itself throws "Recording currently in progress" on the first frame.
                             if (isLiquidGlassEnabled == TRUE && !useNavigationRail) {
                                 Modifier.layerBackdrop(backdrop)
                             } else {

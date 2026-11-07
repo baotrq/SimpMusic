@@ -1,37 +1,32 @@
 package com.maxrave.simpmusic.ui.screen.player
 
 import android.content.pm.ActivityInfo
-import android.content.res.Configuration
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.maxrave.simpmusic.extension.applyPhoneOrientationLock
 import com.maxrave.simpmusic.extension.findActivity
+import com.maxrave.simpmusic.extension.isPhoneSizedScreen
 
 @Composable
 actual fun FullScreenRotationImmersive(
     onLaunch: () -> Unit,
     onDispose: () -> Unit,
 ) {
-    val resources = LocalResources.current
     val context = LocalContext.current
-
-    val originalOrientation by rememberSaveable {
-        mutableIntStateOf(resources.configuration.orientation)
-    }
 
     DisposableEffect(true) {
         onLaunch.invoke()
         val activity = context.findActivity()
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        // Fork: phone-sized screens stay in portrait, fullscreen video included.
+        if (!activity.isPhoneSizedScreen) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
         val window = context.findActivity().window
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
 
@@ -42,14 +37,9 @@ actual fun FullScreenRotationImmersive(
                 show(WindowInsetsCompat.Type.systemBars())
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
-            // restore original orientation when view disappears
-            activity.requestedOrientation =
-                when (originalOrientation) {
-                    Configuration.ORIENTATION_PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    Configuration.ORIENTATION_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                }
+            // Back to free on a large screen, back to the lock on a phone.
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity.applyPhoneOrientationLock()
             onDispose.invoke()
         }
     }
