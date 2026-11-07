@@ -3,11 +3,15 @@ package com.maxrave.simpmusic.ui.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -20,6 +24,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -33,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,13 +50,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
+import com.maxrave.simpmusic.Platform
+import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.icon.Add
 import com.maxrave.simpmusic.ui.icon.Check
 import com.maxrave.simpmusic.ui.icon.Close
@@ -253,11 +271,12 @@ private fun ChoiceDialogFrame(
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    val frame: @Composable () -> Unit = {
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth(0.9f).widthIn(max = 440.dp),
+            // The cap goes first: after fillMaxWidth the width is already fixed, and it does nothing.
+            modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth(0.9f),
         ) {
             Column(Modifier.padding(20.dp)) {
                 Text(
@@ -267,6 +286,121 @@ private fun ChoiceDialogFrame(
                     modifier = Modifier.padding(start = 4.dp, bottom = 16.dp),
                 )
                 content()
+            }
+        }
+    }
+    if (getPlatform() == Platform.Desktop) {
+        SettingPageOverlay(onDismiss = onDismiss, content = frame)
+    } else {
+        Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) { frame() }
+    }
+}
+
+/**
+ * Fork: Desktop draws Settings' popups inside the Settings panel, so the sidebar, the player and the
+ * capsule stay in view and usable. A Dialog is a layer over the whole window.
+ *
+ * This fills its PARENT, so call it only where the Settings screen's root content is emitted (beside
+ * the panes), never from inside a scrolling page. A log-out warning is raised from the accounts popup
+ * but composed before it, hence [zIndex]: stacking here follows composition order, not opening order.
+ */
+@Composable
+private fun SettingPageOverlay(
+    onDismiss: () -> Unit,
+    zIndex: Float = 1f,
+    content: @Composable () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Box(
+        modifier =
+            Modifier
+                .zIndex(zIndex)
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .onPreviewKeyEvent { event ->
+                    if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) {
+                        onDismiss()
+                        true
+                    } else {
+                        false
+                    }
+                }.focusRequester(focusRequester)
+                .focusable()
+                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onDismiss)
+                // Keeps a tall popup clear of the capsule player floating at the bottom.
+                .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        // A click inside the popup must not count as a click outside it.
+        Box(modifier = Modifier.clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {}) {
+            content()
+        }
+    }
+}
+
+/** [BasicAlertDialog] on Android, inside the Settings panel on Desktop. See [SettingPageOverlay]. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingBasicDialog(
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (getPlatform() == Platform.Desktop) {
+        SettingPageOverlay(onDismiss = onDismissRequest) {
+            Box(modifier = modifier.widthIn(min = 280.dp, max = 560.dp)) { content() }
+        }
+    } else {
+        BasicAlertDialog(onDismissRequest = onDismissRequest, modifier = modifier, content = content)
+    }
+}
+
+/** [AlertDialog] on Android, inside the Settings panel on Desktop. See [SettingPageOverlay]. */
+@Composable
+fun SettingAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+    properties: DialogProperties = DialogProperties(),
+) {
+    if (getPlatform() != Platform.Desktop) {
+        AlertDialog(
+            onDismissRequest = onDismissRequest,
+            confirmButton = confirmButton,
+            dismissButton = dismissButton,
+            title = title,
+            text = text,
+            properties = properties,
+        )
+        return
+    }
+    SettingPageOverlay(
+        onDismiss = { if (properties.dismissOnClickOutside) onDismissRequest() },
+        zIndex = 2f,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.widthIn(min = 280.dp, max = 560.dp),
+        ) {
+            Column(Modifier.padding(24.dp)) {
+                if (title != null) {
+                    title()
+                    Spacer(Modifier.height(16.dp))
+                }
+                if (text != null) {
+                    // Takes what is left after the buttons, so a long list scrolls instead of pushing
+                    // them off the popup.
+                    Box(Modifier.weight(1f, fill = false)) { text() }
+                    Spacer(Modifier.height(24.dp))
+                }
+                Row(modifier = Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    dismissButton?.invoke()
+                    confirmButton()
+                }
             }
         }
     }
@@ -304,9 +438,11 @@ private fun ChoiceSearchField(
 }
 
 @Composable
-private fun ChoiceCard(content: @Composable () -> Unit) {
+private fun ColumnScope.ChoiceCard(content: @Composable () -> Unit) {
     Box(
         Modifier
+            // Gives up height in a short window, so the list scrolls inside the popup.
+            .weight(1f, fill = false)
             .fillMaxWidth()
             .heightIn(max = 440.dp)
             .clip(RoundedCornerShape(20.dp))

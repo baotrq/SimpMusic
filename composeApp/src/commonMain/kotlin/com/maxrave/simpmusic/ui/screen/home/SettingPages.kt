@@ -83,6 +83,8 @@ import com.maxrave.simpmusic.ui.icon.Sync
 import com.maxrave.simpmusic.ui.theme.typo
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import com.maxrave.simpmusic.Platform
+import com.maxrave.simpmusic.getPlatform
 import org.jetbrains.compose.resources.stringResource
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.about
@@ -264,6 +266,11 @@ internal class StyleOption(
     val note: String? = null,
 )
 
+// Only Android has a version these styles depend on.
+@Composable
+private fun androidVersionNote(): String? =
+    if (getPlatform() == Platform.Android) stringResource(Res.string.requires_android_12) else null
+
 @Composable
 internal fun playerStyleOptions(): List<StyleOption> =
     listOf(
@@ -281,13 +288,13 @@ internal fun playerStyleOptions(): List<StyleOption> =
             NOW_PLAYING_STYLE_NHAC_NHEO,
             stringResource(Res.string.now_playing_style_nhac_nheo),
             Res.drawable.style_player_nhac_nheo,
-            stringResource(Res.string.requires_android_12),
+            androidVersionNote(),
         ),
         StyleOption(
             DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC,
             stringResource(Res.string.now_playing_style_apple_music),
             null,
-            stringResource(Res.string.requires_android_12),
+            androidVersionNote(),
         ),
     )
 
@@ -303,7 +310,7 @@ internal fun lyricsStyleOptions(): List<StyleOption> =
             DataStoreManager.LYRICS_STYLE_APPLE_MUSIC,
             stringResource(Res.string.lyrics_style_apple_music),
             Res.drawable.style_lyrics_apple_music,
-            stringResource(Res.string.requires_android_12),
+            androidVersionNote(),
         ),
     )
 

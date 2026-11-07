@@ -83,7 +83,18 @@ import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.AddLyricsSheet
 import com.maxrave.simpmusic.ui.component.AddToPlaylistModalBottomSheet
 import com.maxrave.simpmusic.ui.component.FullscreenLyricsContent
+import com.maxrave.simpmusic.ui.icon.OpenInFull
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.ui.Alignment
 import com.maxrave.simpmusic.ui.component.FullscreenLyricsSheet
+import com.maxrave.simpmusic.ui.screen.player.content.DesktopPlayerLayers
+import com.maxrave.simpmusic.ui.screen.player.content.DesktopPlayerPage
+import com.maxrave.simpmusic.ui.screen.player.content.DesktopPlayerTab
 import com.maxrave.simpmusic.ui.component.CommentsBottomSheet
 import com.maxrave.simpmusic.ui.component.InfoPlayerBottomSheet
 import com.maxrave.domain.data.model.browse.album.Track
@@ -127,8 +138,6 @@ private const val TAG = "NowPlayingScreen"
 
 // Desktop's fullscreen lyrics page: in a little slower than out, so opening reads as arriving and
 // closing gets out of the way.
-private const val FULLSCREEN_LYRICS_ENTER_MS = 300
-private const val FULLSCREEN_LYRICS_EXIT_MS = 220
 
 @OptIn(ExperimentalFoundationApi::class)
 @ExperimentalMaterial3Api
@@ -185,6 +194,9 @@ fun NowPlayingScreenContent(
     navController: NavController,
     isExpanded: Boolean,
     dismissIcon: ImageVector,
+    // Fork: set on Desktop, where this one instance draws both the small panel and the full-size page
+    // (DesktopPlayerLayers), and this grows the first into the second.
+    onDesktopExpand: (() -> Unit)? = null,
     onDismiss: () -> Unit = {},
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -715,7 +727,15 @@ fun NowPlayingScreenContent(
             onShowInfo = { showInfoBottomSheet = true },
             onShowAddToPlaylist = { showAddToPlaylistDirectly = true },
             onShowComments = { showCommentsSheet = true },
-            onShowFullscreenLyrics = { showFullscreenLyrics = true },
+            onShowFullscreenLyrics = {
+                // Desktop's lyrics are a tab of the full-size page.
+                if (onDesktopExpand != null) {
+                    sharedViewModel.setLastPlayerViewTab(DesktopPlayerTab.LYRICS.name)
+                    onDesktopExpand()
+                } else {
+                    showFullscreenLyrics = true
+                }
+            },
             onShowVoteDialog = { showVoteDialog = true },
             onLyricsOffsetChange = { sharedViewModel.setLyricsOffsetMs(it) },
             onEnterFullscreenVideo = {
@@ -738,86 +758,15 @@ fun NowPlayingScreenContent(
     // Below `state`/`actions`: the landscape lyrics layout renders the current style's own track row
     // and playback controls, so it takes the same contract the style content does.
     if (showFullscreenLyrics) {
-        if (getPlatform() == Platform.Desktop) {
-            // Desktop's Now Playing is a side panel, not a sheet, so the page opens as a Popup over
-            // the whole window — the custom title bar included. A Popup that stops below the bar
-            // leaves the bar outside it, and a focusable Popup dismisses on any press outside
-            // itself, so a click on the bar used to close the page.
-            val windowSize = LocalWindowInfo.current.containerSize
-            val density = LocalDensity.current
-            // DesktopApp makes the window transparent and clips its content to 12dp corners exactly
-            // when it draws the custom title bar (both macOS-only). A Popup is a layer of its own
-            // that clip never reaches, so the page rounds itself. getScreenSizeInfo() subtracts that
-            // same bar, which makes the height difference the one signal commonMain can read.
-            val windowIsRounded = windowSize.height > getScreenSizeInfo().hPX
-            val popupPositionProvider =
-                remember {
-                    object : PopupPositionProvider {
-                        override fun calculatePosition(
-                            anchorBounds: IntRect,
-                            windowSize: IntSize,
-                            layoutDirection: LayoutDirection,
-                            popupContentSize: IntSize,
-                        ): IntOffset = IntOffset.Zero
-                    }
-                }
-            // A Popup appears in a single frame, which reads as a flash over the whole window. The
-            // page fades and scales in instead, and a close plays the reverse first: the flag only
-            // drops once the exit has finished, or the Popup would leave mid-animation.
-            val pageVisibility = remember { MutableTransitionState(false).apply { targetState = true } }
-            val closePage = { pageVisibility.targetState = false }
-            LaunchedEffect(pageVisibility.currentState, pageVisibility.isIdle) {
-                if (pageVisibility.isIdle && !pageVisibility.currentState) {
-                    showFullscreenLyrics = false
-                }
-            }
-            Popup(
-                popupPositionProvider = popupPositionProvider,
-                onDismissRequest = closePage,
-                properties = PopupProperties(focusable = true),
-            ) {
-                AnimatedVisibility(
-                    visibleState = pageVisibility,
-                    enter =
-                        fadeIn(tween(FULLSCREEN_LYRICS_ENTER_MS)) +
-                            scaleIn(tween(FULLSCREEN_LYRICS_ENTER_MS, easing = FastOutSlowInEasing), initialScale = 0.96f),
-                    exit =
-                        fadeOut(tween(FULLSCREEN_LYRICS_EXIT_MS)) +
-                            scaleOut(tween(FULLSCREEN_LYRICS_EXIT_MS, easing = FastOutSlowInEasing), targetScale = 0.96f),
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(
-                                    with(density) { windowSize.width.toDp() },
-                                    with(density) { windowSize.height.toDp() },
-                                ).then(
-                                    if (windowIsRounded) Modifier.clip(RoundedCornerShape(12.dp)) else Modifier,
-                                ),
-                    ) {
-                        FullscreenLyricsContent(
-                            sharedViewModel = sharedViewModel,
-                            navController = navController,
-                            color = startColor.value,
-                            state = state,
-                            actions = actions,
-                            nowPlayingStyle = nowPlayingStyle,
-                            onDismiss = closePage,
-                        )
-                    }
-                }
-            }
-        } else {
-            FullscreenLyricsSheet(
-                sharedViewModel = sharedViewModel,
-                navController = navController,
-                color = startColor.value,
-                state = state,
-                actions = actions,
-                nowPlayingStyle = nowPlayingStyle,
-            ) {
-                showFullscreenLyrics = false
-            }
+        FullscreenLyricsSheet(
+            sharedViewModel = sharedViewModel,
+            navController = navController,
+            color = startColor.value,
+            state = state,
+            actions = actions,
+            nowPlayingStyle = nowPlayingStyle,
+        ) {
+            showFullscreenLyrics = false
         }
     }
 
@@ -981,29 +930,59 @@ fun NowPlayingScreenContent(
         )
     }
 
-    when (nowPlayingStyle) {
-        DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE ->
-            NowPlayingContentM3Expressive(
-                state = state,
-                actions = actions,
-            )
+    val styleContent: @Composable () -> Unit = {
+        when (nowPlayingStyle) {
+            DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE ->
+                NowPlayingContentM3Expressive(
+                    state = state,
+                    actions = actions,
+                )
 
-        NOW_PLAYING_STYLE_NHAC_NHEO ->
-            NowPlayingContentNhacNheo(
-                state = state,
-                actions = actions,
-            )
+            NOW_PLAYING_STYLE_NHAC_NHEO ->
+                NowPlayingContentNhacNheo(
+                    state = state,
+                    actions = actions,
+                )
 
-        DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC ->
-            NowPlayingContentAppleMusic(
-                state = state,
-                actions = actions,
-            )
+            DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC ->
+                NowPlayingContentAppleMusic(
+                    state = state,
+                    actions = actions,
+                )
 
-        else ->
-            NowPlayingContentSpotify(
-                state = state,
-                actions = actions,
-            )
+            else ->
+                NowPlayingContentSpotify(
+                    state = state,
+                    actions = actions,
+                )
+        }
+    }
+
+    if (onDesktopExpand != null) {
+        DesktopPlayerLayers(
+            sharedViewModel = sharedViewModel,
+            page = { backdrop ->
+                DesktopPlayerPage(state = state, actions = actions, sharedViewModel = sharedViewModel, backdrop = backdrop)
+            },
+            panel = {
+                styleContent()
+                val inCorner = nowPlayingStyle == NOW_PLAYING_STYLE_NHAC_NHEO || nowPlayingStyle == DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC
+                Box(modifier = Modifier.fillMaxSize()) {
+                    IconButton(
+                        onClick = onDesktopExpand,
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 12.dp, end = if (inCorner) 12.dp else 60.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.35f)),
+                    ) {
+                        Icon(imageVector = SimpIcons.OpenInFull, contentDescription = "", tint = Color.White)
+                    }
+                }
+            },
+        )
+    } else {
+        styleContent()
     }
 }

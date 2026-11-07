@@ -14,7 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.maxrave.simpmusic.ui.component.SettingAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -71,7 +71,7 @@ actual fun LoginSyncDialog(onDismiss: () -> Unit) {
             state is LoginSyncHostState.NoNetwork ||
             state is LoginSyncHostState.Failed ||
             state is LoginSyncHostState.Rejected
-    AlertDialog(
+    SettingAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = stringResource(Res.string.login_sync_desktop_title), style = typo().titleSmall) },
         text = {

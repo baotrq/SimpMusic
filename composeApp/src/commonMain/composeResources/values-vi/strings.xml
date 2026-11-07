@@ -377,7 +377,7 @@
     <string name="reverb_help_rt60_meaning">RT60 là khoảng thời gian mà phần đuôi mất đi 60 dB: cảm giác căn phòng rộng đến mức nào.</string>
     <string name="reverb_help_predelay_meaning">Độ trễ trước là khoảng lặng trước khi âm vang bắt đầu. Khoảng cách dài hơn giúp âm thanh khô rõ ràng và đẩy các bức tường ra xa hơn.</string>
     <string name="reverb_help_damping_meaning">Giảm xóc là nơi phần đuôi bắt đầu mất âm treble. Nó tối hơn nữa khi phân hủy, giống như cách không khí và các bề mặt mềm hấp thụ nhiệt độ cao.</string>
-    <string name="reverb_help_mix">Trộn là phần chia sẻ ướt: thanh trượt đặt mức độ bạn nghe thấy trong phòng so với tín hiệu khô, giống hệt nhau trên Android và Máy tính để bàn.</string>
+    <string name="reverb_help_mix">Trộn là phần chia sẻ ướt: thanh trượt đặt mức độ bạn nghe thấy trong phòng so với tín hiệu khô.</string>
     <string name="sync_follow_to_youtube_description">Theo dõi một nghệ sĩ trong SimpMusic cũng đăng ký kênh của họ trên tài khoản YouTube của bạn</string>
     <string name="sync_follow_failed">Không thể cập nhật đăng ký YouTube của bạn</string>
     <string name="subscribed_on_youtube">Đã đăng ký trên YouTube</string>
@@ -893,7 +893,7 @@
     <string name="month_full_dec">Tháng 12</string>
     <string name="login_sync_section">Thiết bị</string>
     <string name="login_sync_desktop_title">Đăng nhập từ điện thoại</string>
-    <string name="login_sync_desktop_description">Quét mã QR bằng SimpMusic trên Android để chuyển thông tin đăng nhập sang đây</string>
+    <string name="login_sync_desktop_description">Quét mã QR bằng SimpMusic trên điện thoại để chuyển thông tin đăng nhập sang đây</string>
     <string name="login_sync_android_title">Gửi thông tin đăng nhập sang máy tính</string>
     <string name="login_sync_android_description">Quét mã QR mà SimpMusic hiển thị trên máy tính của bạn</string>
     <string name="login_sync_desktop_instructions">Trên điện thoại, mở SimpMusic → Cài đặt → %1$s, rồi quét mã này.</string>

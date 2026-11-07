@@ -50,9 +50,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -146,6 +144,8 @@ import com.maxrave.simpmusic.ui.component.EndOfPage
 import com.maxrave.simpmusic.ui.component.LoadingDialog
 import com.maxrave.simpmusic.ui.component.RippleIconButton
 import com.maxrave.simpmusic.ui.component.LyricsOffsetDialog
+import com.maxrave.simpmusic.ui.component.SettingAlertDialog
+import com.maxrave.simpmusic.ui.component.SettingBasicDialog
 import com.maxrave.simpmusic.ui.component.SettingChoiceDialog
 import com.maxrave.simpmusic.ui.component.SettingMultiChoiceDialog
 import com.maxrave.simpmusic.ui.component.languageName
@@ -921,7 +921,11 @@ fun SettingScreen(
                     SettingItem(
                         icon = SimpIcons.WaterDrop,
                         title = stringResource(Res.string.enable_liquid_glass_effect),
-                        subtitle = stringResource(Res.string.enable_liquid_glass_effect_description),
+                        // The version note in the text only applies to Android.
+                        subtitle =
+                            stringResource(Res.string.enable_liquid_glass_effect_description).let { description ->
+                                if (getPlatform() == Platform.Android) description else description.replace(Regex(""" *\(Android[^)]*\)"""), "")
+                            },
                         smallSubtitle = true,
                         switch = (enableLiquidGlass to { viewModel.setEnableLiquidGlass(it) }),
                     )
@@ -2942,7 +2946,7 @@ fun SettingScreen(
     val basisAlertData by viewModel.basicAlertData.collectAsStateWithLifecycle()
     if (basisAlertData != null) {
         val alertBasicState = basisAlertData ?: return
-        AlertDialog(
+        SettingAlertDialog(
             onDismissRequest = { viewModel.setBasicAlertData(null) },
             title = {
                 Text(
@@ -2980,7 +2984,7 @@ fun SettingScreen(
         LoginSyncDialog(onDismiss = { showLoginSyncDialog = false })
     }
     if (showYouTubeAccountDialog) {
-        BasicAlertDialog(
+        SettingBasicDialog(
             onDismissRequest = { },
             modifier = Modifier.wrapContentSize(),
         ) {
@@ -3206,7 +3210,7 @@ fun SettingScreen(
     if (alertData != null && choiceState == null && multiChoiceState == null) {
         val alertState = alertData ?: return
         // AlertDialog
-        AlertDialog(
+        SettingAlertDialog(
             onDismissRequest = { viewModel.setAlertData(null) },
             title = {
                 Text(
@@ -3560,7 +3564,7 @@ private fun ImportProgressDialog(
     onDismiss: () -> Unit,
 ) {
     val finished = progress is ImportProgress.Success || progress is ImportProgress.Error
-    AlertDialog(
+    SettingAlertDialog(
         onDismissRequest = { if (finished) onDismiss() },
         properties =
             DialogProperties(

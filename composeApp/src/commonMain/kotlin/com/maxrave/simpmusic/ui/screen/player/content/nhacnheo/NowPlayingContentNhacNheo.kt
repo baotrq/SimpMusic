@@ -123,6 +123,9 @@ import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.SmartDisplay
 import com.maxrave.simpmusic.ui.icon.Subtitles
 import com.maxrave.simpmusic.ui.icon.SubtitlesOff
+import androidx.compose.ui.layout.boundsInWindow
+import com.maxrave.simpmusic.ui.screen.player.content.DesktopPlayerMotion
+import androidx.compose.ui.unit.sp
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicLyricStrip
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicMeshBackdrop
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicOutputSheet
@@ -177,16 +180,21 @@ fun NowPlayingContentNhacNheo(
     var dragStartValue by remember { mutableFloatStateOf(0f) }
     val panelScope = rememberCoroutineScope()
 
-    val openPanel: (AppleMusicView, Float) -> Unit = { view, velocity ->
-        panelView = view
-        viewState = view
-        panelScope.launch { panelOffset.animateTo(0f, PANEL_SPRING, initialVelocity = velocity) }
-    }
     val closePanel: (Float) -> Unit = { velocity ->
         viewState = AppleMusicView.MAIN
         panelScope.launch {
             panelOffset.animateTo(1f, PANEL_SPRING, initialVelocity = velocity)
             if (viewState == AppleMusicView.MAIN) panelView = null
+        }
+    }
+    val openPanel: (AppleMusicView, Float) -> Unit = { view, velocity ->
+        if (view == AppleMusicView.LYRICS && getPlatform() == Platform.Desktop) {
+            // Fork: on Desktop, lyrics are a tab of the full-size player.
+            actions.onShowFullscreenLyrics()
+        } else {
+            panelView = view
+            viewState = view
+            panelScope.launch { panelOffset.animateTo(0f, PANEL_SPRING, initialVelocity = velocity) }
         }
     }
     val selectView: (AppleMusicView) -> Unit = { view ->
@@ -378,7 +386,9 @@ fun NowPlayingContentNhacNheo(
             delay(LYRICS_PREWARM_DELAY_MS)
             prewarmLyrics = true
         }
-        val shownPanel: AppleMusicView? = panelView ?: AppleMusicView.LYRICS.takeIf { prewarmLyrics }
+        // Not on Desktop, where Lyrics no longer opens in this panel.
+        val shownPanel: AppleMusicView? =
+            panelView ?: AppleMusicView.LYRICS.takeIf { prewarmLyrics && getPlatform() != Platform.Desktop }
         shownPanel?.let { shown ->
             // The player dims as the panel covers it.
             Box(
@@ -613,7 +623,8 @@ private fun AppleMusicMainView(
                 // Lyrics button. A swipe down is left to the sheet, which still closes the player.
                 // Always on: a song with no lyrics opens to "No lyrics for this song".
                 .appleMusicDirectionalDrag(
-                    enabled = true,
+                    // A touch gesture: on Desktop a mouse drag would slide the lyrics panel in.
+                    enabled = getPlatform() != Platform.Desktop,
                     up = true,
                     drag = panelDrag,
                     onStart = onPanelDragStart,
@@ -883,9 +894,15 @@ private fun AppleMusicMainView(
                     onOpenLyrics = { onSelectView(AppleMusicView.LYRICS) },
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                val sharedTypography = rememberSharedAppleMusicTypography()
                 AppleMusicLyricStrip(
                     state = state,
-                    typography = rememberSharedAppleMusicTypography(),
+                    typography =
+                        if (getPlatform() == Platform.Desktop) {
+                            sharedTypography.copy(lyricStrip = sharedTypography.lyricStrip.copy(fontSize = 18.sp))
+                        } else {
+                            sharedTypography
+                        },
                     onClick = { onSelectView(AppleMusicView.LYRICS) },
                 )
                 AppleMusicBottomCluster(
@@ -902,7 +919,8 @@ private fun AppleMusicMainView(
                     // The lyric sits right on the progress bar: it is read with the bar, not the title.
                     topPadding = 2.dp,
                     showActionRow = false,
-                    onOpenLyrics = { onSelectView(AppleMusicView.LYRICS) },
+                    // The ⌃ under the transport hints at a swipe, which Desktop does not have.
+                    onOpenLyrics = { onSelectView(AppleMusicView.LYRICS) }.takeIf { getPlatform() != Platform.Desktop },
                 )
             }
             // Idle overlay — replaces the (now invisible) title row + cluster while a fullscreen
@@ -1072,7 +1090,7 @@ private fun AppleMusicMainView(
  * capsule, the chosen half lit. The light slides between the halves rather than jumping.
  */
 @Composable
-private fun AppleMusicVersionSwitch(
+internal fun AppleMusicVersionSwitch(
     videoSelected: Boolean,
     onSelect: (video: Boolean) -> Unit,
 ) {
@@ -1347,7 +1365,14 @@ private fun AppleMusicArtworkPage(
                         .fillMaxWidth()
                         .height(artworkHeight)
                         // Fork: takes over from the cover flying in from the mini player.
-                        .graphicsLayer { alpha = MiniPlayerAnchor.coverHandoffAlpha() },
+                        .graphicsLayer { alpha = MiniPlayerAnchor.coverHandoffAlpha() * DesktopPlayerMotion.coverAlpha() }
+                        .then(
+                            if (getPlatform() == Platform.Desktop) {
+                                Modifier.onGloballyPositioned { DesktopPlayerMotion.panelCover = it.boundsInWindow() }
+                            } else {
+                                Modifier
+                            },
+                        ),
             ) {
                 AsyncImage(
                     model = coverRequest,

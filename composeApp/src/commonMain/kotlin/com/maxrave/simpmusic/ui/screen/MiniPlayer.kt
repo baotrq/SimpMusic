@@ -177,6 +177,8 @@ fun MiniPlayer(
     onClose: () -> Unit,
     onClick: () -> Unit,
     onOpenFullscreenLyrics: () -> Unit = {},
+    // Fork: where the queue button goes when the queue is a page rather than this capsule's own sheet.
+    onOpenQueue: (() -> Unit)? = null,
     // ConstraintLayout keeps Gone content composed, so its visibility must gate sampling separately.
     isVisible: Boolean = true,
     /** Lets the queue's song sheets open artist and album pages; the Desktop capsule's queue needs it. */
@@ -1062,7 +1064,7 @@ fun MiniPlayer(
                     }
                     IconButton(
                         onClick = {
-                            showQueueBottomSheet = true
+                            if (onOpenQueue != null) onOpenQueue() else showQueueBottomSheet = true
                         },
                     ) {
                         Icon(

@@ -132,7 +132,7 @@ abstract class BaseViewModel :
         index: Int? = null,
     ) {
         // Fork: every place a tap starts playback lands here, so this is where the player opens.
-        _nowPlayingOpenRequests.tryEmit(Unit)
+        _nowPlayingOpenRequests.tryEmit(false)
         viewModelScope.launch {
             mediaPlayerHandler.loadMediaItem(
                 anyTrack = anyTrack,
@@ -148,7 +148,7 @@ abstract class BaseViewModel :
      */
     fun openIfNowPlaying(videoId: String?): Boolean {
         if (videoId.isNullOrEmpty() || mediaPlayerHandler.nowPlayingState.value.mediaItem.mediaId != videoId) return false
-        _nowPlayingOpenRequests.tryEmit(Unit)
+        _nowPlayingOpenRequests.tryEmit(true)
         return true
     }
 
@@ -191,12 +191,14 @@ abstract class BaseViewModel :
     }
 
     companion object {
-        private val _nowPlayingOpenRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        private val _nowPlayingOpenRequests = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
 
         /**
          * Fork: fires each time a tap starts a song (any screen, any view model), so the app can
          * open Now Playing right away instead of leaving the user on the list with a mini player.
+         * True when the tap was on the song already loaded, which asks for the player itself rather
+         * than for a song to start.
          */
-        val nowPlayingOpenRequests: SharedFlow<Unit> = _nowPlayingOpenRequests.asSharedFlow()
+        val nowPlayingOpenRequests: SharedFlow<Boolean> = _nowPlayingOpenRequests.asSharedFlow()
     }
 }

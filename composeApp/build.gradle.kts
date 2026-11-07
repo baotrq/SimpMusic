@@ -197,6 +197,8 @@ kotlin {
             implementation(libs.sentry.jvm)
             implementation(libs.native.tray)
             implementation(libs.nucleus.core.runtime)
+            // Paints the native Windows title bar (already at runtime through the mpv module).
+            implementation(libs.jna)
             implementation(projects.mediaJvmUi)
             // Login sync QR code
             implementation(libs.zxing.core)

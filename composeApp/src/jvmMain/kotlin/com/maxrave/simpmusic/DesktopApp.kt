@@ -57,6 +57,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import com.maxrave.simpmusic.expect.ui.WindowTitleBarState
+import com.maxrave.simpmusic.expect.ui.applyWindowsTitleBar
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import multiplatform.network.cmptoast.ToastHost
 import multiplatform.network.cmptoast.showToast
@@ -363,6 +366,14 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
             state = windowState,
             visible = isVisible,
         ) {
+            // Waits for the window's native peer, which exists only once it has been shown.
+            if (System.getProperty("os.name", "").contains("Windows", ignoreCase = true)) {
+                val titleBarColors by WindowTitleBarState.colors.collectAsState()
+                LaunchedEffect(window, titleBarColors) {
+                    while (!window.isDisplayable) delay(50)
+                    applyWindowsTitleBar(window, titleBarColors)
+                }
+            }
             // Returning from macOS System Settings is the only reliable time to learn whether the
             // user enabled notifications after denying the one-shot system prompt.
             DisposableEffect(window) {

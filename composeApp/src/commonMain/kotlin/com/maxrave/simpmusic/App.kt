@@ -129,7 +129,22 @@ import com.mikepenz.markdown.m3.markdownTypography
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlin.math.roundToInt
+import androidx.compose.animation.core.tween
+import com.maxrave.simpmusic.expect.ui.SyncWindowTitleBar
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import com.maxrave.simpmusic.ui.screen.player.content.DESKTOP_PLAYER_CLOSED
+import com.maxrave.simpmusic.ui.screen.player.content.DESKTOP_PLAYER_FULL
+import com.maxrave.simpmusic.ui.screen.player.content.DESKTOP_PLAYER_MOTION_MS
+import com.maxrave.simpmusic.ui.screen.player.content.DESKTOP_PLAYER_PANEL
+import com.maxrave.simpmusic.ui.screen.player.content.DesktopCoverFlight
+import com.maxrave.simpmusic.ui.screen.player.content.DesktopPlayerMotion
+import com.maxrave.simpmusic.ui.screen.player.content.DesktopPlayerTab
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -213,6 +228,12 @@ fun App(
         mutableStateOf(false)
     }
 
+    // Fork: Desktop's player has three sizes: closed, the small panel beside the content (just
+    // isShowNowPlaylistScreen), and this full-size page over the content.
+    var isDesktopPlayerFull by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     // Fullscreen
     var isInFullscreen by rememberSaveable {
         mutableStateOf(false)
@@ -240,10 +261,30 @@ fun App(
     LaunchedEffect(isShowNowPlaylistScreen) {
         if (isShowNowPlaylistScreen) userStarted = true
     }
-    // Fork: tapping a song anywhere opens Now Playing straight away.
+    // Fork: tapping a song anywhere opens Now Playing straight away. Desktop opens it at full size, and
+    // by itself only when nothing was playing: starting a song while one plays leaves the user on the
+    // screen they are browsing.
     LaunchedEffect(Unit) {
-        BaseViewModel.nowPlayingOpenRequests.collect {
-            isShowNowPlaylistScreen = true
+        var playbackStoppedAt = 0L
+        launch {
+            viewModel.controllerState
+                .map { it.isPlaying }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { playing -> if (!playing) playbackStoppedAt = System.currentTimeMillis() }
+        }
+        BaseViewModel.nowPlayingOpenRequests.collect { tappedLoadedSong ->
+            // Loading a new queue stops the old song first, so a song that stopped a moment ago still
+            // counts as playing.
+            val nothingPlaying =
+                !viewModel.controllerState.value.isPlaying &&
+                    System.currentTimeMillis() - playbackStoppedAt > DESKTOP_RECENTLY_PLAYING_MS
+            if (!isDesktopShell) {
+                isShowNowPlaylistScreen = true
+            } else if (tappedLoadedSong || nothingPlaying) {
+                isShowNowPlaylistScreen = true
+                isDesktopPlayerFull = true
+            }
         }
     }
 
@@ -478,6 +519,8 @@ fun App(
         if (navBackStackEntry?.destination?.route?.contains("FullscreenDestination") == true) {
             isShowNowPlaylistScreen = false
         }
+        // The full-size player covers the content, so a new screen would open out of sight under it.
+        isDesktopPlayerFull = false
         // Wrapped counts as fullscreen for the same reason the video player does: it is a
         // full-bleed reel, and the rail and the mini player would sit on top of the card the user
         // is meant to be reading — and on top of every card captured as a share image.
@@ -548,11 +591,32 @@ fun App(
         val desktopWindow = if (isLightScheme) desktopWindowLight else desktopWindowDark
         val desktopPanel =
             if (isLightScheme) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
+        SyncWindowTitleBar(color = desktopWindow, isDark = !isLightScheme)
 
         // Backdrop base must match the page, so glass over an empty area reads as the page itself.
         // On Desktop the page is the panel: its colour is painted outside the recorded layer, and
         // colorScheme.background carries the seed's hue, which the glass's saturation boost brings out.
         val backdrop = rememberBackdrop(if (isDesktopShell) desktopPanel else MaterialTheme.colorScheme.background)
+        val desktopPlayerFull = isDesktopShell && isDesktopPlayerFull && isShowMiniPlayer && !isInFullscreen
+        // Every animation of Desktop's player runs off this one position (see DesktopPlayerMotion).
+        val desktopPlayerTarget =
+            when {
+                !isDesktopShell || !isShowNowPlaylistScreen || !isShowMiniPlayer || isInFullscreen -> DESKTOP_PLAYER_CLOSED
+                isDesktopPlayerFull -> DESKTOP_PLAYER_FULL
+                else -> DESKTOP_PLAYER_PANEL
+            }
+        LaunchedEffect(desktopPlayerTarget) {
+            DesktopPlayerMotion.target = desktopPlayerTarget
+            // One frame first, for the layer being moved to to compose and report where it lands.
+            withFrameNanos { }
+            DesktopPlayerMotion.position.animateTo(
+                desktopPlayerTarget.toFloat(),
+                tween(DESKTOP_PLAYER_MOTION_MS, easing = FastOutSlowInEasing),
+            )
+        }
+        val desktopPlayerComposed by remember {
+            derivedStateOf { DesktopPlayerMotion.target != DESKTOP_PLAYER_CLOSED || DesktopPlayerMotion.position.value > 0f }
+        }
         Scaffold(
             // Watches for userStarted without consuming anything. Dialogs and sheets are windows or
             // layers of their own, so a press inside one (closing the update dialog, say) does not count.
@@ -658,7 +722,11 @@ fun App(
                     val tabletMiniPlayer: @Composable (Modifier) -> Unit = { modifier ->
                         androidx.compose.animation.AnimatedVisibility(
                             visible = isShowMiniPlayer && isTablet && !isInFullscreen,
-                            modifier = modifier,
+                            // Keeps to the centre of what the panel leaves free, and moves with it.
+                            modifier =
+                                modifier.graphicsLayer {
+                                    if (isDesktopShell) translationX = -DesktopPlayerMotion.capsuleShiftPx(this)
+                                },
                             enter = fadeIn() + slideInHorizontally(),
                             exit = fadeOut(),
                         ) {
@@ -693,17 +761,36 @@ fun App(
                                 backdrop = backdrop,
                                 navController = navController,
                                 onClick = {
+                                    // On Desktop this always lands on the small panel.
+                                    isDesktopPlayerFull = false
                                     isShowNowPlaylistScreen = true
                                 },
                                 onClose = {
                                     viewModel.stopPlayer()
                                     viewModel.isServiceRunning = false
+                                    if (isDesktopShell) {
+                                        isDesktopPlayerFull = false
+                                        isShowNowPlaylistScreen = false
+                                    }
                                 },
                                 // The page lives in the Now Playing panel, so the panel opens with it.
                                 onOpenFullscreenLyrics = {
-                                    viewModel.requestFullscreenLyrics()
+                                    if (isDesktopShell) {
+                                        // A tab of the full-size player there.
+                                        viewModel.setLastPlayerViewTab(DesktopPlayerTab.LYRICS.name)
+                                        isDesktopPlayerFull = true
+                                    } else {
+                                        viewModel.requestFullscreenLyrics()
+                                    }
                                     isShowNowPlaylistScreen = true
                                 },
+                                // At full size the queue is a tab beside the capsule; otherwise its own sheet.
+                                onOpenQueue =
+                                    if (desktopPlayerFull) {
+                                        { viewModel.setLastPlayerViewTab(DesktopPlayerTab.QUEUE.name) }
+                                    } else {
+                                        null
+                                    },
                             )
                         }
                     }
@@ -719,7 +806,7 @@ fun App(
                                 .weight(1f)
                                 .fillMaxHeight(),
                         ) {
-                            Row(
+                            Box(
                                 Modifier
                                     .fillMaxSize()
                                     .then(
@@ -732,6 +819,22 @@ fun App(
                                         },
                                     ),
                             ) {
+                            Row(
+                                Modifier
+                                    .fillMaxSize()
+                                    // Narrower by the panel's room only where the player covers the
+                                    // difference, so the screen beside it never visibly reflows.
+                                    .layout { measurable, constraints ->
+                                        val width =
+                                            if (isDesktopShell && DesktopPlayerMotion.contentNarrow()) {
+                                                constraints.maxWidth - DesktopPlayerMotion.panelSlotPx(constraints.maxWidth, this)
+                                            } else {
+                                                constraints.maxWidth
+                                            }
+                                        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+                                        layout(constraints.maxWidth, constraints.maxHeight) { placeable.placeRelative(0, 0) }
+                                    },
+                            ) {
                                 if (isTablet && !isInFullscreen) {
                                     if (isDesktopShell) {
                                         DesktopSidebar(
@@ -741,6 +844,8 @@ fun App(
                                             showMixForYouTab = showMixForYouTab,
                                             // No end padding: the content panel's own 8dp is the gap between the two.
                                             modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
+                                            playerOpen = desktopPlayerFull,
+                                            onClosePlayer = { isDesktopPlayerFull = false },
                                         ) { klass ->
                                             viewModel.reloadDestination(klass)
                                         }
@@ -776,9 +881,12 @@ fun App(
                                     Box(
                                         Modifier
                                             .fillMaxSize()
+                                            // Stays composed under the full-size player, so the screen is
+                                            // where the user left it, and costs nothing to draw there.
+                                            .graphicsLayer { alpha = if (isDesktopShell && DesktopPlayerMotion.contentCovered()) 0f else 1f }
                                             .then(
                                                 // Tablets record the capsule's source here; Desktop records it on
-                                                // the Row above, which takes in the sidebar as well.
+                                                // the Box above, which takes in the sidebar as well.
                                                 if (isLiquidGlassEnabled == TRUE && !isDesktopShell && isTablet && !isInFullscreen) {
                                                     Modifier.layerBackdrop(backdrop)
                                                 } else {
@@ -814,11 +922,30 @@ fun App(
                                     }
                                 }
                             }
+                            // The player's one surface: above the strip's row and the content, under the
+                            // capsule, and inside what the capsule's glass records.
+                            if (isDesktopShell && desktopPlayerComposed) {
+                                ForceDarkContent {
+                                    NowPlayingScreenContent(
+                                        navController = navController,
+                                        sharedViewModel = viewModel,
+                                        isExpanded = true,
+                                        dismissIcon = SimpIcons.ArrowForwardIos,
+                                        onDesktopExpand = { isDesktopPlayerFull = true },
+                                    ) {
+                                        // The page's > collapses to the panel; the panel's closes it.
+                                        if (isDesktopPlayerFull) isDesktopPlayerFull = false else isShowNowPlaylistScreen = false
+                                    }
+                                }
+                                DesktopCoverFlight(sharedViewModel = viewModel)
+                            }
+                            }
                             if (isDesktopShell) {
                                 tabletMiniPlayer(Modifier.padding(innerPadding).align(Alignment.BottomCenter))
                             }
                         }
-                        if (isTablet && isTabletLandscape && !isInFullscreen) {
+                        // Desktop's player is the surface above; this panel is the tablet's.
+                        if (isTablet && isTabletLandscape && !isInFullscreen && !isDesktopShell) {
                             AnimatedVisibility(
                                 isShowNowPlaylistScreen,
                                 enter = expandHorizontally() + fadeIn(),
@@ -1184,3 +1311,5 @@ fun App(
         }
     }
 }
+
+private const val DESKTOP_RECENTLY_PLAYING_MS = 3_000L

@@ -81,6 +81,7 @@ import com.kyant.backdrop.highlight.Highlight
 import com.maxrave.domain.data.model.library.LibraryCollectionPreview
 import com.maxrave.simpmusic.expect.ui.PlatformBackdrop
 import com.maxrave.simpmusic.expect.ui.layerBackdrop
+import androidx.compose.ui.layout.layout
 import com.maxrave.simpmusic.expect.ui.rememberBackdrop
 import com.maxrave.simpmusic.extension.barBlurStyle
 import com.maxrave.simpmusic.extension.mouseDragScroll
@@ -151,6 +152,10 @@ fun DesktopSidebar(
     showMixForYouTab: Boolean,
     modifier: Modifier = Modifier,
     viewModel: LibrarySidebarViewModel = koinViewModel(),
+    // Fork: the full-size player is open beside the strip, so it stays narrow and anything clicked here
+    // collapses the player to show what was clicked.
+    playerOpen: Boolean = false,
+    onClosePlayer: () -> Unit = {},
     reloadDestinationIfNeeded: (KClass<*>) -> Unit = { _ -> },
 ) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -173,9 +178,11 @@ fun DesktopSidebar(
         }
     }
     val selectTab: (BottomNavScreen) -> Unit = { screen ->
+        onClosePlayer()
         if (selectedIndex == screen.ordinal) {
             if (currentBackStackEntry?.destination?.hierarchy?.any { it.hasRoute(screen.destination::class) } == true) {
-                reloadDestinationIfNeeded(screen.destination::class)
+                // With the player open, a click on the tab under it only uncovers the tab.
+                if (!playerOpen) reloadDestinationIfNeeded(screen.destination::class)
             } else {
                 navController.navigate(screen.destination)
             }
@@ -194,7 +201,8 @@ fun DesktopSidebar(
     // The library sources are one-shot reads, not observed queries, so the list is read again whenever
     // the user moves between screens, which is where a like, follow or new playlist happens.
     LaunchedEffect(currentBackStackEntry?.id) { viewModel.refresh() }
-    val collapsed by viewModel.collapsed.collectAsStateWithLifecycle()
+    val storedCollapsed by viewModel.collapsed.collectAsStateWithLifecycle()
+    val collapsed = storedCollapsed || playerOpen
     val overview by viewModel.overview.collectAsStateWithLifecycle()
     val libraryItems by viewModel.items.collectAsStateWithLifecycle()
     val playingQueueId by viewModel.playingQueueId.collectAsStateWithLifecycle()
@@ -244,9 +252,15 @@ fun DesktopSidebar(
     }
     // Home's header: nothing behind it at the top of the list, the list blurred once it scrolls under.
     val blurAlpha by animateFloatAsState(if (atTop) 0f else 1f, tween(300), label = "sidebarHeaderBlur")
+    // The strip narrows for the full-size player but keeps its usual room in the row, so the content
+    // beside it stays put under the page and is exactly where it was when the page moves away.
+    val roomWidth by animateDpAsState(if (storedCollapsed) SidebarCollapsedWidth else SidebarExpandedWidth, label = "sidebarRoom")
     Box(
         modifier
-            .width(width)
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(roomWidth.roundToPx(), placeable.height) { placeable.placeRelative(0, 0) }
+            }.width(width)
             .fillMaxHeight()
             .clip(RoundedCornerShape(12.dp))
             .background(containerColor),
@@ -271,7 +285,10 @@ fun DesktopSidebar(
                             pinned = true,
                             playing = false,
                             collapsed = collapsed,
-                            onClick = { navController.navigate(LibraryDynamicPlaylistDestination(type = collection.type.toStringParams())) },
+                            onClick = {
+                                onClosePlayer()
+                                navController.navigate(LibraryDynamicPlaylistDestination(type = collection.type.toStringParams()))
+                            },
                         ) {
                             Box(
                                 Modifier
@@ -291,7 +308,10 @@ fun DesktopSidebar(
                     pinned = false,
                     playing = item.queueId != null && item.queueId.removePrefix("VL") == playingQueueId,
                     collapsed = collapsed,
-                    onClick = { navController.navigate(item.destination) },
+                    onClick = {
+                        onClosePlayer()
+                        navController.navigate(item.destination)
+                    },
                 ) {
                     SidebarCover(item)
                 }
@@ -342,7 +362,8 @@ fun DesktopSidebar(
                     onToggle = {
                         searching = false
                         query = ""
-                        viewModel.setCollapsed(!collapsed)
+                        // Closing the player is what widens the strip again.
+                        if (playerOpen) onClosePlayer() else viewModel.setCollapsed(!collapsed)
                     },
                     onStartSearch = { searching = true },
                     onQueryChange = { query = it },
@@ -735,3 +756,6 @@ private fun SidebarCover(item: LibrarySidebarItem) {
         modifier = Modifier.size(48.dp).clip(shape),
     )
 }
+
+/** How wide the strip is while the full-size player sits beside it. */
+internal val DESKTOP_STRIP_NARROW_WIDTH = SidebarCollapsedWidth

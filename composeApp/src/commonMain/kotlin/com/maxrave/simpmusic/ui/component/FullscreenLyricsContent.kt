@@ -150,6 +150,9 @@ private val LANDSCAPE_BOTTOM_PADDING = 32.dp
 // Apple Music's desktop full-screen player caps its artwork well short of the column it sits in.
 private val LANDSCAPE_ARTWORK_MAX_SIZE = 420.dp
 
+// What the title row and the transport need under the artwork.
+private val LANDSCAPE_CONTROLS_RESERVE = 280.dp
+
 private val CHROME_VOLUME_SLIDER_WIDTH = 120.dp
 
 /**
@@ -853,23 +856,27 @@ private fun FullscreenLyricsLandscape(
             Box(
                 modifier =
                     Modifier
-                        .weight(0.45f)
+                        // Fork: two fifths for the artwork and controls, three for the lyrics.
+                        .weight(2f)
                         .fillMaxHeight(),
                 contentAlignment = Alignment.Center,
             ) {
-                BoxWithConstraints {
-                    val artworkSize = minOf(maxWidth * 0.75f, maxHeight * 0.5f, LANDSCAPE_ARTWORK_MAX_SIZE)
+                BoxWithConstraints(modifier = Modifier.fillMaxHeight()) {
+                    // Leaves room for the title row and the transport in a short window.
+                    val artworkSize =
+                        minOf(maxWidth * 0.85f, maxHeight * 0.5f, maxHeight - LANDSCAPE_CONTROLS_RESERVE, LANDSCAPE_ARTWORK_MAX_SIZE)
+                            .coerceAtLeast(120.dp)
                     Column(
                         modifier =
                             Modifier
                                 // Every style row carries its own 20dp side gutters, so a column
                                 // 40dp wider than the artwork lines the rows up with its edges.
                                 .width(artworkSize + 40.dp)
-                                // A short landscape window — a phone on its side — cannot fit the
-                                // artwork, the row and the transport at once. Scrolling keeps every
-                                // control full size where the column would otherwise squash the last.
-                                .verticalScroll(rememberScrollState()),
+                                .fillMaxHeight(),
                     ) {
+                        // The artwork and title sit centred in the space above the transport, which
+                        // stays at the bottom of the page.
+                        Spacer(modifier = Modifier.weight(1f))
                         var artworkUrl by remember(state.screenData.thumbnailURL) { mutableStateOf(state.screenData.thumbnailURL) }
                         AsyncImage(
                             model =
@@ -897,15 +904,32 @@ private fun FullscreenLyricsLandscape(
                                     .clip(RoundedCornerShape(12.dp)),
                         )
                         Spacer(modifier = Modifier.height(20.dp))
+                        val typography = rememberAppleMusicTypography()
+                        when (nowPlayingStyle) {
+                            DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE ->
+                                NowPlayingExpressiveTheme(state = state) {
+                                    ExpressiveTrackInfoRow(
+                                        state = state,
+                                        actions = actions,
+                                        showCanvasThumbnail = false,
+                                    )
+                                }
+
+                            DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC, NOW_PLAYING_STYLE_NHAC_NHEO ->
+                                AppleMusicMainTitleRow(state = state, actions = actions, typography = typography)
+
+                            else ->
+                                NowPlayingTrackInfoRow(
+                                    state = state,
+                                    actions = actions,
+                                    showCanvasThumbnail = false,
+                                )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
                         when (nowPlayingStyle) {
                             DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE ->
                                 NowPlayingExpressiveTheme(state = state) {
                                     Column {
-                                        ExpressiveTrackInfoRow(
-                                            state = state,
-                                            actions = actions,
-                                            showCanvasThumbnail = false,
-                                        )
                                         // Shuffle and repeat live in the connected group on Now
                                         // Playing, which this page leaves out — so the transport
                                         // carries them here.
@@ -918,9 +942,6 @@ private fun FullscreenLyricsLandscape(
                                 }
 
                             DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC, NOW_PLAYING_STYLE_NHAC_NHEO -> {
-                                val typography = rememberAppleMusicTypography()
-                                AppleMusicMainTitleRow(state = state, actions = actions, typography = typography)
-                                Spacer(modifier = Modifier.height(16.dp))
                                 // The gutter and top inset AppleMusicBottomCluster gives these
                                 // controls on the Now Playing page; the controls leave both to
                                 // their Column.
@@ -941,14 +962,7 @@ private fun FullscreenLyricsLandscape(
                                 }
                             }
 
-                            else -> {
-                                NowPlayingTrackInfoRow(
-                                    state = state,
-                                    actions = actions,
-                                    showCanvasThumbnail = false,
-                                )
-                                SpotifyPlaybackControls(state = state, actions = actions)
-                            }
+                            else -> SpotifyPlaybackControls(state = state, actions = actions)
                         }
                     }
                 }
@@ -956,7 +970,7 @@ private fun FullscreenLyricsLandscape(
             Box(
                 modifier =
                     Modifier
-                        .weight(0.55f)
+                        .weight(3f)
                         .fillMaxHeight()
                         .padding(end = 32.dp),
             ) {
@@ -1115,7 +1129,7 @@ private fun FullscreenLyricsDesktopChrome(
 // The lyrics themselves, or the "unavailable" line when the track has none. The portrait and
 // landscape layouts show exactly the same thing, only boxed differently.
 @Composable
-private fun FullscreenLyricsList(
+internal fun FullscreenLyricsList(
     lyricsData: NowPlayingScreenData.LyricsData?,
     sharedViewModel: SharedViewModel,
     color: Color,

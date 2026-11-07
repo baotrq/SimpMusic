@@ -196,10 +196,12 @@ internal data class AppleMusicTypography(
 @Composable
 internal fun rememberAppleMusicTypography(): AppleMusicTypography {
     val t = typo()
+    // Fork: Desktop's window scale leaves type smaller on screen than the same size on a phone.
+    val isDesktop = getPlatform() == Platform.Desktop
     return AppleMusicTypography(
         // Fork: one step up from the app's 18/13, which read small on the player.
-        mainTitle = t.titleMedium.copy(fontSize = 22.sp),
-        mainArtist = t.bodyMedium.copy(fontSize = 15.sp, color = AppleMusicSecondaryText),
+        mainTitle = t.titleMedium.copy(fontSize = if (isDesktop) 28.sp else 22.sp),
+        mainArtist = t.bodyMedium.copy(fontSize = if (isDesktop) 18.sp else 15.sp, color = AppleMusicSecondaryText),
         // The compact header — Lyrics, Queue, and the row under a running canvas — carries the
         // SIZES FullscreenLyricsSheet uses for the same job (LyricsView.kt: labelSmall over
         // bodySmall), while mainTitle/mainArtist stay 18/13 because they head the controller

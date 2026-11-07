@@ -145,10 +145,21 @@ tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorCon
     }
 }
 
+val windowsMsiVersion =
+    libs.versions.version.name
+        .get()
+        .removeSuffix("-hf")
+        .split('.')
+        // MSI takes MAJOR.MINOR.BUILD only and compares nothing past it. The fork's rebuild number goes
+        // into BUILD, so 2.5.0.7 is 2.5.7 and 2.5.1.0 is 2.5.100: each rebuild installs over the last.
+        .let { (major, minor, patch, rebuild) -> "$major.$minor.${patch.toInt() * 100 + rebuild.toInt()}" }
 compose.desktop {
     application {
         mainClass = "com.maxrave.simpmusic.MainKt"
         jvmArgs += "--add-opens=java.base/java.nio=ALL-UNNAMED"
+        // The same ceiling conveyor.conf sets, and for the same reason: without one the heap grows to
+        // a quarter of physical RAM before the GC feels any pressure.
+        jvmArgs += "-Xmx512m"
 
         nativeDistributions {
             appResourcesRootDir = rootDir.resolve("mpv-natives/")
@@ -209,13 +220,8 @@ compose.desktop {
             }
             windows {
                 includeAllModules = true
-                packageVersion =
-                    libs.versions.version.name
-                        .get()
-                        .removeSuffix("-hf")
-                        .split('.')
-                        .take(3)
-                        .joinToString(".")
+                // The plugin's own .msi is not what ships (see packageWindowsMsi), but it validates this.
+                packageVersion = windowsMsiVersion
                 iconFile.set(rootDir.resolve("composeApp/icon/circle_app_icon.ico"))
             }
             linux {
@@ -580,6 +586,62 @@ tasks.register("buildWindowsMsix") {
 
 tasks.withType<AbstractJPackageTask>().configureEach {
     notCompatibleWithConfigurationCache("Compose Desktop JPackage tasks are not yet compatible with configuration cache")
+}
+
+// Fork: the Windows .msi, with its own setup screens (wix/main.wxs). This runs jpackage itself on the
+// finished app rather than through the plugin's packageMsi, which cannot take a custom main.wxs: it
+// passes its own --resource-dir after any other, and empties that folder as it runs.
+val wixSource = layout.projectDirectory.dir("wix")
+val wixResources = layout.buildDirectory.dir("wix-resources")
+val prepareWixResources =
+    tasks.register<Sync>("prepareWixResources") {
+        from(wixSource) { include("main.wxs") }
+        into(wixResources)
+        // WiX resolves the bitmaps from where jpackage runs it, so their folder goes in as an absolute path.
+        val wixPath = wixSource.asFile.absolutePath.replace('\\', '/')
+        inputs.property("wixPath", wixPath)
+        filter { line: String -> line.replace("@WIX_DIR@", wixPath) }
+    }
+tasks.register<Exec>("packageWindowsMsi") {
+    group = "distribution"
+    description = "Build SimpMusic's .msi. Windows only; stage mpv-natives/windows-x64 first."
+    dependsOn("createDistributable", prepareWixResources, ":unzipWix")
+    notCompatibleWithConfigurationCache("Runs jpackage against the plugin's output and its WiX download.")
+
+    val jpackage =
+        javaToolchains
+            .launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+            .map { it.metadata.installationPath.file("bin/jpackage.exe").asFile.absolutePath }
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/SimpMusic")
+    val output = layout.buildDirectory.dir("compose/binaries/main/msi")
+    val wix = rootProject.layout.buildDirectory.dir("wix311")
+    doFirst {
+        // jpackage refuses to overwrite.
+        output.get().asFile.deleteRecursively()
+        environment("PATH", wix.get().asFile.absolutePath + File.pathSeparator + System.getenv("PATH"))
+        commandLine(
+            jpackage.get(),
+            "--type", "msi",
+            "--app-image", appImage.get().asFile.absolutePath,
+            "--dest", output.get().asFile.absolutePath,
+            "--name", "SimpMusic",
+            "--app-version", windowsMsiVersion,
+            "--vendor", "baotrq",
+            "--description", "SimpMusic",
+            "--icon", rootDir.resolve("composeApp/icon/circle_app_icon.ico").absolutePath,
+            "--resource-dir", wixResources.get().asFile.absolutePath,
+            // Per-user needs no admin rights. Without menu and shortcut it installs with no way to open.
+            "--win-per-user-install",
+            "--win-menu",
+            "--win-menu-group", "SimpMusic",
+            "--win-shortcut",
+            // The folder step never shows, since main.wxs replaces the UI. This is what makes jpackage
+            // link WiX's UI library, which that UI is built from.
+            "--win-dir-chooser",
+            // Must never change, or a new version installs beside the old one instead of over it.
+            "--win-upgrade-uuid", "6f3b1c52-8a47-4e0d-9c21-7d5e2a94b1f6",
+        )
+    }
 }
 
 private fun downloadFile(
