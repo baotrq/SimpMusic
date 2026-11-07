@@ -1,5 +1,6 @@
 package com.maxrave.simpmusic.ui.screen.home
 
+import com.maxrave.simpmusic.ui.component.ForkUpdateCard
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -923,6 +924,7 @@ fun HomeScreen(
                                         Modifier
                                             .padding(horizontal = 15.dp),
                                 ) {
+                                    if (index == 0) ForkUpdateCard()
                                     if (index == 0) {
                                         // The header's own height plus 8dp, so the first section does not
                                         // sit right under the chips.

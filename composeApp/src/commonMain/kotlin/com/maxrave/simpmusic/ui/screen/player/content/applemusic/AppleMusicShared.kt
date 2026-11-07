@@ -1,10 +1,9 @@
 package com.maxrave.simpmusic.ui.screen.player.content.applemusic
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -13,11 +12,10 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -47,21 +45,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -70,22 +62,14 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.layout.ContentScale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
@@ -93,20 +77,23 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.maxrave.domain.mediaservice.handler.ControlState
 import com.maxrave.domain.mediaservice.handler.RepeatState
+import com.maxrave.domain.repository.ListenTogetherRepository
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
 import com.maxrave.simpmusic.extension.LeftToRight
-import com.maxrave.simpmusic.ui.component.heartBurst
-import com.maxrave.simpmusic.ui.component.rememberHeartBurstState
 import com.maxrave.simpmusic.extension.formatDuration
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
+import com.maxrave.simpmusic.ui.component.heartBurst
+import com.maxrave.simpmusic.ui.component.rememberHeartBurstState
 import com.maxrave.simpmusic.ui.component.rememberHolderPainter
-import com.maxrave.simpmusic.ui.icon.KeyboardArrowUp
-import com.maxrave.simpmusic.ui.icon.Star
-import com.maxrave.simpmusic.ui.icon.StarBorder
+import com.maxrave.simpmusic.ui.icon.AddCircleOutline
+import com.maxrave.simpmusic.ui.icon.CheckCircle
+import com.maxrave.simpmusic.ui.icon.CommentOutline
 import com.maxrave.simpmusic.ui.icon.FastForward
 import com.maxrave.simpmusic.ui.icon.FastRewind
+import com.maxrave.simpmusic.ui.icon.Groups
+import com.maxrave.simpmusic.ui.icon.Headphones
 import com.maxrave.simpmusic.ui.icon.Lyrics
 import com.maxrave.simpmusic.ui.icon.MoreVert
 import com.maxrave.simpmusic.ui.icon.Pause
@@ -116,6 +103,8 @@ import com.maxrave.simpmusic.ui.icon.Repeat
 import com.maxrave.simpmusic.ui.icon.RepeatOne
 import com.maxrave.simpmusic.ui.icon.Shuffle
 import com.maxrave.simpmusic.ui.icon.SimpIcons
+import com.maxrave.simpmusic.ui.icon.Star
+import com.maxrave.simpmusic.ui.icon.StarBorder
 import com.maxrave.simpmusic.ui.icon.VolumeDown
 import com.maxrave.simpmusic.ui.icon.VolumeUp
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
@@ -124,13 +113,10 @@ import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.UIEvent
 import org.jetbrains.compose.resources.stringResource
 import simpmusic.composeapp.generated.resources.Res
+import simpmusic.composeapp.generated.resources.crossfading
 import simpmusic.composeapp.generated.resources.live_badge
-import simpmusic.composeapp.generated.resources.lyrics
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.roundToLong
+import org.koin.compose.koinInject
 
 /** Which body the dock is currently showing. Held by the top-level Apple Music composable. */
 internal enum class AppleMusicView { MAIN, LYRICS, QUEUE }
@@ -195,9 +181,8 @@ internal data class AppleMusicTypography(
 internal fun rememberAppleMusicTypography(): AppleMusicTypography {
     val t = typo()
     return AppleMusicTypography(
-        // Fork: one step up from the app's 18/13, which read small on the player.
-        mainTitle = t.titleMedium.copy(fontSize = 22.sp),
-        mainArtist = t.bodyMedium.copy(fontSize = 15.sp, color = AppleMusicSecondaryText),
+        mainTitle = t.titleMedium,
+        mainArtist = t.bodyMedium.copy(color = AppleMusicSecondaryText),
         // The compact header — Lyrics, Queue, and the row under a running canvas — carries the
         // SIZES FullscreenLyricsSheet uses for the same job (LyricsView.kt: labelSmall over
         // bodySmall), while mainTitle/mainArtist stay 18/13 because they head the controller
@@ -328,243 +313,6 @@ internal fun Modifier.appleMusicPressInflate(pressedScale: Float = 1.35f): Modif
 }
 
 /**
- * Fork: the Lyrics/Queue panel's drag, split in two. A page only CLAIMS a gesture ([onClaim]) and
- * keeps the finger to itself while it lasts; the shell follows the finger and measures the flick
- * from a layer that does not move ([appleMusicPanelFingerTracker]).
- *
- * The split is the fix, not a tidy-up. The pages slide with the panel, so a finger measured in a
- * page's own coordinates moves only by however much the page did NOT move under it — about half.
- * Drags came out half as long and every flick read as slow, so a quick swipe down bounced back and
- * closing took a drag from the top of the screen to the bottom.
- */
-@Stable
-internal class AppleMusicPanelDrag(
-    val onClaim: () -> Unit,
-    val isClaimed: () -> Boolean,
-)
-
-/**
- * Fork: claims a vertical drag in ONE direction for the panel, without taking the other direction
- * away from the bottom sheet the player lives in. Only a drag that crosses touch slop in the
- * claimed direction — and more vertically than sideways — is consumed, so the sheet does not move
- * with it; a drag the other way is left alone and still drags the sheet as before. Once claimed,
- * the finger is kept from everything under this page until it lifts; the shell does the moving.
- *
- * [intercept] watches the INITIAL pass, ahead of every child: the player page uses it so a swipe
- * up that is slightly diagonal is not taken by the artwork pager first, and the Queue page while
- * its list is at the top. Otherwise children go first and a list's pull past its top reaches the
- * panel through [rememberAppleMusicPullDownConnection].
- */
-@Composable
-internal fun Modifier.appleMusicDirectionalDrag(
-    enabled: Boolean,
-    up: Boolean,
-    drag: AppleMusicPanelDrag,
-    onStart: () -> Unit = {},
-    intercept: Boolean = false,
-): Modifier {
-    val currentDrag by rememberUpdatedState(drag)
-    val currentOnStart by rememberUpdatedState(onStart)
-    if (!enabled) return this
-    return pointerInput(up, intercept) {
-        val pass = if (intercept) PointerEventPass.Initial else PointerEventPass.Main
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = pass)
-            val pointerId = down.id
-            val slop = viewConfiguration.touchSlop
-            var dx = 0f
-            var dy = 0f
-            // Until the slop is crossed: claim only a mostly-vertical move in our direction.
-            while (true) {
-                val change = awaitPointerEvent(pass).changes.firstOrNull { it.id == pointerId } ?: return@awaitEachGesture
-                if (!change.pressed) return@awaitEachGesture
-                if (!intercept && change.isConsumed) return@awaitEachGesture
-                val step = change.positionChange()
-                dx += step.x
-                dy += step.y
-                if (abs(dx) > slop && abs(dx) >= abs(dy)) return@awaitEachGesture
-                if (abs(dy) > slop) {
-                    // Held still past a long press first: that is the queue's drag-to-reorder (or
-                    // a press on a lyric), not a swipe.
-                    if (change.uptimeMillis - down.uptimeMillis > viewConfiguration.longPressTimeoutMillis) return@awaitEachGesture
-                    if ((dy < 0f) == up && abs(dy) > abs(dx)) {
-                        change.consume()
-                        break
-                    }
-                    return@awaitEachGesture
-                }
-            }
-            currentOnStart()
-            currentDrag.onClaim()
-            while (true) {
-                val change = awaitPointerEvent(pass).changes.firstOrNull { it.id == pointerId } ?: break
-                change.consume()
-                if (!change.pressed) break
-            }
-        }
-    }
-}
-
-/**
- * Fork: a list's pull-down past its top, handed to the panel. The bottom sheet would otherwise
- * take that overscroll and dismiss the whole player; here it claims the gesture for the panel
- * instead, and from then on the list keeps still while the finger moves the panel.
- *
- * Nothing that reaches past the list is ever handed on to the sheet while the panel is up: a quick
- * flick down that scrolls the list to its top used to carry its leftover momentum into the sheet,
- * which settled on that velocity and closed the whole player — straight to the home screen.
- */
-@Composable
-internal fun rememberAppleMusicPullDownConnection(drag: AppleMusicPanelDrag): NestedScrollConnection {
-    val currentDrag by rememberUpdatedState(drag)
-    return remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(
-                available: Offset,
-                source: NestedScrollSource,
-            ): Offset = if (currentDrag.isClaimed()) available else Offset.Zero
-
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource,
-            ): Offset {
-                if (available.y <= 0f) return Offset.Zero
-                // A finger pulling past the top claims the panel; a fling's leftover is swallowed.
-                if (source == NestedScrollSource.UserInput) currentDrag.onClaim()
-                return Offset(0f, available.y)
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity = if (currentDrag.isClaimed()) available else Velocity.Zero
-
-            override suspend fun onPostFling(
-                consumed: Velocity,
-                available: Velocity,
-            ): Velocity = available
-        }
-    }
-}
-
-/**
- * Fork: the shell's side of [AppleMusicPanelDrag]. Watches every finger on the page in the INITIAL
- * pass without consuming anything, from a layer that never moves, so its positions and its
- * velocity are the finger's own. Once a page has claimed the gesture it hands each step to
- * [onDelta] (px, down positive), and when the finger lifts [onEnd] gets the release velocity in
- * px/s. [onRelease] runs at the end of every gesture, claimed or not, to clear the claim.
- */
-internal fun Modifier.appleMusicPanelFingerTracker(
-    isClaimed: () -> Boolean,
-    onDelta: (Float) -> Unit,
-    onEnd: (Float) -> Unit,
-    onRelease: () -> Unit,
-): Modifier =
-    pointerInput(Unit) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            onRelease()
-            val tracker = VelocityTracker()
-            tracker.addPosition(down.uptimeMillis, down.position)
-            var following = false
-            while (true) {
-                val change =
-                    awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
-                tracker.addPosition(change.uptimeMillis, change.position)
-                if (!change.pressed) break
-                if (isClaimed()) {
-                    following = true
-                    onDelta(change.positionChangeIgnoreConsumed().y)
-                }
-            }
-            if (following) onEnd(tracker.calculateVelocity().y)
-            onRelease()
-        }
-    }
-
-// How far the compact header has to be dragged sideways to change track, and the flick that does
-// it at any distance.
-private val TRACK_SWIPE_DISTANCE = 64.dp
-private const val TRACK_SWIPE_VELOCITY = 900f
-
-// How long the header keeps showing a swiped-to song before falling back to the screen data, in
-// case the player never reports the change (a failed load, a queue edit in between).
-private const val PENDING_TRACK_TIMEOUT_MS = 4_000L
-
-/**
- * Fork: swipe the compact header left for the next track, right for the previous one. The row
- * follows the finger directly and springs back once released, so the gesture feels attached to
- * it; the track change itself is just the transport command. Vertical drags are left alone, so
- * the panel's own swipe down still works from the header.
- */
-@Composable
-internal fun Modifier.appleMusicTrackSwipe(
-    enabled: Boolean,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-): Modifier {
-    val currentOnNext by rememberUpdatedState(onNext)
-    val currentOnPrevious by rememberUpdatedState(onPrevious)
-    var shift by remember { mutableFloatStateOf(0f) }
-    val settle = remember { Animatable(0f) }
-    var settleJob by remember { mutableStateOf<Job?>(null) }
-    val scope = rememberCoroutineScope()
-    if (!enabled) return this
-    // Measure on the stationary parent; translating the detector distorts the finger's velocity.
-    return pointerInput(Unit) {
-        val threshold = TRACK_SWIPE_DISTANCE.toPx()
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            var travelled = 0f
-            var origin = 0f
-            val start =
-                awaitHorizontalTouchSlopOrCancellation(down.id) { change, over ->
-                    change.consume()
-                    settleJob?.cancel()
-                    origin = shift
-                    travelled = over
-                    shift = origin + travelled
-                } ?: return@awaitEachGesture
-            val tracker = VelocityTracker()
-            tracker.addPosition(down.uptimeMillis, down.position)
-            tracker.addPosition(start.uptimeMillis, start.position)
-            val completed =
-                horizontalDrag(start.id) { change ->
-                    travelled += change.positionChange().x
-                    tracker.addPosition(change.uptimeMillis, change.position)
-                    change.consume()
-                    shift = origin + travelled
-                }
-            if (completed) {
-                currentEvent.changes.firstOrNull { it.id == start.id }?.let { up ->
-                    tracker.addPosition(up.uptimeMillis, up.position)
-                }
-            }
-            val velocity = if (completed) tracker.calculateVelocity().x else 0f
-            val direction =
-                when {
-                    completed && (travelled < -threshold || velocity < -TRACK_SWIPE_VELOCITY) -> -1f
-                    completed && (travelled > threshold || velocity > TRACK_SWIPE_VELOCITY) -> 1f
-                    else -> 0f
-                }
-            settleJob = scope.launch {
-                settle.snapTo(shift)
-                if (direction != 0f) {
-                    if (direction < 0f) currentOnNext() else currentOnPrevious()
-                }
-                // Continue from the release position. No second swipe or jump to the opposite side.
-                settle.animateTo(
-                    0f,
-                    spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-                    initialVelocity = velocity,
-                ) { shift = value }
-            }
-        }
-    }.graphicsLayer {
-        translationX = shift
-        alpha = 1f - (abs(shift) / (size.width.coerceAtLeast(1f) * 0.8f)).coerceIn(0f, 1f)
-    }
-}
-
-/**
  * One 25dp glyph button with a tight circular ripple — [IconButton] sized and clipped exactly
  * like Classic/M3E's plain icon buttons (Info, PlaylistAdd, Queue, Replay5…), not a custom
  * Box+clickable and not an unconstrained [com.maxrave.simpmusic.ui.component.RippleIconButton].
@@ -586,40 +334,38 @@ internal fun AppleMusicGlyphButton(
 }
 
 /**
- * Fork: ⊕ (YouTube-liked) and ☆ (favourite) removed — favourite still lives in the ⋯ sheet.
- * [showPlayPause] puts a play/pause in their place on the LYRICS/QUEUE compact header; the MAIN
- * title row leaves it off since the big transport is right below it.
+ * The ⊕ (YouTube-liked) / ☆ (favourite, with the heart-burst) / ⋯ (more sheet) trio — shared by
+ * the MAIN title row and the LYRICS/QUEUE compact header. Fires the heart-burst on the tap that
+ * likes, never on state, matching every other style's like button.
  */
 @Composable
 internal fun AppleMusicHeaderActions(
     state: NowPlayingContentState,
     actions: NowPlayingContentActions,
     modifier: Modifier = Modifier,
-    showPlayPause: Boolean = false,
-    // Fork: off on the Android player, where ⋯ sits in the top bar instead.
-    showMore: Boolean = true,
 ) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (showPlayPause) {
+        if (state.isUserLoggedIn) {
+            // 40dp target around a 22dp glyph: a bare 22dp clickable is under half the Material
+            // minimum, on the row that gets tapped most.
             Box(
                 modifier =
                     Modifier
                         .appleMusicPressInflate()
-                        .size(40.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
-                        .clickable { actions.onUIEvent(UIEvent.PlayPause) },
+                        .clickable { actions.onAddToYouTubeLiked() },
                 contentAlignment = Alignment.Center,
             ) {
-                Crossfade(targetState = state.controllerState.isPlaying, label = "appleMusicHeaderPlayPause") { isPlaying ->
+                Crossfade(targetState = state.likeStatus, label = "appleMusicYtLiked") { liked ->
                     Icon(
-                        imageVector = if (isPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
+                        imageVector = if (liked) SimpIcons.CheckCircle else SimpIcons.AddCircleOutline,
                         contentDescription = "",
                         tint = Color.White,
-                        modifier = Modifier.size(36.dp),
                     )
                 }
             }
@@ -648,8 +394,7 @@ internal fun AppleMusicHeaderActions(
                 )
             }
         }
-        // Fork: off on the Android player, where ⋯ sits in the top bar instead.
-        if (showMore) AppleMusicGlyphButton(icon = SimpIcons.MoreVert, onClick = { actions.onShowMoreSheet() })
+        AppleMusicGlyphButton(icon = SimpIcons.MoreVert, onClick = { actions.onShowMoreSheet() })
     }
 }
 
@@ -663,68 +408,23 @@ internal fun AppleMusicCompactHeader(
     actions: NowPlayingContentActions,
     typography: AppleMusicTypography,
     modifier: Modifier = Modifier,
-    // Fork: the Lyrics page lets the header be swiped sideways to change track.
-    swipeToChangeTrack: Boolean = false,
 ) {
-    // Fork: the song a swipe has just asked for, read straight off the queue. The player takes a
-    // moment to switch, so without this the row slid back in still showing the OLD song and then
-    // jumped to the new one a beat later — which read as a second swipe. It is shown until the
-    // screen data catches up with it (or gives up after a few seconds).
-    var pendingIndex by remember { mutableStateOf<Int?>(null) }
-    var titleAtSwipe by remember { mutableStateOf("") }
-    val pendingTrack = pendingIndex?.let { state.artworkQueue.getOrNull(it) }
-    LaunchedEffect(state.screenData.nowPlayingTitle, state.currentOrderIndex) {
-        if (pendingIndex != null && state.currentOrderIndex == pendingIndex && state.screenData.nowPlayingTitle != titleAtSwipe) {
-            pendingIndex = null
-        }
-    }
-    LaunchedEffect(pendingIndex) {
-        if (pendingIndex != null) {
-            delay(PENDING_TRACK_TIMEOUT_MS)
-            pendingIndex = null
-        }
-    }
-    val swipeTo: (Int) -> Unit = { step ->
-        val target = (pendingIndex ?: state.currentOrderIndex) + step
-        if (state.artworkQueue.getOrNull(target) != null) {
-            if (pendingIndex == null) titleAtSwipe = state.screenData.nowPlayingTitle
-            pendingIndex = target
-        }
-        actions.onUIEvent(if (step > 0) UIEvent.Next else UIEvent.SkipToPrevious)
-    }
-    val title = pendingTrack?.title ?: state.screenData.nowPlayingTitle
-    val artist = pendingTrack?.artists?.joinToString { it.name } ?: state.screenData.artistName
-    val thumbnail = pendingTrack?.thumbnails?.maxByOrNull { it.width * it.height }?.url ?: state.screenData.thumbnailURL
-    // The picture last on screen stands in while the next one loads, instead of the grey holder.
-    var lastThumbnail by remember { mutableStateOf<String?>(null) }
-
     Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .appleMusicTrackSwipe(
-                    enabled = swipeToChangeTrack,
-                    onNext = { if (state.controllerState.isNextAvailable) swipeTo(1) },
-                    onPrevious = { if (state.controllerState.isPreviousAvailable) swipeTo(-1) },
-                ).padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model =
                 ImageRequest
                     .Builder(LocalPlatformContext.current)
-                    .data(thumbnail)
+                    .data(state.screenData.thumbnailURL)
                     .diskCachePolicy(CachePolicy.ENABLED)
-                    .diskCacheKey(thumbnail)
-                    .placeholderMemoryCacheKey(lastThumbnail)
+                    .diskCacheKey(state.screenData.thumbnailURL)
                     .crossfade(300)
                     .build(),
-            onSuccess = { lastThumbnail = thumbnail },
             placeholder = rememberHolderPainter(),
             error = rememberHolderPainter(),
             contentDescription = null,
-            // Fork: square, like the mini player; a video's 16:9 thumbnail would fit as a strip.
-            contentScale = ContentScale.Crop,
             modifier = Modifier.size(55.dp).clip(RoundedCornerShape(4.dp)),
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -732,7 +432,7 @@ internal fun AppleMusicCompactHeader(
             // Ellipsis, not marquee: a marquee in this narrow header scrolls constantly and
             // snapshots as garbage ("Vill Be Okay … Eve" in the first device screenshots).
             Text(
-                text = title,
+                text = state.screenData.nowPlayingTitle,
                 style = typography.compactTitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -740,11 +440,11 @@ internal fun AppleMusicCompactHeader(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (pendingTrack == null && state.screenData.isExplicit) {
+                if (state.screenData.isExplicit) {
                     ExplicitBadge(modifier = Modifier.size(20.dp).padding(end = 4.dp))
                 }
                 Text(
-                    text = artist,
+                    text = state.screenData.artistName,
                     style = typography.compactArtist,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -753,12 +453,7 @@ internal fun AppleMusicCompactHeader(
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
-        AppleMusicHeaderActions(
-            state = state,
-            actions = actions,
-            showPlayPause = true,
-            showMore = getPlatform() != Platform.Android,
-        )
+        AppleMusicHeaderActions(state = state, actions = actions)
     }
 }
 
@@ -826,7 +521,7 @@ internal fun AppleMusicThinSlider(
     }
 }
 
-/** Elapsed time, the "Crossfading" label while crossfading, and the remaining time as "-m:ss". */
+/** Elapsed time, the quality line (hidden when unknown), and the remaining time as "-m:ss". */
 @Composable
 internal fun AppleMusicTimesRow(
     state: NowPlayingContentState,
@@ -847,7 +542,7 @@ internal fun AppleMusicTimesRow(
         } else {
             state.timelineState.current.coerceAtLeast(0L)
         }
-    // Clamp BEFORE formatDuration — it renders any negative as "--:--", and the remaining time
+    // Clamp BEFORE formatDuration — it renders any negative as "NA:NA", and the remaining time
     // must never show that at the end of a track whose length IS known. An UNKNOWN length is
     // exactly what that string is for, so null deliberately takes the negative path below.
     val remainingMs = knownTotal?.let { (it - elapsedMs).coerceAtLeast(0L) }
@@ -865,7 +560,7 @@ internal fun AppleMusicTimesRow(
                 textAlign = TextAlign.Left,
             )
             Text(
-                // No leading "-" when the length is unknown: "---:--" reads as a negative amount of
+                // No leading "-" when the length is unknown: "-NA:NA" reads as a negative amount of
                 // nothing. formatDuration's own out-of-range string is the app's established way to
                 // say "no value here".
                 text =
@@ -900,9 +595,14 @@ internal fun AppleMusicTimesRow(
                     ),
                 label = "appleMusicSweepHead",
             )
+            val quality = state.audioQualityLabel
             val crossfadeLabelAlpha by animateFloatAsState(
                 targetValue = if (state.timelineState.isCrossfading) 1f else 0f,
                 label = "appleMusicCrossfadeLabelAlpha",
+            )
+            val qualityLabelAlpha by animateFloatAsState(
+                targetValue = if (!state.timelineState.isCrossfading && quality != null) 1f else 0f,
+                label = "appleMusicQualityLabelAlpha",
             )
             Box(modifier = Modifier.alpha(crossfadeLabelAlpha)) {
                 // Identical treatment to Classic and M3 Expressive: a highlight swept through the
@@ -910,9 +610,8 @@ internal fun AppleMusicTimesRow(
                 val shimmerSpan = 140f
                 val shimmerHead = crossfadeSweep * (shimmerSpan * 3f) - shimmerSpan
                 val labelColor = typography.times.color
-                // Fork: a word picked per fade ("Mixing", "Cooking"…) in place of "Crossfading".
                 Text(
-                    text = rememberCrossfadeMixWord("${state.screenData.nowPlayingTitle}\u0000${state.screenData.artistName}"),
+                    text = stringResource(Res.string.crossfading),
                     style =
                         typography.times.copy(
                             brush =
@@ -930,10 +629,39 @@ internal fun AppleMusicTimesRow(
                     textAlign = TextAlign.Center,
                 )
             }
-            // Fork: the "259 kbps · 44.1 kHz" quality line that shared this slot is gone.
+            // The quality line: a small headphones glyph ahead of the stream's own figures,
+            // bare on the page and dimmer than the times either side of it. The figures change
+            // with the track and so crossfade in with it rather than snapping.
+            Crossfade(
+                targetState = quality,
+                animationSpec = tween(300),
+                label = "appleMusicQualityLabel",
+                modifier = Modifier.alpha(qualityLabelAlpha),
+            ) { label ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = SimpIcons.Headphones,
+                        contentDescription = null,
+                        tint = AppleMusicQualityLabel,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    // orEmpty(), not label!!: the null check drives the alpha above rather than
+                    // guarding this branch. It also renders while alpha is 0, which keeps the slot
+                    // its height.
+                    Text(
+                        text = label.orEmpty(),
+                        style = typography.times.copy(color = AppleMusicQualityLabel),
+                        maxLines = 1,
+                    )
+                }
+            }
         }
     }
 }
+
+// The quality line sits a step below the times either side of it.
+private val AppleMusicQualityLabel = Color.White.copy(alpha = 0.45f)
 
 /** FastRewind(44dp) → Previous, Play/Pause(62dp, plain white — no container disc), FastForward(44dp) → Next. */
 @Composable
@@ -968,13 +696,13 @@ internal fun AppleMusicTransportRow(
         }
         IconButton(
             onClick = { if (controllerState.isPreviousAvailable) onUIEvent(UIEvent.Previous) },
-            modifier = Modifier.appleMusicPressInflate().size(52.dp).clip(CircleShape),
+            modifier = Modifier.appleMusicPressInflate().size(56.dp).clip(CircleShape),
         ) {
             Icon(
                 imageVector = SimpIcons.FastRewind,
                 contentDescription = "",
                 tint = Color.White.copy(alpha = if (controllerState.isPreviousAvailable) 1f else 0.4f),
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(46.dp),
             )
         }
         // No loading state on this button. It is play/pause and nothing else: it stays pressable
@@ -984,7 +712,7 @@ internal fun AppleMusicTransportRow(
             modifier =
                 Modifier
                     .appleMusicPressInflate()
-                    .size(64.dp)
+                    .size(76.dp)
                     .clip(CircleShape)
                     .clickable { onUIEvent(UIEvent.PlayPause) },
             contentAlignment = Alignment.Center,
@@ -994,19 +722,19 @@ internal fun AppleMusicTransportRow(
                     imageVector = if (isPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
                     contentDescription = "",
                     tint = Color.White,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(66.dp),
                 )
             }
         }
         IconButton(
             onClick = { if (controllerState.isNextAvailable) onUIEvent(UIEvent.Next) },
-            modifier = Modifier.appleMusicPressInflate().size(52.dp).clip(CircleShape),
+            modifier = Modifier.appleMusicPressInflate().size(56.dp).clip(CircleShape),
         ) {
             Icon(
                 imageVector = SimpIcons.FastForward,
                 contentDescription = "",
                 tint = Color.White.copy(alpha = if (controllerState.isNextAvailable) 1f else 0.4f),
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(46.dp),
             )
         }
         if (showShuffleAndRepeat) {
@@ -1088,9 +816,10 @@ internal fun AppleMusicDockButton(
 }
 
 /**
- * Queue. Fork: the [Output | Listen Together] capsule is gone, and so is the Lyrics button — lyrics
- * open with a swipe up on MAIN (or a tap on the lyric strip) and close with a swipe down. Queue
- * keeps the position it had at the right end.
+ * Lyrics · [Output | Listen Together | Comments] · Queue. The capsule holds the two
+ * answers to "where is this playing": which speaker (the output sheet, which is also where Cast
+ * lives now) and which people (Listen Together), with the comments sheet at its right end. Joined
+ * by hairlines rather than gaps, so the segments read as one object.
  */
 @Composable
 internal fun AppleMusicActionRow(
@@ -1099,33 +828,82 @@ internal fun AppleMusicActionRow(
     lyricsAvailable: Boolean,
     activeColor: Color,
     activeContentColor: Color,
+    onOpenOutput: () -> Unit,
+    onOpenListenTogether: () -> Unit,
+    onOpenComments: () -> Unit,
     modifier: Modifier = Modifier,
-) {
+) = LeftToRight {
+    // Straight off the repository, like ListenTogetherIconButton: one boolean off a StateFlow is all
+    // the capsule needs, and a ViewModel for it would be built every time the player opens.
+    val listenTogether = koinInject<ListenTogetherRepository>()
+    val room by listenTogether.room.collectAsStateWithLifecycle()
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        // A quarter of the spare width at each end, measured as if the old capsule were still
-        // there, so the button sits where it always did.
-        val content = DOCK_BUTTON_SIZE * 2 + CAPSULE_SEGMENT_WIDTH * 2 + 1.dp
+        // At full width the row is 274dp, more than the landscape side panel holds on a narrow
+        // tablet or Desktop window. There the segments give up width first, keeping 16dp spare, down
+        // to 36dp (the glyph still clear of the capsule's rounded ends): the row fits down to 190dp.
+        val segmentWidth =
+            ((maxWidth - DOCK_BUTTON_SIZE * 2 - 2.dp - 16.dp) / 3).coerceIn(36.dp, CAPSULE_SEGMENT_WIDTH)
+        // A quarter of the spare width at each end, the rest between. SpaceEvenly
+        // over the full row pushed the two glyphs out to the gutters, away from the capsule.
+        val content = DOCK_BUTTON_SIZE * 2 + segmentWidth * 3 + 2.dp
         val edgeInset = ((maxWidth - content) / 4).coerceAtLeast(0.dp)
-        // Desktop keeps the Lyrics button: a mouse has no natural swipe up or down.
-        val showLyricsButton = getPlatform() == Platform.Desktop
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = edgeInset),
-            horizontalArrangement = if (showLyricsButton) Arrangement.SpaceBetween else Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (showLyricsButton) {
-                AppleMusicDockButton(
-                    icon = SimpIcons.Lyrics,
-                    active = viewState == AppleMusicView.LYRICS,
-                    activeColor = activeColor,
-                    activeContentColor = activeContentColor,
-                    enabled = lyricsAvailable,
-                    onClick = {
-                        onSelectView(if (viewState == AppleMusicView.LYRICS) AppleMusicView.MAIN else AppleMusicView.LYRICS)
-                    },
+            // Re-tapping the active tab returns to MAIN — the dock is a toggle, not one-way nav.
+            AppleMusicDockButton(
+                icon = SimpIcons.Lyrics,
+                active = viewState == AppleMusicView.LYRICS,
+                activeColor = activeColor,
+                activeContentColor = activeContentColor,
+                enabled = lyricsAvailable,
+                onClick = {
+                    onSelectView(if (viewState == AppleMusicView.LYRICS) AppleMusicView.MAIN else AppleMusicView.LYRICS)
+                },
+            )
+            Row(
+                modifier =
+                    Modifier
+                        .height(DOCK_BUTTON_SIZE)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f)),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppleMusicCapsuleSegment(
+                    icon = SimpIcons.Headphones,
+                    width = segmentWidth,
+                    highlighted = false,
+                    onClick = onOpenOutput,
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(Color.White.copy(alpha = 0.20f)),
+                )
+                AppleMusicCapsuleSegment(
+                    icon = SimpIcons.Groups,
+                    width = segmentWidth,
+                    highlighted = room.inRoom,
+                    onClick = onOpenListenTogether,
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(Color.White.copy(alpha = 0.20f)),
+                )
+                AppleMusicCapsuleSegment(
+                    icon = SimpIcons.CommentOutline,
+                    width = segmentWidth,
+                    highlighted = false,
+                    onClick = onOpenComments,
                 )
             }
-            // Re-tapping the active tab returns to MAIN — the dock is a toggle, not one-way nav.
             AppleMusicDockButton(
                 icon = SimpIcons.QueueMusic,
                 active = viewState == AppleMusicView.QUEUE,
@@ -1136,6 +914,56 @@ internal fun AppleMusicActionRow(
                 },
             )
         }
+    }
+}
+
+/**
+ * One half of the capsule. Its highlight fills the segment edge to edge — a circle sized to the
+ * glyph, as the dock buttons use, would stop the join reading as one object. The glyph swells on
+ * press like every other control in this style; the segment itself cannot, or it would spill past
+ * the capsule's rounded ends.
+ */
+@Composable
+private fun AppleMusicCapsuleSegment(
+    icon: ImageVector,
+    width: Dp,
+    highlighted: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val glyphScale by animateFloatAsState(
+        targetValue = if (pressed) 1.25f else 1f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = 380f),
+        label = "appleMusicCapsuleGlyph",
+    )
+    val background by animateColorAsState(
+        targetValue = if (highlighted) Color.White.copy(alpha = 0.14f) else Color.Transparent,
+        animationSpec = tween(220),
+        label = "appleMusicCapsuleHighlight",
+    )
+    Box(
+        modifier =
+            Modifier
+                .width(width)
+                .fillMaxHeight()
+                .background(background)
+                .clickable(interactionSource = interactionSource, indication = LocalIndication.current, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (highlighted) Color.White else Color.White.copy(alpha = 0.85f),
+            // 22dp like the dock buttons either side: Material Symbols are drawn to balance at one
+            // size, so every glyph in this row takes the same one.
+            modifier =
+                Modifier
+                    .graphicsLayer {
+                        scaleX = glyphScale
+                        scaleY = glyphScale
+                    }.size(22.dp),
+        )
     }
 }
 
@@ -1166,8 +994,8 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    AppleMusicTimesRow(state = state, typography = typography, modifier = Modifier.padding(top = 6.dp))
-    Spacer(modifier = Modifier.height(8.dp))
+    AppleMusicTimesRow(state = state, typography = typography, modifier = Modifier.padding(top = 8.dp))
+    Spacer(modifier = Modifier.height(22.dp))
     AppleMusicTransportRow(
         controllerState = state.controllerState,
         onUIEvent = actions.onUIEvent,
@@ -1176,9 +1004,13 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
 }
 
 /**
- * Progress bar + times + transport + action row — the fixed block every Apple Music body (MAIN,
- * LYRICS, QUEUE) renders at the bottom, identically. On Desktop only the action row renders (no
- * slider/transport), matching the `Platform.Android` gate the other two styles use.
+ * Progress bar + times + transport + volume + action row + output caption — the fixed block every
+ * Apple Music body (MAIN, LYRICS, QUEUE) renders at the bottom, identically. On Desktop only the
+ * action row renders (no slider/transport/volume), matching the `Platform.Android` gate the other
+ * two styles use.
+ *
+ * [outputName] names the device the sound leaves by ("maxrave's Phone", a Bluetooth headset, a
+ * Cast receiver); the slot keeps its height while it is unknown, so nothing above it moves.
  */
 @Composable
 internal fun AppleMusicBottomCluster(
@@ -1194,62 +1026,63 @@ internal fun AppleMusicBottomCluster(
     onOpenOutput: () -> Unit,
     modifier: Modifier = Modifier,
     topPadding: Dp = 8.dp,
-    // Fork: MAIN carries Queue in its title row instead, so the row under the transport goes.
-    showActionRow: Boolean = true,
-    // Fork: MAIN's "⌃ Lyrics" pill under the transport — where the lyrics are, and a tap to open them.
-    onOpenLyrics: (() -> Unit)? = null,
 ) {
     val localDensity = LocalDensity.current
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = topPadding)) {
-        // Fork: no volume row and no output-name caption. deviceVolumeController, outputName and
-        // onOpenOutput are left in the signature, unused, so upstream merges stay small.
         if (getPlatform() == Platform.Android) {
             AppleMusicPlaybackControls(state = state, actions = actions, typography = typography)
-            if (showActionRow) Spacer(modifier = Modifier.height(8.dp))
-        } else if (showActionRow) {
+            Spacer(modifier = Modifier.height(18.dp))
+            deviceVolumeController?.let { controller ->
+                AppleMusicVolumeRow(controller = controller)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        } else {
             Spacer(modifier = Modifier.height(16.dp))
         }
-        if (onOpenLyrics != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            // Always laid out, faded in only once the song's lyrics are known to exist, so the block
-            // above it does not jump when they arrive a moment after the track starts.
-            val hasLyrics = state.screenData.lyricsData != null
-            val pillAlpha by animateFloatAsState(if (hasLyrics) 1f else 0f, label = "appleMusicLyricsPill")
-            // Fork: a small ⌃ hinting that a swipe up opens the lyrics (the button for them sits beside
-            // Queue in the title row). A tap on it opens them too.
-            Icon(
-                imageVector = SimpIcons.KeyboardArrowUp,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.5f),
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .alpha(pillAlpha)
-                        .clip(CircleShape)
-                        .clickable(enabled = hasLyrics, onClick = onOpenLyrics)
-                        .padding(horizontal = 16.dp, vertical = 2.dp)
-                        .size(24.dp),
-            )
-        }
-        if (showActionRow) {
-            AppleMusicActionRow(
-                viewState = viewState,
-                onSelectView = onSelectView,
-                lyricsAvailable = state.screenData.lyricsData != null,
-                activeColor = activePillContainer,
-                activeContentColor = activePillContent,
-            )
+        AppleMusicActionRow(
+            viewState = viewState,
+            onSelectView = onSelectView,
+            lyricsAvailable = state.screenData.lyricsData != null,
+            activeColor = activePillContainer,
+            activeContentColor = activePillContent,
+            onOpenOutput = onOpenOutput,
+            onOpenListenTogether = actions.onOpenListenTogether,
+            onOpenComments = actions.onShowComments,
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        // Crossfaded, since it changes on its own — a headset connecting renames the line under the
+        // user's thumb. Tappable: it names the output, so it opens the output sheet.
+        Crossfade(
+            targetState = outputName.orEmpty(),
+            animationSpec = tween(300),
+            label = "appleMusicOutputCaption",
+            modifier = Modifier.fillMaxWidth(),
+        ) { name ->
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = name,
+                    style = typography.footer,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(0.65f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onOpenOutput,
+                            ),
+                )
+            }
         }
         Spacer(
             modifier =
                 Modifier.height(
-                    // Room above the gesture bar. Fork: 36dp → 20dp, for a more compact block.
-                    with(localDensity) { WindowInsets.systemBars.getBottom(localDensity).toDp() } + 20.dp,
+                    // Room under the caption, above the gesture bar — the owner asked for the whole
+                    // block to sit higher than the bare inset put it.
+                    with(localDensity) { WindowInsets.systemBars.getBottom(localDensity).toDp() } + 36.dp,
                 ),
         )
     }
 }
-
-// Fork: height of the Android player's top bar (⌄ · Song/Video · ⋯) under the status bar. Lyrics and
-// Queue start below it.
-internal val APPLE_MUSIC_TOP_BAR_HEIGHT = 48.dp

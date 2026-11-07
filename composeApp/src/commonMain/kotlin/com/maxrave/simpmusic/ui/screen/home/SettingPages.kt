@@ -1,5 +1,24 @@
 package com.maxrave.simpmusic.ui.screen.home
 
+import simpmusic.composeapp.generated.resources.ai_guide_openai_models
+import simpmusic.composeapp.generated.resources.ai_guide_gemini_models
+import simpmusic.composeapp.generated.resources.ai_guide_step_4
+import androidx.compose.material3.OutlinedButton
+import simpmusic.composeapp.generated.resources.style_player_nhac_nheo
+import simpmusic.composeapp.generated.resources.now_playing_style_nhac_nheo
+import simpmusic.composeapp.generated.resources.ai_guide_get_openai_key
+import simpmusic.composeapp.generated.resources.ai_guide_get_gemini_key
+import simpmusic.composeapp.generated.resources.ai_guide_privacy
+import simpmusic.composeapp.generated.resources.ai_guide_gemini_free
+import simpmusic.composeapp.generated.resources.ai_guide_step_3
+import simpmusic.composeapp.generated.resources.ai_guide_step_2
+import simpmusic.composeapp.generated.resources.ai_guide_step_1
+import simpmusic.composeapp.generated.resources.ai_guide_title
+import simpmusic.composeapp.generated.resources.ai_translation
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.FilledTonalButton
+import com.maxrave.simpmusic.ui.screen.player.content.NOW_PLAYING_STYLE_NHAC_NHEO
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateColorAsState
@@ -86,7 +105,6 @@ import simpmusic.composeapp.generated.resources.settings_storage_backup_summary
 import simpmusic.composeapp.generated.resources.settings_style_hint
 import simpmusic.composeapp.generated.resources.style_lyrics_apple_music
 import simpmusic.composeapp.generated.resources.style_lyrics_classic
-import simpmusic.composeapp.generated.resources.style_player_apple_music
 import simpmusic.composeapp.generated.resources.style_player_m3_expressive
 import simpmusic.composeapp.generated.resources.style_player_spotify
 
@@ -106,6 +124,7 @@ internal enum class SettingPage(
     DEVELOPER,
     PLAYER_STYLE(APPEARANCE),
     LYRICS_STYLE(APPEARANCE),
+    AI_TRANSLATION(LYRICS_AI),
 }
 
 // Depth decides the direction: the main page is 0, a top-level page 1, a page inside one 2.
@@ -140,6 +159,7 @@ internal fun SettingPage.title(): String =
             SettingPage.DEVELOPER -> Res.string.developer_option
             SettingPage.PLAYER_STYLE -> Res.string.now_playing_style
             SettingPage.LYRICS_STYLE -> Res.string.lyrics_style
+            SettingPage.AI_TRANSLATION -> Res.string.ai_translation
         },
     )
 
@@ -219,7 +239,7 @@ private fun SettingCategoryRow(
 internal class StyleOption(
     val key: String,
     val label: String,
-    val image: DrawableResource,
+    val image: DrawableResource?,
     val note: String? = null,
 )
 
@@ -237,9 +257,15 @@ internal fun playerStyleOptions(): List<StyleOption> =
             Res.drawable.style_player_m3_expressive,
         ),
         StyleOption(
+            NOW_PLAYING_STYLE_NHAC_NHEO,
+            stringResource(Res.string.now_playing_style_nhac_nheo),
+            Res.drawable.style_player_nhac_nheo,
+            stringResource(Res.string.requires_android_12),
+        ),
+        StyleOption(
             DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC,
             stringResource(Res.string.now_playing_style_apple_music),
-            Res.drawable.style_player_apple_music,
+            null,
             stringResource(Res.string.requires_android_12),
         ),
     )
@@ -299,17 +325,22 @@ internal fun StylePreviewPage(
                         }.clip(shape)
                         .clickable { onSelect(option.key) },
             ) {
-                Image(
-                    painter = painterResource(option.image),
-                    contentDescription = option.label,
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(SCREENSHOT_ASPECT)
-                            .clip(shape)
-                            .border(width = borderWidth, color = borderColor, shape = shape),
-                )
+                val frame =
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(SCREENSHOT_ASPECT)
+                        .clip(shape)
+                        .border(width = borderWidth, color = borderColor, shape = shape)
+                if (option.image != null) {
+                    Image(
+                        painter = painterResource(option.image),
+                        contentDescription = option.label,
+                        contentScale = ContentScale.Crop,
+                        modifier = frame,
+                    )
+                } else {
+                    Box(frame.background(MaterialTheme.colorScheme.surfaceContainerHigh))
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                     RadioButton(selected = isSelected, onClick = { onSelect(option.key) })
                     Text(option.label, style = typo().labelMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -322,3 +353,43 @@ internal fun StylePreviewPage(
 
 // The screenshots are full phone screens (1080×2354).
 private const val SCREENSHOT_ASPECT = 1080f / 2354f
+
+/** Fork: how to get a key for the chosen provider, above the AI settings. */
+@Composable
+internal fun AiKeyGuide(provider: String) {
+    val uriHandler = LocalUriHandler.current
+    val keyPage =
+        when (provider) {
+            DataStoreManager.AI_PROVIDER_GEMINI -> "https://aistudio.google.com/apikey" to Res.string.ai_guide_get_gemini_key
+            DataStoreManager.AI_PROVIDER_OPENAI -> "https://platform.openai.com/api-keys" to Res.string.ai_guide_get_openai_key
+            else -> null
+        }
+    val modelsPage =
+        when (provider) {
+            DataStoreManager.AI_PROVIDER_GEMINI -> "https://ai.google.dev/gemini-api/docs/models" to Res.string.ai_guide_gemini_models
+            DataStoreManager.AI_PROVIDER_OPENAI -> "https://platform.openai.com/docs/models" to Res.string.ai_guide_openai_models
+            else -> null
+        }
+    SettingGroup(title = stringResource(Res.string.ai_guide_title)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(Res.string.ai_guide_step_1), style = typo().bodyMedium)
+            Text(stringResource(Res.string.ai_guide_step_2), style = typo().bodyMedium)
+            Text(stringResource(Res.string.ai_guide_step_3), style = typo().bodyMedium)
+            Text(stringResource(Res.string.ai_guide_step_4), style = typo().bodyMedium)
+            if (provider == DataStoreManager.AI_PROVIDER_GEMINI) {
+                Text(stringResource(Res.string.ai_guide_gemini_free), style = typo().bodySmall)
+            }
+            Text(stringResource(Res.string.ai_guide_privacy), style = typo().bodySmall)
+            keyPage?.let { (url, label) ->
+                FilledTonalButton(onClick = { uriHandler.openUri(url) }) {
+                    Text(stringResource(label), color = LocalContentColor.current)
+                }
+            }
+            modelsPage?.let { (url, label) ->
+                OutlinedButton(onClick = { uriHandler.openUri(url) }) {
+                    Text(stringResource(label), color = LocalContentColor.current)
+                }
+            }
+        }
+    }
+}

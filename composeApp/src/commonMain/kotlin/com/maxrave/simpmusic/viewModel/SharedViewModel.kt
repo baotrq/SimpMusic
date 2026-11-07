@@ -1,5 +1,7 @@
 package com.maxrave.simpmusic.viewModel
 
+import com.maxrave.simpmusic.expect.ui.isLyricsBlurSupported
+import com.maxrave.simpmusic.ui.screen.player.content.NOW_PLAYING_STYLE_NHAC_NHEO
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.viewModelScope
 import com.maxrave.common.AppIdentity
@@ -305,6 +307,15 @@ class SharedViewModel(
     init {
         viewModelScope.launch {
             log("SharedViewModel init")
+            // Fork: Nhạc Nhẽo is the default where it can blur, and core's default can't say so: an unset
+            // style reads as Classic. A stored "Apple Music" meant the redo before upstream's came back.
+            if (dataStoreManager.getString("now_playing_style_default_done").first() != DataStoreManager.TRUE) {
+                val stored = dataStoreManager.getString("now_playing_style").first()
+                if ((stored == null && isLyricsBlurSupported()) || stored == DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC) {
+                    dataStoreManager.setNowPlayingStyle(NOW_PLAYING_STYLE_NHAC_NHEO)
+                }
+                dataStoreManager.putString("now_playing_style_default_done", DataStoreManager.TRUE)
+            }
             if (dataStoreManager.appVersion.first() != VersionManager.getVersionName()) {
                 dataStoreManager.resetOpenAppTime()
                 dataStoreManager.putString(FOOTGUNS_STAR_KEY, "false")

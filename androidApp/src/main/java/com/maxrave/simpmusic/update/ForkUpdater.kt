@@ -11,15 +11,15 @@ import androidx.lifecycle.lifecycleScope
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.BuildConfig
 import com.maxrave.simpmusic.R
+import com.maxrave.simpmusic.utils.ForkBuildCheck
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.time.Instant
 
 /**
  * Fork: updates the personal build from the fork's own GitHub releases (`bao-YYYY.MM.DD.N`, published
@@ -31,8 +31,11 @@ import java.time.Instant
  */
 object ForkUpdater {
     private const val TAG = "ForkUpdater"
-    private const val API = "https://api.github.com/repos/baotrq/SimpMusic"
+    // Releases are published to the showcase repo, where people download the app.
+    private const val API = "https://api.github.com/repos/baotrq/simpmusic-bao-showcase"
+    private val COMMIT_TIME = Regex("""commit-time:\s*(\d+)""")
     private const val TAG_PREFIX = "bao-"
+    private const val AUTO_CHECK_DELAY_MS = 10_000L
     private const val ASSET_SUFFIX = "-arm64-v8a.apk"
     private class Release(
         val tag: String,
@@ -43,6 +46,30 @@ object ForkUpdater {
 
     /** False in debug builds and in vivoAndroidApp, which have no bao- releases to compare against. */
     val isAvailable: Boolean get() = !BuildConfig.DEBUG && BuildConfig.BAO_COMMIT_TIME != 0L
+
+    private var found: Release? = null
+    private var checkedAfterLaunch = false
+
+    /** Quiet: a newer release becomes a card on Home, and a failed check says nothing. Once per process. */
+    fun checkAfterLaunch(activity: AppCompatActivity) {
+        if (!isAvailable || checkedAfterLaunch) return
+        activity.lifecycleScope.launch {
+            // Startup does not spend a weak connection on this. A recreated activity starts over.
+            delay(AUTO_CHECK_DELAY_MS)
+            val result = withContext(Dispatchers.IO) { runCatching { newerRelease() } }
+            checkedAfterLaunch = true
+            result
+                .onSuccess { release ->
+                    found = release
+                    ForkBuildCheck.available.value = release?.let { ForkBuildCheck.AvailableBuild(it.tag, it.title) }
+                }.onFailure { Logger.w(TAG, "Check after launch failed: ${it.message}") }
+        }
+    }
+
+    /** The Home card's Update button. */
+    fun installFound(activity: AppCompatActivity) {
+        found?.let { install(activity, it) }
+    }
 
     /** Asked for from Settings, so every outcome is answered, "nothing newer" included. */
     fun check(activity: AppCompatActivity) {
@@ -78,12 +105,10 @@ object ForkUpdater {
                 (0 until assets.length())
                     .map { assets.getJSONObject(it) }
                     .firstOrNull { it.getString("name").endsWith(ASSET_SUFFIX) } ?: continue
+            // The tag sits in the showcase repo, so the source commit's time is written in the notes.
             val committedAt =
-                JSONObject(fetchText("$API/commits/$tag"))
-                    .getJSONObject("commit")
-                    .getJSONObject("committer")
-                    .getString("date")
-            if (Instant.parse(committedAt).epochSecond <= BuildConfig.BAO_COMMIT_TIME) return null
+                COMMIT_TIME.find(release.optString("body"))?.groupValues?.get(1)?.toLong() ?: continue
+            if (committedAt <= BuildConfig.BAO_COMMIT_TIME) return null
             return Release(
                 tag = tag,
                 title = release.optString("name").ifBlank { tag },

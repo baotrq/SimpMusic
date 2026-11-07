@@ -1,5 +1,7 @@
-package com.maxrave.simpmusic.ui.screen.player.content.applemusic
+package com.maxrave.simpmusic.ui.screen.player.content.nhacnheo
 
+import com.maxrave.simpmusic.ui.screen.player.content.*
+import com.maxrave.simpmusic.ui.screen.player.content.applemusic.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing

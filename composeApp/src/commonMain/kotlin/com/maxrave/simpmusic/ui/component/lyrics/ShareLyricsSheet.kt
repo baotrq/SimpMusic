@@ -58,7 +58,7 @@ import com.maxrave.simpmusic.ui.icon.Download
 import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 import com.maxrave.simpmusic.ui.icon.Share
 import com.maxrave.simpmusic.ui.icon.SimpIcons
-import com.maxrave.simpmusic.ui.screen.player.content.applemusic.appleMusicVerticalFadeEdges
+import com.maxrave.simpmusic.ui.screen.player.content.nhacnheo.appleMusicVerticalFadeEdges
 import kotlinx.coroutines.launch
 import multiplatform.network.cmptoast.ToastGravity
 import multiplatform.network.cmptoast.showToast

@@ -120,9 +120,12 @@ class MainActivity : AppCompatActivity() {
         unloadKoinModules(viewModelModule)
         loadKoinModules(viewModelModule)
         VersionManager.initialize()
-        // Fork: no update check at launch, for either upstream or bao- builds. Both run only from
-        // Settings → About, so startup does not spend the connection on them.
-        if (ForkUpdater.isAvailable) ForkBuildCheck.check = { ForkUpdater.check(this) }
+        // Fork: no check DURING startup; ForkUpdater waits, then shows anything newer as a card on Home.
+        if (ForkUpdater.isAvailable) {
+            ForkBuildCheck.check = { ForkUpdater.check(this) }
+            ForkBuildCheck.install = { ForkUpdater.installFound(this) }
+            ForkUpdater.checkAfterLaunch(this)
+        }
         if (viewModel.recreateActivity.value || viewModel.isServiceRunning) {
             viewModel.activityRecreateDone()
         } else {
@@ -256,8 +259,11 @@ class MainActivity : AppCompatActivity() {
             viewModel.isServiceRunning = false
         }
         unloadKoinModules(viewModelModule)
-        // The lambda holds this activity; a recreated one has already put its own in.
-        if (isFinishing) ForkBuildCheck.check = null
+        // The lambdas hold this activity; a recreated one has already put its own in.
+        if (isFinishing) {
+            ForkBuildCheck.check = null
+            ForkBuildCheck.install = null
+        }
         super.onDestroy()
         Logger.d("MainActivity", "onDestroy: ")
     }

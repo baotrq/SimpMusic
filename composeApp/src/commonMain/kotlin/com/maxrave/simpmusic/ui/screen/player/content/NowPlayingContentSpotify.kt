@@ -2,6 +2,7 @@
 
 package com.maxrave.simpmusic.ui.screen.player.content
 
+import com.maxrave.simpmusic.ui.screen.player.content.nhacnheo.AppleMusicAnimatedArtworkPage
 import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade

@@ -20,6 +20,9 @@ import com.maxrave.simpmusic.viewModel.UIEvent
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
 
+/** Fork: the redone player, Nhạc Nhẽo. Upstream's own style stays NOW_PLAYING_STYLE_APPLE_MUSIC. */
+internal const val NOW_PLAYING_STYLE_NHAC_NHEO = "NHAC_NHEO"
+
 /**
  * Whether the lyrics currently on screen can be rated.
  *

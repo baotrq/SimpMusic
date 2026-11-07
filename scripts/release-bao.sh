@@ -9,7 +9,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-REPO=baotrq/SimpMusic
+# Releases go to the showcase repo, where people download the app. Source stays public in baotrq/SimpMusic.
+REPO=baotrq/simpmusic-bao-showcase
+commit_time=$(git log -1 --format=%ct)
 summary="${1:?Usage: scripts/release-bao.sh \"what changed\"}"
 
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
@@ -41,19 +43,27 @@ trap 'rm -rf "$staging"' EXIT
 cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-$tag-arm64-v8a.apk"
 cp "$out/androidApp-universal-release.apk" "$staging/SimpMusic-$tag-universal.apk"
 # The same arm64 APK under a name that never changes, so one link always downloads the newest:
-# https://github.com/baotrq/SimpMusic/releases/latest/download/SimpMusic-Bao.apk
+# https://github.com/baotrq/simpmusic-bao-showcase/releases/latest/download/SimpMusic-Bao.apk
 cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-Bao.apk"
 
 # Published as the latest release, not a pre-release: /releases/latest only ever points at a release.
 gh release create "$tag" "$staging"/*.apk \
   -R "$REPO" \
-  --target "$(git rev-parse HEAD)" \
   --latest \
   --title "SimpMusic (Bao) $day.$n — $summary" \
   --notes "Personal build of the fork (package \`com.maxrave.simpmusic.bao\`)${previous:+. Supersedes \`$previous\`}.
 
+commit-time: $commit_time
+
 Phones already on a bao- build offer this update on their next launch. To install by hand, most phones want \`arm64-v8a\`; \`universal\` works on any device but is larger.
 
 Signed with the shared bao key (\`BAO_KEYSTORE\` in local.properties). A phone holding a build signed with a different key cannot update: back up in Settings, uninstall, install, then restore."
+
+# ponytail: builds before 2.5.0.5 look for updates in the source repo. Drop this once no phone runs one.
+gh release create "$tag" "$staging"/*.apk \
+  -R baotrq/SimpMusic \
+  --target "$(git rev-parse HEAD)" \
+  --title "SimpMusic (Bao) $day.$n — $summary" \
+  --notes "Moved: new releases live at https://github.com/$REPO/releases"
 
 echo "Published $tag"
