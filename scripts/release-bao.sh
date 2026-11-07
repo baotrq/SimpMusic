@@ -43,8 +43,8 @@ trap 'rm -rf "$staging"' EXIT
 cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-$tag-arm64-v8a.apk"
 cp "$out/androidApp-universal-release.apk" "$staging/SimpMusic-$tag-universal.apk"
 # The same arm64 APK under a name that never changes, so one link always downloads the newest:
-# https://github.com/baotrq/simpmusic-bao-showcase/releases/latest/download/SimpMusic-Bao.apk
-cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-Bao.apk"
+# https://github.com/baotrq/simpmusic-bao-showcase/releases/latest/download/SimpMusic-arm64-v8a.apk
+cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-arm64-v8a.apk"
 
 # Published as the latest release, not a pre-release: /releases/latest only ever points at a release.
 gh release create "$tag" "$staging"/*.apk \
