@@ -1150,4 +1150,12 @@
     <string name="ai_guide_privacy">Khóa của bạn chỉ lưu trên thiết bị này và chỉ gửi đến nhà cung cấp bạn chọn. Mọi chi phí là giữa bạn và nhà cung cấp đó.</string>
     <string name="ai_guide_get_gemini_key">Lấy khóa Gemini</string>
     <string name="ai_guide_get_openai_key">Lấy khóa OpenAI</string>
+    <string name="donate">Ủng hộ</string>
+    <string name="donate_summary">Giúp Nhạc Nhẽo tiếp tục được cập nhật</string>
+    <string name="donate_prompt_title">Bạn thích Nhạc Nhẽo chứ?</string>
+    <string name="donate_prompt_message">Mình tự làm và cập nhật ứng dụng này. Nếu bạn thích, một khoản ủng hộ nhỏ sẽ giúp mình tiếp tục cập nhật.</string>
+    <string name="donate_qr_description">Mã QR ủng hộ</string>
+    <string name="donate_qr_hint">Lưu mã QR, rồi mở nó từ màn hình quét trong MoMo hoặc ứng dụng ngân hàng.</string>
+    <string name="donate_save_qr">Lưu mã QR</string>
+    <string name="donate_close">Đóng</string>
 </resources>

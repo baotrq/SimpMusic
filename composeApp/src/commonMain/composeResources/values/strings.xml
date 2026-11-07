@@ -1184,4 +1184,12 @@
     <string name="ai_guide_privacy">Your key stays on this device and is only sent to the provider you chose. Any cost is between you and that provider.</string>
     <string name="ai_guide_get_gemini_key">Get a Gemini key</string>
     <string name="ai_guide_get_openai_key">Get an OpenAI key</string>
+    <string name="donate">Donate</string>
+    <string name="donate_summary">Help keep Nhạc Nhẽo updated</string>
+    <string name="donate_prompt_title">Enjoying Nhạc Nhẽo?</string>
+    <string name="donate_prompt_message">I build and update this app myself. If you enjoy it, a small donation helps me keep updating it.</string>
+    <string name="donate_qr_description">Donation QR code</string>
+    <string name="donate_qr_hint">Save the QR, then open it from the scan screen in MoMo or a Vietnamese banking app.</string>
+    <string name="donate_save_qr">Save QR</string>
+    <string name="donate_close">Close</string>
 </resources>

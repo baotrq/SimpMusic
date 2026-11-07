@@ -53,6 +53,9 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,8 +68,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.maxrave.domain.manager.DataStoreManager
+import com.maxrave.simpmusic.ui.component.DonateQrDialog
 import com.maxrave.simpmusic.ui.component.SettingGroup
 import com.maxrave.simpmusic.ui.icon.ArrowForwardIos
+import com.maxrave.simpmusic.ui.icon.Favorite
 import com.maxrave.simpmusic.ui.icon.GraphicEq
 import com.maxrave.simpmusic.ui.icon.Info
 import com.maxrave.simpmusic.ui.icon.LogoDev
@@ -82,6 +87,8 @@ import org.jetbrains.compose.resources.stringResource
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.about
 import simpmusic.composeapp.generated.resources.developer_option
+import simpmusic.composeapp.generated.resources.donate
+import simpmusic.composeapp.generated.resources.donate_summary
 import simpmusic.composeapp.generated.resources.lyrics_style
 import simpmusic.composeapp.generated.resources.lyrics_style_apple_music
 import simpmusic.composeapp.generated.resources.lyrics_style_classic
@@ -167,6 +174,7 @@ internal fun SettingPage.title(): String =
 @Composable
 internal fun SettingHome(
     selected: SettingPage?,
+    showDonate: Boolean,
     onOpen: (SettingPage) -> Unit,
 ) {
     SettingGroup(title = null) {
@@ -177,6 +185,19 @@ internal fun SettingHome(
         SettingCategoryRow(SettingPage.STORAGE_BACKUP, SimpIcons.Storage, Res.string.settings_storage_backup_summary, selected, onOpen)
         SettingCategoryRow(SettingPage.ABOUT, SimpIcons.Info, Res.string.settings_about_summary, selected, onOpen)
     }
+    var showDonateQr by rememberSaveable { mutableStateOf(false) }
+    if (showDonate) {
+        SettingGroup(title = null) {
+            SettingHomeRow(
+                title = stringResource(Res.string.donate),
+                icon = SimpIcons.Favorite,
+                summary = Res.string.donate_summary,
+                highlighted = false,
+                onClick = { showDonateQr = true },
+            )
+        }
+    }
+    if (showDonateQr) DonateQrDialog(onDismiss = { showDonateQr = false })
     SettingGroup(title = null) {
         SettingCategoryRow(SettingPage.DEVELOPER, SimpIcons.LogoDev, Res.string.settings_developer_summary, selected, onOpen)
     }
@@ -189,6 +210,15 @@ private fun SettingCategoryRow(
     summary: org.jetbrains.compose.resources.StringResource,
     selected: SettingPage?,
     onOpen: (SettingPage) -> Unit,
+) = SettingHomeRow(page.title(), icon, summary, page == selected) { onOpen(page) }
+
+@Composable
+private fun SettingHomeRow(
+    title: String,
+    icon: ImageVector,
+    summary: org.jetbrains.compose.resources.StringResource,
+    highlighted: Boolean,
+    onClick: () -> Unit,
 ) {
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
     Row(
@@ -207,8 +237,8 @@ private fun SettingCategoryRow(
                         end = Offset(if (rtl) size.width - inset else size.width, 0f),
                         strokeWidth = 0.5.dp.toPx(),
                     )
-                }.background(if (page == selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                .clickable { onOpen(page) }
+                }.background(if (highlighted) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Box(
@@ -223,7 +253,7 @@ private fun SettingCategoryRow(
         }
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(page.title(), style = typo().titleSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(title, style = typo().titleSmall, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(2.dp))
             Text(stringResource(summary), style = typo().bodySmall)
         }

@@ -1,5 +1,6 @@
 package com.maxrave.simpmusic.ui.screen.home
 
+import com.maxrave.simpmusic.ui.component.DonatePrompt
 import com.maxrave.simpmusic.ui.component.ForkUpdateCard
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.only
@@ -728,6 +729,15 @@ fun HomeScreen(
             },
         )
     }
+
+    DonatePrompt(
+        blocked = promoBlocked,
+        userStarted = userStarted,
+        awaitLaunchSettled = {
+            snapshotFlow { openAppTime }.first { it > 0 }
+            sharedViewModel.isCheckingUpdate.first { !it }
+        },
+    )
 
     if (shouldShowLogInAlert) {
         var doNotShowAgain by rememberSaveable {

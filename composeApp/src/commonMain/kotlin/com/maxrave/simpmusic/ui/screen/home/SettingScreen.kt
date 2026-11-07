@@ -692,7 +692,7 @@ fun SettingScreen(
     val listSidePadding = 16.dp
     val dataStoreManager: DataStoreManager = koinInject()
     // Fork: Car mode, the LED strip and Playback sync are the owner's own tools. Seven taps on Version
-    // shows or hides them on this device; they keep running either way.
+    // shows or hides them on this device; they keep running either way. Donate is hidden while they show.
     val personalTools by remember(dataStoreManager) { dataStoreManager.getString(PERSONAL_TOOLS_KEY) }
         .collectAsStateWithLifecycle(null)
     val personalToolsShown = personalTools == DataStoreManager.TRUE
@@ -2773,7 +2773,7 @@ fun SettingScreen(
                     onBack = { navController.navigateUp() },
                     windowInsets = WindowInsets(0),
                 )
-                SettingHome(selected = page?.parent ?: page, onOpen = { openPage = it.name })
+                SettingHome(selected = page?.parent ?: page, showDonate = !personalToolsShown, onOpen = { openPage = it.name })
             }
             AnimatedContent(
                 targetState = page,
@@ -2837,7 +2837,7 @@ fun SettingScreen(
                                 layout(constraints.maxWidth, placeable.height) { placeable.place(-bleed, 0) }
                             },
                 )
-                if (shown == null) SettingHome(selected = null, onOpen = { openPage = it.name }) else pageContent(shown)
+                if (shown == null) SettingHome(selected = null, showDonate = !personalToolsShown, onOpen = { openPage = it.name }) else pageContent(shown)
                 EndOfPage()
             }
         }
@@ -3629,4 +3629,4 @@ private fun ImportProgressDialog(
     )
 }
 
-private const val PERSONAL_TOOLS_KEY = "personal_tools_shown"
+internal const val PERSONAL_TOOLS_KEY = "personal_tools_shown"

@@ -265,4 +265,22 @@ This project is tested with BrowserStack
 
 *This project is a part of SimpMusic.org Open-source project by me [maxrave-dev](https://github.com/maxrave-dev)*
 
+<div align="center">
+
+## 💖 Donate
+
+If you enjoy Nhạc Nhẽo, a small donation helps me keep updating it.<br />
+<sub>Nếu bạn thích Nhạc Nhẽo, một khoản ủng hộ nhỏ sẽ giúp mình tiếp tục cập nhật.</sub>
+
+<br />
+
+<img src="https://raw.githubusercontent.com/baotrq/simpmusic-bao-showcase/main/assets/donate-qr-clean.png" width="240" alt="Donation QR code for MoMo and Vietnamese banking apps" />
+
+<br />
+<br />
+
+<sub>Scan with MoMo or a Vietnamese banking app · Quét bằng MoMo hoặc ứng dụng ngân hàng</sub>
+
+</div>
+
 <!-- GitAds-Verify: 9788276LHF131ESPL12SWLJ8LACOJE89 -->
