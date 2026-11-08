@@ -31,14 +31,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxrave.domain.manager.DataStoreManager
-import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.expect.ui.isLyricsBlurSupported
 import com.maxrave.simpmusic.ui.component.AppleMusicLyricPaddingX
 import com.maxrave.simpmusic.ui.component.LyricsView
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
 import com.maxrave.simpmusic.viewModel.UIEvent
@@ -109,7 +108,7 @@ internal fun AppleMusicLyricsView(
             modifier =
                 Modifier.height(
                     with(localDensity) { WindowInsets.statusBars.union(WindowInsets.captionBar).getTop(localDensity).toDp() } +
-                        if (getPlatform() == Platform.Desktop) APPLE_MUSIC_TOP_BAR_HEIGHT else 8.dp,
+                        if (LocalDesktopShell.current) APPLE_MUSIC_TOP_BAR_HEIGHT else 8.dp,
                 ),
         )
         AppleMusicCompactHeader(state = state, actions = actions, typography = typography, swipeToChangeTrack = true)
@@ -217,7 +216,7 @@ internal fun AppleMusicLyricsView(
 
         // Desktop only: there the cluster is just the Lyrics · Queue row, the way back to the
         // player with a mouse. Android leaves the page to the lyrics, with room for the gesture bar.
-        if (getPlatform() == Platform.Desktop) {
+        if (LocalDesktopShell.current) {
             AppleMusicBottomCluster(
                 state = state,
                 actions = actions,

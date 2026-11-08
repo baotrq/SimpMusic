@@ -122,6 +122,7 @@ import com.maxrave.simpmusic.ui.icon.VolumeDown
 import com.maxrave.simpmusic.ui.icon.VolumeUp
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.UIEvent
 import org.jetbrains.compose.resources.stringResource
@@ -761,7 +762,7 @@ internal fun AppleMusicCompactHeader(
             state = state,
             actions = actions,
             showPlayPause = true,
-            showMore = getPlatform() != Platform.Android,
+            showMore = LocalDesktopShell.current,
         )
     }
 }
@@ -1111,7 +1112,7 @@ internal fun AppleMusicActionRow(
         val content = DOCK_BUTTON_SIZE * 2 + CAPSULE_SEGMENT_WIDTH * 2 + 1.dp
         val edgeInset = ((maxWidth - content) / 4).coerceAtLeast(0.dp)
         // Desktop keeps the Lyrics button: a mouse has no natural swipe up or down.
-        val showLyricsButton = getPlatform() == Platform.Desktop
+        val showLyricsButton = LocalDesktopShell.current
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = edgeInset),
             horizontalArrangement = if (showLyricsButton) Arrangement.SpaceBetween else Arrangement.End,
@@ -1207,7 +1208,7 @@ internal fun AppleMusicBottomCluster(
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = topPadding)) {
         // Fork: no volume row and no output-name caption. deviceVolumeController, outputName and
         // onOpenOutput are left in the signature, unused, so upstream merges stay small.
-        if (getPlatform() == Platform.Android) {
+        if (!LocalDesktopShell.current) {
             AppleMusicPlaybackControls(state = state, actions = actions, typography = typography)
             if (showActionRow) Spacer(modifier = Modifier.height(8.dp))
         } else if (showActionRow) {

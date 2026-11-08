@@ -79,6 +79,7 @@ import com.maxrave.simpmusic.ui.icon.Share
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.UnfoldLess
 import com.maxrave.simpmusic.ui.icon.UnfoldMore
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.typo
 import kotlinx.coroutines.Dispatchers
@@ -601,7 +602,7 @@ private fun ErrorCard(
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     // The Settings card colour: one step off the page, which on a light Desktop panel is white.
     val cardColor =
-        if (getPlatform() == Platform.Desktop && !LocalIsDarkTheme.current) {
+        if (LocalDesktopShell.current && !LocalIsDarkTheme.current) {
             MaterialTheme.colorScheme.surfaceContainerLowest
         } else {
             MaterialTheme.colorScheme.surfaceContainer

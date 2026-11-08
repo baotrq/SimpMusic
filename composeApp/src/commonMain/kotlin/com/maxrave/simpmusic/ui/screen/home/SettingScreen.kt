@@ -1,5 +1,6 @@
 package com.maxrave.simpmusic.ui.screen.home
 
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import simpmusic.composeapp.generated.resources.personal_tools_shown
 import simpmusic.composeapp.generated.resources.personal_tools_hidden
 import simpmusic.composeapp.generated.resources.check_for_update_description
@@ -742,7 +743,7 @@ fun SettingScreen(
 
     // Fork: Settings is split into pages, the way a phone's own settings are. The main page lists
     // them; each page holds that topic's groups. Desktop shows the list and the page side by side.
-    val twoPane = getPlatform() == Platform.Desktop
+    val twoPane = LocalDesktopShell.current
     var openPage by rememberSaveable { mutableStateOf<String?>(null) }
     val page = openPage?.let { SettingPage.valueOf(it) } ?: if (twoPane) SettingPage.APPEARANCE else null
     val goBack: () -> Unit = {

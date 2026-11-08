@@ -1214,6 +1214,12 @@ if (getPlatform() == Platform.Android) {
   - **Donate** (`ui/component/Donate.kt`): `DonatePrompt` on Home appears on a new install's first launch, then at most every 7 days (`donate_next_prompt_at`, stamped when the box appears, so any dismissal counts as Later; an install that already holds a date keeps it). It waits like the launch banners and skips a launch where the user has already started. Donate opens `DonateQrDialog`, also reached from Settings' main page; Save QR exists because a phone cannot scan its own screen. `donate_qr.png` is cropped to leave the owner's name out.
   - **AI translation page** (`SettingPage.AI_TRANSLATION`, under Lyrics & AI): `AiKeyGuide` (steps, Get a key and See models buttons for Gemini/OpenAI) above the AI rows. Models get retired, so the guide sends people to the provider's own list instead of naming a model. `translationLanguageRow` is shared with the Lyrics group, since SimpMusic's own translations read that setting too.
 
+- **Fork: tablets held sideways get the Windows layout (2026-11-08)**: an Android window at least 840dp wide (`isTabletShell` in `App.kt`) draws the Desktop shell: sidebar, content panel, capsule, and the player's panel and full-size page. Below 840dp, which includes most tablets in portrait, it keeps the rail and in-window player, because the capsule needs the width. Unfolded Folds and DeX windows that wide get the shell too. Written without a build or a device run.
+  - **`LocalDesktopShell` (`Theme.kt`, provided by `AppTheme`) answers layout questions; `getPlatform()` answers platform ones.** Still on `getPlatform()` on purpose: mpv canvas sizing, Desktop's larger player type (its window scale), scrollbars, the mouse drag in `LocalPlaylistScreen`, the Cached card, the PiP button.
+  - **The bars are removed above Compose.** `ShellWindowInsets` (expect/actual) pads `android.R.id.content` and hands Compose zero bar insets, because dozens of places read `WindowInsets.statusBars` directly and would ignore a Compose-level consumption. Every screen then sees what it sees on Desktop. It is off while `isInFullscreen`, and sheets and dialogs keep real insets because they are separate windows.
+  - **Touch has no hover.** The capsule's volume icon opens the slider on tap on Android instead of muting, and the slider closes after 3 s. The capsule's lyrics button on the artwork stays hover-only, so a finger reaches lyrics through panel → expand → Lyrics. Back steps the player from full size to panel to closed. Below 1100dp the capsule's track cluster is 160dp instead of 300dp, or it would run off the window's left edge beside the open panel.
+  - **Rotation:** `isPhoneSizedScreen` used `smallestScreenWidthDp < 600` alone, which locked small tablets, and tablets set to a larger display size, in portrait. It now also requires a physical diagonal under 7 inches (`xdpi`/`ydpi`); a device that reports wrong dpi only loses the lock.
+
 ## 🔄 CLAUDE.md Auto-Update Rule (MANDATORY)
 
 After completing any of the following types of changes, the AI agent **MUST** update this CLAUDE.md file:
@@ -1238,6 +1244,6 @@ After completing any of the following types of changes, the AI agent **MUST** up
 
 *This document helps AI Agents quickly understand the SimpMusic project. Update regularly when there are major changes to architecture or structure.*
 
-**Last updated**: 2026-11-07
+**Last updated**: 2026-11-08
 **Project version**: Check latest release on GitHub
 **Maintained by**: maxrave-dev and contributors

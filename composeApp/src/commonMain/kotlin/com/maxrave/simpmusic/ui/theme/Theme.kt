@@ -13,12 +13,15 @@ import androidx.compose.material3.RippleConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.materialkolor.PaletteStyle
 import com.materialkolor.rememberDynamicColorScheme
 import com.maxrave.domain.manager.DataStoreManager
+import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.SystemBarAppearanceEffect
+import com.maxrave.simpmusic.getPlatform
 
 /**
  * Semantic colors that sit outside the Material 3 ColorScheme.
@@ -66,6 +69,14 @@ val LocalIsDarkTheme = staticCompositionLocalOf { true }
 val LocalLiquidGlassEnabled = staticCompositionLocalOf { true }
 
 /**
+ * Fork: whether this window draws the Windows layout (sidebar, content panel, capsule, player panel).
+ * Layout decisions read this; anything really about the platform still asks getPlatform(). An
+ * unfolding phone can change it while running, so it is not static. Outside [AppTheme] it answers
+ * by platform, which is what a separate window such as Desktop's mini player needs.
+ */
+val LocalDesktopShell = compositionLocalOf { getPlatform() == Platform.Desktop }
+
+/**
  * The dark scheme to use for immersive screens while the app itself is on the light theme.
  * Provided by [AppTheme], consumed by [ForceDarkContent]; null only outside of [AppTheme].
  */
@@ -107,6 +118,7 @@ private fun ColorScheme.withNeutralLightSurfaces(): ColorScheme =
 fun AppTheme(
     themeMode: String = DataStoreManager.THEME_MODE_DARK,
     liquidGlassEnabled: Boolean = true,
+    desktopShell: Boolean = getPlatform() == Platform.Desktop,
     content:
         @Composable()
         () -> Unit,
@@ -139,6 +151,7 @@ fun AppTheme(
         colorScheme = colorScheme,
         content = {
             CompositionLocalProvider(
+                LocalDesktopShell provides desktopShell,
                 LocalRippleConfiguration provides SoftRippleConfiguration,
                 LocalContentColor provides colorScheme.onSurfaceVariant,
                 LocalAppColors provides if (isDark) DarkAppColors else LightAppColors,

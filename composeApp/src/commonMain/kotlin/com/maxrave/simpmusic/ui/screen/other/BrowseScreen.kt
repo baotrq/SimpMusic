@@ -51,9 +51,7 @@ import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.home.Content
 import com.maxrave.domain.utils.toSongEntity
 import com.maxrave.domain.utils.toTrack
-import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.extension.barBlurStyle
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.EndOfPage
 import com.maxrave.simpmusic.ui.component.HomeContentCard
@@ -64,6 +62,7 @@ import com.maxrave.simpmusic.ui.component.homeCardAspectRatio
 import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.MoodDestination
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.desktopPanelDark
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.BrowseUIState
@@ -114,7 +113,7 @@ fun BrowseScreen(
 
     // What is painted behind this page: the desktop shell paints its rounded panel, not the background.
     val pageBackground =
-        if (getPlatform() == Platform.Desktop) {
+        if (LocalDesktopShell.current) {
             if (MaterialTheme.colorScheme.background.luminance() > 0.5f) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
         } else {
             MaterialTheme.colorScheme.background

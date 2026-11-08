@@ -90,6 +90,7 @@ import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestin
 import com.maxrave.simpmusic.ui.navigation.destination.home.NotificationDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.RecentlySongsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.SettingsDestination
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
@@ -268,7 +269,7 @@ fun LibraryScreen(
                     val innerStart = innerPadding.calculateStartPadding(layoutDirection)
                     val innerEnd = innerPadding.calculateEndPadding(layoutDirection)
                     val sideInset =
-                        if (getPlatform() == Platform.Desktop) {
+                        if (LocalDesktopShell.current) {
                             ((maxWidth - innerStart - innerEnd - YOUR_LIBRARY_MAX_WIDTH) / 2).coerceAtLeast(0.dp)
                         } else {
                             0.dp

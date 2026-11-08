@@ -44,9 +44,7 @@ import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import com.maxrave.domain.data.model.taste.TasteException
 import com.maxrave.domain.data.model.taste.TasteProfile
-import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.copyToClipboard
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.RippleIconButton
 import com.maxrave.simpmusic.ui.icon.ContentCopy
 import com.maxrave.simpmusic.ui.icon.Error
@@ -54,6 +52,7 @@ import com.maxrave.simpmusic.ui.icon.Share
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.TipsAndUpdates
 import com.maxrave.simpmusic.ui.screen.home.analytics.formatChartDay
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.TasteUiState
@@ -399,7 +398,7 @@ internal fun ArtistStack(
  */
 @Composable
 internal fun libraryCardColor(): Color =
-    if (getPlatform() == Platform.Desktop && !LocalIsDarkTheme.current) {
+    if (LocalDesktopShell.current && !LocalIsDarkTheme.current) {
         MaterialTheme.colorScheme.surfaceContainerLowest
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh

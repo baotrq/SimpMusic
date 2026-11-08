@@ -31,11 +31,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.extension.barBlurStyle
 import com.maxrave.simpmusic.extension.copy
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.GridLibraryPlaylist
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.desktopPanelDark
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
@@ -81,7 +80,7 @@ fun MixForYouScreen(
 
     // What is painted behind this page: the desktop shell paints its rounded panel, not the background.
     val pageBackground =
-        if (getPlatform() == Platform.Desktop) {
+        if (LocalDesktopShell.current) {
             if (MaterialTheme.colorScheme.background.luminance() > 0.5f) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
         } else {
             MaterialTheme.colorScheme.background

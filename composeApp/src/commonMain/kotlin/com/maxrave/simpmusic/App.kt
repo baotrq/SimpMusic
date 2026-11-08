@@ -42,6 +42,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,6 +70,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_EXPANDED_LOWER_BOUND
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
 import com.maxrave.common.LibraryChipType
 import com.maxrave.domain.data.player.GenericMediaItem
@@ -130,6 +132,8 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlin.math.roundToInt
 import androidx.compose.animation.core.tween
+import com.maxrave.simpmusic.expect.ui.PlatformBackHandler
+import com.maxrave.simpmusic.expect.ui.ShellWindowInsets
 import com.maxrave.simpmusic.expect.ui.SyncWindowTitleBar
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -181,7 +185,12 @@ fun App(
 ) {
     val windowSize = currentWindowAdaptiveInfo().windowSizeClass
     val navController = rememberNavController()
-    val isDesktopShell = getPlatform() == Platform.Desktop
+    // Fork: an Android window wide enough for the Windows layout, which is a tablet held sideways. The
+    // capsule needs the width: below this a portrait tablet keeps the rail and the in-window player.
+    val isTabletShell =
+        getPlatform() == Platform.Android && windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val isDesktopShell = getPlatform() == Platform.Desktop || isTabletShell
+    val latestIsDesktopShell by rememberUpdatedState(isDesktopShell)
 
     // Fork: pick up AI and translation settings changed on another device, each time the app opens.
     val appLifecycle = LocalLifecycleOwner.current.lifecycle
@@ -279,7 +288,7 @@ fun App(
             val nothingPlaying =
                 !viewModel.controllerState.value.isPlaying &&
                     System.currentTimeMillis() - playbackStoppedAt > DESKTOP_RECENTLY_PLAYING_MS
-            if (!isDesktopShell) {
+            if (!latestIsDesktopShell) {
                 isShowNowPlaylistScreen = true
             } else if (tappedLoadedSong || nothingPlaying) {
                 isShowNowPlaylistScreen = true
@@ -577,6 +586,7 @@ fun App(
         themeMode = themeMode,
         // The setting governs Desktop too, the same as Android: off, every glass surface draws flat.
         liquidGlassEnabled = isLiquidGlassEnabled == TRUE,
+        desktopShell = isDesktopShell,
     ) {
         if (!isOfficialBuild) {
             UnofficialBuildScreen()
@@ -592,6 +602,8 @@ fun App(
         val desktopPanel =
             if (isLightScheme) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
         SyncWindowTitleBar(color = desktopWindow, isDark = !isLightScheme)
+        // Fullscreen video and Wrapped run edge to edge, as they do on a phone.
+        ShellWindowInsets(enabled = isTabletShell && !isInFullscreen, color = desktopWindow)
 
         // Backdrop base must match the page, so glass over an empty area reads as the page itself.
         // On Desktop the page is the panel: its colour is painted outside the recorded layer, and
@@ -731,7 +743,7 @@ fun App(
                             exit = fadeOut(),
                         ) {
                             MiniPlayer(
-                                if (getPlatform() == Platform.Android) {
+                                if (!isDesktopShell) {
                                     Modifier
                                         // Glass keeps its 52dp card; the flat one is 56dp.
                                         .height(if (isLiquidGlassEnabled == TRUE) 56.dp else 60.dp)
@@ -760,6 +772,13 @@ fun App(
                                 },
                                 backdrop = backdrop,
                                 navController = navController,
+                                // A small tablet has no room for the full capsule beside the open panel.
+                                capsuleTrackWidth =
+                                    if (isTabletShell && !windowSize.isWidthAtLeastBreakpoint(TABLET_FULL_CAPSULE_MIN_WIDTH_DP)) {
+                                        160.dp
+                                    } else {
+                                        300.dp
+                                    },
                                 onClick = {
                                     // On Desktop this always lands on the small panel.
                                     isDesktopPlayerFull = false
@@ -925,6 +944,11 @@ fun App(
                             // The player's one surface: above the strip's row and the content, under the
                             // capsule, and inside what the capsule's glass records.
                             if (isDesktopShell && desktopPlayerComposed) {
+                                // Tablets have a back button: full size to panel, panel to closed. Declared
+                                // ahead of the player, so the player's own back handling still goes first.
+                                PlatformBackHandler(enabled = isTabletShell && isShowNowPlaylistScreen) {
+                                    if (isDesktopPlayerFull) isDesktopPlayerFull = false else isShowNowPlaylistScreen = false
+                                }
                                 ForceDarkContent {
                                     NowPlayingScreenContent(
                                         navController = navController,
@@ -1267,7 +1291,7 @@ fun App(
         // over it. The phone's bottom sheet is a separate window, and in DeX that window
         // covered the app window's title bar — its X and minimise buttons with it.
         // Phones use it too: creating the sheet's window cost ~100ms before anything moved.
-        if ((inDesktopMode || getPlatform() == Platform.Android) && !isTabletLandscape) {
+        if ((inDesktopMode || getPlatform() == Platform.Android) && !isTabletLandscape && !isTabletShell) {
             // Also composed while a finger is on the mini player, built ahead of the tap, and while a
             // drag let go short of opening sinks back into the bar (see MiniPlayerAnchor).
             if (isShowNowPlaylistScreen || MiniPlayerAnchor.pressed || MiniPlayerAnchor.returning) {
@@ -1300,7 +1324,7 @@ fun App(
                     }
                 }
             }
-        } else if (isShowNowPlaylistScreen && !isTabletLandscape) {
+        } else if (isShowNowPlaylistScreen && !isTabletLandscape && !isTabletShell) {
             ForceDarkContent {
                 NowPlayingScreen(
                     navController = navController,
@@ -1313,3 +1337,6 @@ fun App(
 }
 
 private const val DESKTOP_RECENTLY_PLAYING_MS = 3_000L
+
+// Where the 724dp capsule (the 300dp track, no Desktop-only button) fits beside the open player panel.
+private const val TABLET_FULL_CAPSULE_MIN_WIDTH_DP = 1100

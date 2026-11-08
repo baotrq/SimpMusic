@@ -74,7 +74,6 @@ import com.kyant.backdrop.highlight.Highlight
 import com.maxrave.common.Config.MAIN_PLAYER
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.domain.mediaservice.handler.RepeatState
-import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
 import com.maxrave.simpmusic.expect.ui.MediaPlayerView
 import com.maxrave.simpmusic.expect.ui.MediaPlayerViewWithSubtitle
@@ -84,7 +83,6 @@ import com.maxrave.simpmusic.expect.ui.rememberDeviceVolumeController
 import com.maxrave.simpmusic.expect.ui.toImageBitmap
 import com.maxrave.simpmusic.extension.LeftToRight
 import com.maxrave.simpmusic.extension.smoothScrimBrush
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.LyricText
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
 import com.maxrave.simpmusic.ui.component.LiquidGlassIconButton
@@ -110,6 +108,7 @@ import com.maxrave.simpmusic.ui.screen.player.content.applemusic.appleMusicVerti
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.displayName
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.rememberAppleMusicMesh
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.rememberAppleMusicTypography
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
@@ -277,7 +276,7 @@ fun NowPlayingContentAppleMusic(
         // both draw state.dismissIcon in their top bar.
         // MAIN only: Queue and Lyrics each have their own header, and a floating button over
         // those reads as belonging to the list rather than to the panel.
-        if (getPlatform() == Platform.Desktop) {
+        if (LocalDesktopShell.current) {
             if (viewState == AppleMusicView.MAIN) {
                 LiquidGlassIconButton(
                     backdrop = panelBackdrop,
@@ -425,7 +424,7 @@ private fun AppleMusicMainView(
         // top band held above it, over a stretch as long as the status bar is tall: the bottom edge's
         // treatment, mirrored. Desktop has no status bar, so there the artwork keeps the panel's top.
         val statusBarHeight = with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() }
-        val topInset = if (meshPage && getPlatform() == Platform.Android) statusBarHeight else 0.dp
+        val topInset = if (meshPage && !LocalDesktopShell.current) statusBarHeight else 0.dp
         val topFade = topInset
         val shownHeight = if (showsClip) clipFrameHeight else artworkHeight
         val meshSeam = topInset + shownHeight
@@ -1016,7 +1015,7 @@ private fun AppleMusicArtworkPage(
                     // them and put the fullscreen button under the status bar.
                     val topChrome =
                         with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() } +
-                            (if (getPlatform() == Platform.Desktop) DISMISS_BUTTON_INSET + DISMISS_BUTTON_SIZE else GRABBER_HEIGHT) +
+                            (if (LocalDesktopShell.current) DISMISS_BUTTON_INSET + DISMISS_BUTTON_SIZE else GRABBER_HEIGHT) +
                             VIDEO_FRAME_TOP_GAP
                     BoxWithConstraints(
                         modifier =

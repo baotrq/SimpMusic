@@ -95,6 +95,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
@@ -183,6 +184,8 @@ fun MiniPlayer(
     isVisible: Boolean = true,
     /** Lets the queue's song sheets open artist and album pages; the Desktop capsule's queue needs it. */
     navController: NavController? = null,
+    /** The Desktop capsule's title and progress cluster. */
+    capsuleTrackWidth: Dp = 300.dp,
 ) {
     val isLiquidGlassEnabled by sharedViewModel.getEnableLiquidGlass().collectAsStateWithLifecycle(DataStoreManager.FALSE)
     val controllerState by sharedViewModel.controllerState.collectAsStateWithLifecycle()
@@ -335,7 +338,7 @@ fun MiniPlayer(
         }
     }
 
-    if (getPlatform() == Platform.Android) {
+    if (!LocalDesktopShell.current) {
         // One shape for both the Card and the clip below. They must not diverge: the clip wraps
         // the Card's own background draw, so the larger radius wins and silently becomes the
         // visible one.
@@ -801,7 +804,7 @@ fun MiniPlayer(
                 Box(
                     modifier =
                         Modifier
-                            .width(300.dp)
+                            .width(capsuleTrackWidth)
                             .fillMaxHeight()
                             .hoverable(trackInteraction),
                 ) {
@@ -1114,11 +1117,22 @@ fun MiniPlayer(
                     val isVolumeHovered by volumeInteraction.collectIsHoveredAsState()
                     val popupInteraction = remember { MutableInteractionSource() }
                     val isPopupHovered by popupInteraction.collectIsHoveredAsState()
+                    // A finger cannot hover, so on a tablet a tap is what opens the slider. It closes
+                    // by another tap, or by itself a moment after the last drag.
+                    var isVolumeTapped by remember { mutableStateOf(false) }
+                    LaunchedEffect(isVolumeTapped, isVolumeSliding) {
+                        if (isVolumeTapped && !isVolumeSliding) {
+                            delay(3000)
+                            isVolumeTapped = false
+                        }
+                    }
                     Box(modifier = Modifier.hoverable(volumeInteraction)) {
                         IconButton(
                             onClick = {
                                 // Toggle mute/unmute
-                                if (controllerState.volume > 0f) {
+                                if (getPlatform() == Platform.Android) {
+                                    isVolumeTapped = !isVolumeTapped
+                                } else if (controllerState.volume > 0f) {
                                     sharedViewModel.onUIEvent(UIEvent.UpdateVolume(0f))
                                 } else {
                                     sharedViewModel.onUIEvent(
@@ -1144,8 +1158,8 @@ fun MiniPlayer(
                         // open for a beat instead: moving back in cancels this effect before the
                         // delay elapses, so the popup stays.
                         var isVolumePopupVisible by remember { mutableStateOf(false) }
-                        LaunchedEffect(isVolumeHovered, isPopupHovered, isVolumeSliding) {
-                            if (isVolumeHovered || isPopupHovered || isVolumeSliding) {
+                        LaunchedEffect(isVolumeHovered, isPopupHovered, isVolumeSliding, isVolumeTapped) {
+                            if (isVolumeHovered || isPopupHovered || isVolumeSliding || isVolumeTapped) {
                                 isVolumePopupVisible = true
                             } else {
                                 delay(400)

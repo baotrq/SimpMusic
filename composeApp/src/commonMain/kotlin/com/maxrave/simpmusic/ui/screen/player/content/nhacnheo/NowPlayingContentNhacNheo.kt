@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import kotlin.math.hypot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -187,8 +188,9 @@ fun NowPlayingContentNhacNheo(
             if (viewState == AppleMusicView.MAIN) panelView = null
         }
     }
+    val desktopShell = LocalDesktopShell.current
     val openPanel: (AppleMusicView, Float) -> Unit = { view, velocity ->
-        if (view == AppleMusicView.LYRICS && getPlatform() == Platform.Desktop) {
+        if (view == AppleMusicView.LYRICS && desktopShell) {
             // Fork: on Desktop, lyrics are a tab of the full-size player.
             actions.onShowFullscreenLyrics()
         } else {
@@ -388,7 +390,7 @@ fun NowPlayingContentNhacNheo(
         }
         // Not on Desktop, where Lyrics no longer opens in this panel.
         val shownPanel: AppleMusicView? =
-            panelView ?: AppleMusicView.LYRICS.takeIf { prewarmLyrics && getPlatform() != Platform.Desktop }
+            panelView ?: AppleMusicView.LYRICS.takeIf { prewarmLyrics && !LocalDesktopShell.current }
         shownPanel?.let { shown ->
             // The player dims as the panel covers it.
             Box(
@@ -463,7 +465,7 @@ fun NowPlayingContentNhacNheo(
         // both draw state.dismissIcon in their top bar.
         // MAIN only: Queue and Lyrics each have their own header, and a floating button over
         // those reads as belonging to the list rather than to the panel.
-        if (getPlatform() == Platform.Desktop) {
+        if (LocalDesktopShell.current) {
             if (viewState == AppleMusicView.MAIN) {
                 LiquidGlassIconButton(
                     backdrop = panelBackdrop,
@@ -520,7 +522,7 @@ fun NowPlayingContentNhacNheo(
                     .padding(
                         top =
                             with(localDensity) { WindowInsets.statusBars.union(WindowInsets.captionBar).getTop(localDensity).toDp() } +
-                                if (getPlatform() == Platform.Desktop) DISMISS_BUTTON_INSET else (GRABBER_HEIGHT - VERSION_SWITCH_HEIGHT) / 2,
+                                if (LocalDesktopShell.current) DISMISS_BUTTON_INSET else (GRABBER_HEIGHT - VERSION_SWITCH_HEIGHT) / 2,
                     ),
         ) {
             AppleMusicVersionSwitch(
@@ -624,7 +626,7 @@ private fun AppleMusicMainView(
                 // Always on: a song with no lyrics opens to "No lyrics for this song".
                 .appleMusicDirectionalDrag(
                     // A touch gesture: on Desktop a mouse drag would slide the lyrics panel in.
-                    enabled = getPlatform() != Platform.Desktop,
+                    enabled = !LocalDesktopShell.current,
                     up = true,
                     drag = panelDrag,
                     onStart = onPanelDragStart,
@@ -645,7 +647,7 @@ private fun AppleMusicMainView(
         // its own top-aligned frame.
         val topChrome =
             statusBarHeight +
-                (if (getPlatform() == Platform.Desktop) DISMISS_BUTTON_INSET + DISMISS_BUTTON_SIZE else GRABBER_HEIGHT) +
+                (if (LocalDesktopShell.current) DISMISS_BUTTON_INSET + DISMISS_BUTTON_SIZE else GRABBER_HEIGHT) +
                 topChromeExtra
         val artworkSpare = maxHeight - bottomContentHeightDp.dp - topChrome - artworkHeight
         val artworkTop = if (artworkSpare > 0.dp) topChrome + artworkSpare / 2 else 0.dp
@@ -720,7 +722,7 @@ private fun AppleMusicMainView(
         // white glyphs: blurred (TopBandBlur, inside each page so it moves with it) and darkened
         // (the wash below). Android only — Desktop has neither, and its dismiss button is glass.
         val topBand =
-            if (meshPage && getPlatform() == Platform.Android) statusBarHeight + TOP_BAND_STRIP else 0.dp
+            if (meshPage && !LocalDesktopShell.current) statusBarHeight + TOP_BAND_STRIP else 0.dp
 
         // Fork: the two-cover crossfade. While it runs it stands in for the pager's cover, and hands
         // back to it at the exact size and fade the pager's cover has.
@@ -920,7 +922,7 @@ private fun AppleMusicMainView(
                     topPadding = 2.dp,
                     showActionRow = false,
                     // The ⌃ under the transport hints at a swipe, which Desktop does not have.
-                    onOpenLyrics = { onSelectView(AppleMusicView.LYRICS) }.takeIf { getPlatform() != Platform.Desktop },
+                    onOpenLyrics = { onSelectView(AppleMusicView.LYRICS) }.takeIf { !LocalDesktopShell.current },
                 )
             }
             // Idle overlay — replaces the (now invisible) title row + cluster while a fullscreen
@@ -1277,7 +1279,7 @@ internal fun AppleMusicMainTitleRow(
         AppleMusicHeaderActions(
             state = state,
             actions = actions,
-            showMore = onOpenQueue == null || getPlatform() != Platform.Android,
+            showMore = onOpenQueue == null || LocalDesktopShell.current,
         )
     }
 }
@@ -1367,7 +1369,7 @@ private fun AppleMusicArtworkPage(
                         // Fork: takes over from the cover flying in from the mini player.
                         .graphicsLayer { alpha = MiniPlayerAnchor.coverHandoffAlpha() * DesktopPlayerMotion.coverAlpha() }
                         .then(
-                            if (getPlatform() == Platform.Desktop) {
+                            if (LocalDesktopShell.current) {
                                 Modifier.onGloballyPositioned { DesktopPlayerMotion.panelCover = it.boundsInWindow() }
                             } else {
                                 Modifier
@@ -1443,7 +1445,7 @@ private fun AppleMusicArtworkPage(
                     // them and put the fullscreen button under the status bar.
                     val topChrome =
                         with(localDensity) { WindowInsets.statusBars.union(WindowInsets.captionBar).getTop(localDensity).toDp() } +
-                            (if (getPlatform() == Platform.Desktop) DISMISS_BUTTON_INSET + DISMISS_BUTTON_SIZE else GRABBER_HEIGHT) +
+                            (if (LocalDesktopShell.current) DISMISS_BUTTON_INSET + DISMISS_BUTTON_SIZE else GRABBER_HEIGHT) +
                             topChromeExtra +
                             VIDEO_FRAME_TOP_GAP
                     BoxWithConstraints(

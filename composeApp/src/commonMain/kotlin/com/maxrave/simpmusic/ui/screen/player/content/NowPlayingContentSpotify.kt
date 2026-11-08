@@ -158,6 +158,7 @@ import com.maxrave.simpmusic.ui.icon.Subtitles
 import com.maxrave.simpmusic.ui.icon.SubtitlesOff
 import com.maxrave.simpmusic.ui.icon.ThumbsUpDown
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AudioOutputSheetHost
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.blackMoreOverlay
 import com.maxrave.simpmusic.ui.theme.overlay
 import com.maxrave.simpmusic.ui.theme.typo
@@ -1037,7 +1038,7 @@ fun NowPlayingContentSpotify(
                                         state = state,
                                         actions = actions,
                                     )
-                                    if (getPlatform() == Platform.Android) {
+                                    if (!LocalDesktopShell.current) {
                                         SpotifyPlaybackControls(
                                             state = state,
                                             actions = actions,

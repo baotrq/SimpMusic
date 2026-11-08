@@ -33,11 +33,10 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.extension.greyScale
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.icon.ArrowForwardIos
 import com.maxrave.simpmusic.ui.icon.SimpIcons
+import com.maxrave.simpmusic.ui.theme.LocalDesktopShell
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.typo
 
@@ -260,7 +259,7 @@ fun SettingGroup(
 // own colour — so there the card lifts to white instead.
 @Composable
 private fun settingGroupColor(): Color =
-    if (getPlatform() == Platform.Desktop && !LocalIsDarkTheme.current) {
+    if (LocalDesktopShell.current && !LocalIsDarkTheme.current) {
         MaterialTheme.colorScheme.surfaceContainerLowest
     } else {
         MaterialTheme.colorScheme.surfaceContainer
