@@ -775,12 +775,22 @@ val mpvSetupAll by tasks.registering {
     val outputRoot = rootDir.resolve("mpv-natives")
     // Without declared inputs Gradle treats an existing output directory as up to date, so bumping
     // the tag or the mpv version would silently keep shipping the previous natives.
+    // `-PmpvSlices=macos-arm64,macos-x64` stages only those: a Mac build needs no other slice, and
+    // one republished upstream (a checksum mismatch) would otherwise fail it.
+    val slices =
+        (findProperty("mpvSlices") as String?)
+            ?.split(',')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.onEach { require(it in mpvSlices) { "Unknown mpv slice '$it'. Known: $mpvSlices" } }
+            ?: mpvSlices
     inputs.property("mpvNativesTag", mpvNativesTag)
     inputs.property("mpvNativesChecksums", mpvNativesChecksums)
+    inputs.property("mpvSlices", slices)
     outputs.dir(outputRoot)
     doLast {
         val cache = mpvCacheDir.get().asFile
-        mpvSlices.forEach { slice ->
+        slices.forEach { slice ->
             // Cache key includes the tag, not just the version: re-publishing corrected natives
             // under a new tag at the same mpv version must not reuse the stale download.
             val archive = cache.resolve("mpv-natives-$slice-$mpvNativesTag.tar.gz")
@@ -824,7 +834,7 @@ val mpvSetupAll by tasks.registering {
                 logger.lifecycle("[mpv-multi] $slice: stripped ${appleDouble.size} AppleDouble sidecars")
             }
         }
-        logger.lifecycle("[mpv-multi] Unpacked ${mpvSlices.size} verified native slices into mpv-natives/")
+        logger.lifecycle("[mpv-multi] Unpacked ${slices.size} verified native slices into mpv-natives/")
     }
 }
 

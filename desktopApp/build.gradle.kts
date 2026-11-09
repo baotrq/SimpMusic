@@ -241,7 +241,10 @@ compose.desktop {
             // ProGuard 7.7.0 (Compose's default) can't read Java 25 bytecode (class v69) now shipped
             // by PipePipeExtractor, which broke :desktopApp:proguardReleaseJars. 7.8.x supports Java 25.
             version.set("7.8.1")
-            optimize.set(true)
+            // Off: the optimizer leaves a `swap` on a one-value stack in a coroutine body in core/data
+            // (Kotlin 2.4.21), and the preverifier then fails the release build. 7.10.0 does the same.
+            // Shrinking and obfuscation still run; the app is only somewhat larger.
+            optimize.set(false)
             obfuscate.set(true)
             configurationFiles.from(rootDir.resolve("composeApp/proguard-desktop-rules.pro"))
         }
