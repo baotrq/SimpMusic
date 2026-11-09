@@ -1,8 +1,8 @@
 [versions]
 # App version
 # Fork: first three numbers = upstream release merged in; fourth = my rebuild on top of it
-version-name = "2.5.0.10"
-version-code = "69"
+version-name = "2.5.0.11"
+version-code = "70"
 
 android = "9.5.0"
 kotlin = "2.4.21"
