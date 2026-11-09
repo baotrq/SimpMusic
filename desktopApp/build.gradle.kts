@@ -126,6 +126,15 @@ tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorCon
     dependsOn(tasks.named("proguardReleaseJars"))
     val proguardJarsDir = layout.buildDirectory.dir("compose/tmp/main-release/proguard")
     doLast {
+        // The plugin imports /stdlib/jdk/21/openjdk.conf from the toolchain, and jdk.java.net stopped
+        // updating that build at 21.0.2, whose C1 on AArch64 aborts the app ("Field too big for insn" in
+        // LIR_Assembler::osr_entry; JDK-8310844, fixed in 21.0.3, and JDK-8335662, fixed in 21.0.8) when
+        // it OSR-compiles a large Compose method: Apple Silicon Macs crashed minutes in, at random.
+        // Conveyor accepts one JDK import only, so it is swapped here. `conveyor jdk-table` lists builds.
+        val config = destination.get().asFile
+        val generatedJdk = """include required("/stdlib/jdk/21/openjdk.conf")"""
+        check(generatedJdk in config.readText()) { "writeConveyorConfig no longer imports $generatedJdk; re-check the bundled JDK" }
+        config.writeText(config.readText().replace(generatedJdk, """include required("/stdlib/jdk/21.0.12/microsoft.conf")"""))
         destination.get().asFile.appendText(
             """
             |app.fsname = simpmusic
