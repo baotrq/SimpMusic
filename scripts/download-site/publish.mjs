@@ -12,7 +12,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -42,7 +42,8 @@ if (!flags.version || positionals.length === 0) {
 const uploads = positionals.map((arg) => {
   const at = arg.indexOf("=");
   const platform = arg.slice(0, at);
-  const path = arg.slice(at + 1);
+  // Absolute, because wrangler runs from this script's folder: a path relative to where you are would miss.
+  const path = resolve(arg.slice(at + 1));
   if (!PLATFORMS.includes(platform)) fail(`Unknown platform "${platform}". Use one of: ${PLATFORMS.join(", ")}`);
   if (!statSync(path, { throwIfNoEntry: false })?.isFile()) fail(`Not a file: ${path}`);
   if (!/^[\w.-]+$/.test(basename(path))) fail(`File name must be plain letters, digits, dots and dashes: ${path}`);
