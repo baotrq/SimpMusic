@@ -1,17 +1,17 @@
 <!-- Fork: download section for this fork. Everything below the line is the original README. -->
 # Nhạc Nhẽo — tải về / download
 
-### 👉 [**Bấm vào đây để tải về**](https://github.com/baotrq/simpmusic-bao-showcase/releases/latest) 👈
+### 👉 [**Bấm vào đây để tải về**](https://nhacnheo.pages.dev) 👈
 
 **Cách cài (trên điện thoại Android):**
 
-1. Mở trang này **trên điện thoại** và bấm vào link ở trên để mở bản phát hành mới nhất.
-2. Kéo xuống mục **Assets** (bấm vào nếu đang đóng), tải file có đuôi `arm64-v8a.apk` (khoảng 30 MB), rồi bấm vào file đó (trong thông báo, hoặc mở ứng dụng **Tệp / Files → Tải xuống**).
+1. Mở trang này **trên điện thoại** và bấm vào link ở trên để mở trang tải về.
+2. Bấm **Android** để tải file `.apk` (khoảng 30 MB), rồi bấm vào file đó (trong thông báo, hoặc mở ứng dụng **Tệp / Files → Tải xuống**).
 3. Nếu điện thoại hỏi có cho phép cài ứng dụng từ nguồn này không, chọn **Cài đặt** → bật **Cho phép từ nguồn này**, rồi quay lại.
 4. Bấm **Cài đặt**. Nếu Google Play Protect cảnh báo, chọn **Thêm chi tiết → Vẫn cài đặt**.
 5. Mở ứng dụng **Nhạc Nhẽo**. Khi có bản mới, ứng dụng sẽ tự hỏi để cập nhật lúc mở lên.
 
-**How to install (English):** open this page on an Android phone, tap the link above to open the latest release, download the `arm64-v8a.apk` file under **Assets** and open it, allow installing from this source if asked, and tap Install (choose "Install anyway" if Play Protect warns). The app appears as **Nhạc Nhẽo** and offers new versions by itself when opened.
+**How to install (English):** open this page on an Android phone, tap the link above to open the download page, tap **Android** and open the downloaded `.apk`, allow installing from this source if asked, and tap Install (choose "Install anyway" if Play Protect warns). The app appears as **Nhạc Nhẽo** and offers new versions by itself when opened.
 
 <sub>A personal build of [SimpMusic](https://github.com/maxrave-dev/SimpMusic) by baotrq. Android only. It installs next to the official SimpMusic app and keeps its own data. Older versions: [Releases](https://github.com/baotrq/simpmusic-bao-showcase/releases).</sub>
 

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nhạc Nhẽo</title>
+<meta name="description" content="A music client that feels handmade. Android, Windows and Mac. Trình nghe nhạc như được làm bằng tay, cho Android, Windows và Mac.">
+<meta property="og:title" content="Nhạc Nhẽo">
+<meta property="og:description" content="A music client that feels handmade. Android, Windows and Mac.">
+<meta property="og:image" content="https://nhacnheo.pages.dev/img/banner.png">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23fff'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23000'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap&subset=vietnamese">
+<script>
+  // Before first paint, so the wrong language never flashes.
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("lang"); } catch (e) {}
+    var lang = saved || (/^vi/i.test(navigator.language || "") ? "vi" : "en");
+    document.documentElement.lang = lang;
+  })();
+</script>
+<style>
+  :root {
+    --ink: #f4f3ef;
+    --paper: #0a0a0a;
+    --dim: rgba(244, 243, 239, .62);
+    --faint: rgba(244, 243, 239, .34);
+    --rule: rgba(244, 243, 239, .2);
+    --display: "Bricolage Grotesque", "Be Vietnam Pro", sans-serif;
+    --body: "Be Vietnam Pro", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --gutter: clamp(16px, 4vw, 56px);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { background: var(--paper); color: var(--ink); -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    background: var(--paper);
+    font: 400 17px/1.65 var(--body);
+    overflow-x: clip;
+    position: relative;
+  }
+  /* Sleeve-paper grain. */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 5; pointer-events: none; opacity: .07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  html[lang="vi"] [data-l="en"], html[lang="en"] [data-l="vi"] { display: none !important; }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .bar {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: 18px var(--gutter);
+    font: 500 13px/1 var(--mono); letter-spacing: .04em;
+    position: relative; z-index: 3;
+  }
+  .lang { display: flex; border: 1px solid var(--rule); border-radius: 99px; }
+  .lang button {
+    all: unset; cursor: pointer; padding: 9px 14px; min-width: 20px; text-align: center; border-radius: 99px;
+    color: var(--dim);
+  }
+  html[lang="vi"] .lang [data-set="vi"], html[lang="en"] .lang [data-set="en"] { background: var(--ink); color: var(--paper); }
+
+  /* Hero */
+  .hero { position: relative; padding: clamp(40px, 9vh, 110px) var(--gutter) clamp(56px, 10vh, 120px); }
+  .wordmark {
+    font: 800 clamp(76px, 19.5vw, 320px)/1.08 var(--display);
+    letter-spacing: -.045em; position: relative; z-index: 2;
+    mix-blend-mode: difference;
+  }
+  .wordmark span { display: block; }
+  .wordmark span + span { margin-left: .42em; }
+  .tagline {
+    font: 500 clamp(24px, 4.2vw, 52px)/1.2 var(--display); letter-spacing: -.02em;
+    margin-top: clamp(28px, 5vh, 56px); max-width: 20em; position: relative; z-index: 2;
+  }
+  /* The app's word-by-word lyric, once. */
+  .tagline i {
+    font-style: normal; color: var(--faint);
+    animation: sing .7s ease-out forwards; animation-delay: calc(.9s + var(--i) * .34s);
+  }
+  @keyframes sing {
+    40% { color: #fff; text-shadow: 0 0 22px rgba(255, 255, 255, .85); }
+    100% { color: var(--ink); text-shadow: none; }
+  }
+  .disc {
+    position: absolute; z-index: 1;
+    width: clamp(380px, 62vw, 980px); aspect-ratio: 1;
+    top: clamp(-60px, -3vw, -20px); right: calc(clamp(380px, 62vw, 980px) * -.34);
+    animation: spin 14s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; margin-top: 36px; position: relative; z-index: 2; }
+  .cta {
+    display: inline-block; background: var(--ink); color: var(--paper); text-decoration: none;
+    font: 500 15px/1 var(--mono); padding: 18px 26px; border-radius: 99px; transition: transform .2s;
+  }
+  .cta:hover { transform: translateY(-2px); }
+  .note { color: var(--dim); font-size: 14px; }
+
+  section { padding: clamp(48px, 8vh, 96px) var(--gutter); position: relative; z-index: 2; background: var(--paper); }
+  .side {
+    display: flex; justify-content: space-between; gap: 16px; align-items: baseline;
+    border-bottom: 1px solid var(--ink); padding-bottom: 14px;
+  }
+  .side h2 { font: 500 clamp(28px, 4vw, 44px)/1.1 var(--display); letter-spacing: -.02em; }
+  .side small { font: 400 13px/1 var(--mono); color: var(--dim); white-space: nowrap; }
+
+  /* Track list */
+  .tracks { list-style: none; padding: 0; }
+  .tracks li { border-bottom: 1px solid var(--rule); }
+  .track {
+    display: grid; grid-template-columns: 3.2em 1fr auto auto; gap: 4px 20px; align-items: center;
+    padding: clamp(18px, 3vh, 28px) 10px; text-decoration: none; min-height: 64px;
+    transition: background .15s, color .15s, padding .2s;
+  }
+  .track:hover, .track:focus-visible { background: var(--ink); color: var(--paper); padding-left: 22px; }
+  .track:hover .no, .track:hover .os, .track:hover .len,
+  .track:focus-visible .no, .track:focus-visible .os, .track:focus-visible .len { color: inherit; }
+  .no, .len, .os { font: 400 14px/1.3 var(--mono); color: var(--dim); }
+  .name { font: 500 clamp(22px, 3.2vw, 36px)/1.15 var(--display); letter-spacing: -.015em; }
+  .os { grid-column: 2; grid-row: 2; }
+  .len { grid-column: 3; grid-row: 1 / span 2; text-align: right; white-space: nowrap; }
+  .arrow { grid-column: 4; grid-row: 1 / span 2; font: 500 24px/1 var(--mono); }
+  .no { grid-row: 1 / span 2; }
+  .here {
+    display: none; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+    border: 1px solid currentColor; border-radius: 99px; padding: 4px 8px; margin-left: 10px; vertical-align: middle;
+  }
+  .is-here .here { display: inline-block; }
+  .under { margin-top: 18px; color: var(--dim); font-size: 14px; }
+  .notice {
+    display: none; margin-top: 24px; padding: 14px 18px; border: 1px solid var(--ink); font-size: 15px;
+  }
+
+  /* Screens */
+  .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 3vw, 44px); margin-top: 36px; }
+  .shots figure:nth-child(2) { margin-top: clamp(24px, 7vw, 96px); }
+  .shots figure:nth-child(3) { margin-top: clamp(12px, 3.5vw, 48px); }
+  .shots img {
+    width: 100%; height: auto; display: block; border-radius: clamp(12px, 2.4vw, 30px);
+    filter: grayscale(1) contrast(1.05); transition: filter .5s;
+    border: 1px solid var(--rule);
+  }
+  .shots figure:hover img, .shots figure:focus-within img { filter: none; }
+  figcaption { margin-top: 12px; font-size: 14px; line-height: 1.4; color: var(--dim); }
+
+  /* Liner notes */
+  details { border-bottom: 1px solid var(--rule); }
+  summary {
+    cursor: pointer; list-style: none; padding: 20px 10px; min-height: 44px;
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+    font: 500 clamp(20px, 2.6vw, 28px)/1.2 var(--display);
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font: 400 24px/1 var(--mono); }
+  details[open] summary::after { content: "−"; }
+  .notes { padding: 0 10px 28px; max-width: 46em; }
+  .notes ol { padding-left: 1.4em; }
+  .notes li { margin-bottom: 8px; }
+  .notes li::marker { font-family: var(--mono); color: var(--dim); }
+  .notes p { margin-top: 14px; color: var(--dim); font-size: 15px; }
+  code { font: 400 .9em var(--mono); overflow-wrap: anywhere; }
+
+  footer {
+    padding: clamp(40px, 7vh, 72px) var(--gutter); border-top: 1px solid var(--ink);
+    font-size: 14px; line-height: 1.6; color: var(--dim); position: relative; z-index: 2; background: var(--paper);
+  }
+  footer > div { max-width: 60em; }
+  footer p + p { margin-top: 12px; }
+  footer strong { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .wordmark span + span { margin-left: .18em; }
+    .disc { opacity: .55; right: -48vw; width: 112vw; top: -6vw; }
+    .track { grid-template-columns: 2.2em 1fr auto; gap: 2px 10px; padding-left: 4px; padding-right: 4px; }
+    .arrow { display: none; }
+    .side small { display: none; }
+    .shots { grid-template-columns: repeat(3, 62vw); overflow-x: auto; scroll-snap-type: x mandatory; margin-right: calc(var(--gutter) * -1); padding-right: var(--gutter); padding-bottom: 8px; }
+    .shots figure { scroll-snap-align: start; margin-top: 0 !important; }
+    /* A phone has no hover, and the colour is the point of these. */
+    .shots img { filter: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .disc { animation: none; }
+    .tagline i { animation: none; color: var(--ink); }
+    .cta, .track { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <span><span data-l="vi">Mặt A</span><span data-l="en">Side A</span></span>
+  <div class="lang" role="group" aria-label="Language / Ngôn ngữ">
+    <button type="button" data-set="vi" lang="vi">VI</button>
+    <button type="button" data-set="en" lang="en">EN</button>
+  </div>
+</header>
+
+<main>
+<div class="hero">
+  <svg class="disc" viewBox="0 0 1000 1000" aria-hidden="true">
+    <defs>
+      <radialGradient id="grooves" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="#1a1a1a"/><stop offset="1" stop-color="#121212"/>
+      </radialGradient>
+      <path id="ring" d="M500 500m-118 0a118 118 0 1 1 236 0a118 118 0 1 1-236 0"/>
+    </defs>
+    <circle cx="500" cy="500" r="498" fill="url(#grooves)"/>
+    <g fill="none" stroke="#fff" stroke-opacity=".07">
+      <circle cx="500" cy="500" r="470"/><circle cx="500" cy="500" r="446"/><circle cx="500" cy="500" r="422"/>
+      <circle cx="500" cy="500" r="398"/><circle cx="500" cy="500" r="374"/><circle cx="500" cy="500" r="350"/>
+      <circle cx="500" cy="500" r="326"/><circle cx="500" cy="500" r="302"/><circle cx="500" cy="500" r="278"/>
+      <circle cx="500" cy="500" r="254"/><circle cx="500" cy="500" r="230"/>
+    </g>
+    <path d="M500 500 L860 40 A498 498 0 0 1 990 300 Z" fill="#fff" opacity=".05"/>
+    <path d="M500 500 L140 960 A498 498 0 0 1 10 700 Z" fill="#fff" opacity=".05"/>
+    <circle cx="500" cy="500" r="160" fill="#f4f3ef"/>
+    <text font-family="IBM Plex Mono, monospace" font-size="24" fill="#0a0a0a">
+      <textPath href="#ring" textLength="736">NHẠC NHẼO · MẶT A · NHẠC NHẼO · SIDE A · </textPath>
+    </text>
+    <circle cx="500" cy="500" r="14" fill="#0a0a0a"/>
+  </svg>
+
+  <h1 class="wordmark"><span>Nhạc</span><span>Nhẽo</span></h1>
+
+  <p class="tagline" data-l="en"><i style="--i:0">A</i> <i style="--i:1">music</i> <i style="--i:2">client</i> <i style="--i:3">that</i> <i style="--i:4">feels</i> <i style="--i:5">handmade.</i></p>
+  <p class="tagline" data-l="vi"><i style="--i:0">Trình</i> <i style="--i:1">nghe</i> <i style="--i:2">nhạc</i> <i style="--i:3">như</i> <i style="--i:4">được</i> <i style="--i:5">làm</i> <i style="--i:6">bằng</i> <i style="--i:7">tay.</i></p>
+
+  <div class="hero-actions">
+    <a class="cta" href="#tai-ve"><span data-l="vi">Tải về ↓</span><span data-l="en">Download ↓</span></a>
+    <span class="note">
+      <span data-l="vi">Miễn phí. Không quảng cáo. Nhạc vẫn phát khi tắt màn hình.</span>
+      <span data-l="en">Free. No ads. Music keeps playing with the screen off.</span>
+    </span>
+  </div>
+</div>
+
+<section id="tai-ve">
+  <div class="side">
+    <h2><span data-l="vi">Tải về</span><span data-l="en">Download</span></h2>
+    <small id="version"></small>
+  </div>
+  <ol class="tracks">
+    <li><a class="track" href="/download/android" data-platform="android">
+      <span class="no">01</span>
+      <span class="name">Android<span class="here"><span data-l="vi">máy này</span><span data-l="en">this device</span></span></span>
+      <span class="os">Android 8+</span><span class="len" data-size="android"></span><span class="arrow" aria-hidden="true">↓</span>
+    </a></li>
+    <li><a class="track" href="/download/windows" data-platform="windows">
+      <span class="no">02</span>
+      <span class="name">Windows<span class="here"><span data-l="vi">máy này</span><span data-l="en">this device</span></span></span>
+      <span class="os">.zip · x64</span><span class="len" data-size="windows"></span><span class="arrow" aria-hidden="true">↓</span>
+    </a></li>
+    <li><a class="track" href="/download/mac-arm" data-platform="mac">
+      <span class="no">03</span>
+      <span class="name">Mac · Apple Silicon<span class="here"><span data-l="vi">máy này?</span><span data-l="en">this device?</span></span></span>
+      <span class="os">M1+ · macOS 15+</span><span class="len" data-size="mac-arm"></span><span class="arrow" aria-hidden="true">↓</span>
+    </a></li>
+    <li><a class="track" href="/download/mac-intel" data-platform="mac">
+      <span class="no">04</span>
+      <span class="name">Mac · Intel<span class="here"><span data-l="vi">máy này?</span><span data-l="en">this device?</span></span></span>
+      <span class="os">Intel · macOS 15+</span><span class="len" data-size="mac-intel"></span><span class="arrow" aria-hidden="true">↓</span>
+    </a></li>
+  </ol>
+  <p class="under">
+    <span data-l="vi">Android không cài được? Thử <a href="/download/android-universal">bản universal</a>, chạy trên mọi máy nhưng nặng hơn.</span>
+    <span data-l="en">Android won't install? Try the <a href="/download/android-universal">universal build</a>: it runs on any device but is larger.</span>
+  </p>
+  <p class="notice" id="unsupported">
+    <span data-l="vi">Chưa có bản cho iPhone, iPad hoặc Linux. Mở trang này trên máy Android, Windows hoặc Mac nhé.</span>
+    <span data-l="en">There is no iPhone, iPad or Linux version. Open this page on an Android phone, a Windows PC or a Mac.</span>
+  </p>
+</section>
+
+<section>
+  <div class="side">
+    <h2><span data-l="vi">Bên trong</span><span data-l="en">Inside</span></h2>
+  </div>
+  <div class="shots">
+    <figure tabindex="0">
+      <img src="/img/player-apple.jpg" width="540" height="1114" loading="lazy" alt="Player with full-width album art dissolving into the page, the current lyric line above the progress bar">
+      <figcaption><span data-l="vi">Ảnh bìa tan vào trang</span><span data-l="en">Art that melts into the page</span></figcaption>
+    </figure>
+    <figure tabindex="0">
+      <img src="/img/crossfade.jpg" width="540" height="1114" loading="lazy" alt="A crossfade between two songs: both covers side by side with glowing particles flowing between them">
+      <figcaption><span data-l="vi">Nhìn thấy bài này chuyển sang bài kia</span><span data-l="en">Watch one song become the next</span></figcaption>
+    </figure>
+    <figure tabindex="0">
+      <img src="/img/lyrics-synced.jpg" width="540" height="1114" loading="lazy" alt="Vietnamese lyrics over a blurred album cover, the current line bright and the others out of focus">
+      <figcaption><span data-l="vi">Lời sáng theo từng chữ</span><span data-l="en">Lyrics that light up word by word</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="side">
+    <h2><span data-l="vi">Cách cài</span><span data-l="en">How to install</span></h2>
+  </div>
+
+  <details data-platform="android">
+    <summary>Android</summary>
+    <div class="notes" data-l="vi">
+      <ol>
+        <li>Mở trang này <strong>trên điện thoại Android</strong> và bấm <a href="/download/android">tải về</a>.</li>
+        <li>Khi tải xong, mở file <code>.apk</code> (trong thông báo, hoặc ứng dụng <strong>Tệp / Files → Tải xuống</strong>).</li>
+        <li>Nếu điện thoại hỏi, chọn <strong>Cài đặt</strong> → bật <strong>Cho phép từ nguồn này</strong>, rồi quay lại.</li>
+        <li>Bấm <strong>Cài đặt</strong>. Nếu Google Play Protect cảnh báo, chọn <strong>Thêm chi tiết → Vẫn cài đặt</strong>.</li>
+        <li>Mở ứng dụng <strong>Nhạc Nhẽo</strong> là nghe được ngay, không cần tài khoản.</li>
+      </ol>
+      <p>Ứng dụng cài cạnh bản SimpMusic chính thức, dữ liệu để riêng. Khi có bản mới, ứng dụng sẽ tự hỏi để cập nhật.</p>
+    </div>
+    <div class="notes" data-l="en">
+      <ol>
+        <li>Open this page <strong>on your Android phone</strong> and tap <a href="/download/android">Download</a>.</li>
+        <li>Open the downloaded <code>.apk</code>, from the notification or from <strong>Files → Downloads</strong>.</li>
+        <li>If asked, allow installing from this source, then go back.</li>
+        <li>Tap <strong>Install</strong>. If Google Play Protect warns you, choose <strong>More details → Install anyway</strong>. It warns because this build isn't from the Play Store.</li>
+        <li>Open <strong>Nhạc Nhẽo</strong>. No account needed to start listening.</li>
+      </ol>
+      <p>It installs next to the official SimpMusic app and keeps its own data. The app offers new versions by itself.</p>
+    </div>
+  </details>
+
+  <details data-platform="windows">
+    <summary>Windows</summary>
+    <div class="notes" data-l="vi">
+      <ol>
+        <li>Tải <a href="/download/windows"><code>SimpMusic-Windows-installer.zip</code></a> về.</li>
+        <li>Trước khi mở, chuột phải vào file zip → <strong>Properties</strong>, tích ô <strong>Unblock</strong> ở dưới cùng rồi bấm <strong>OK</strong>. Bỏ qua bước này thì Smart App Control sẽ chặn trình cài đặt. Không thấy ô <strong>Unblock</strong> thì cứ làm tiếp.</li>
+        <li>Chuột phải vào file zip → <strong>Extract All</strong> → <strong>Extract</strong>.</li>
+        <li>Trong thư mục vừa giải nén, bấm đúp vào <strong>install.bat</strong> rồi chọn <strong>Yes</strong>. Ứng dụng sẽ được cài và tự mở, sau này tìm trong Start Menu với tên <strong>SimpMusic</strong>.</li>
+      </ol>
+      <p>Nếu Windows vẫn chặn <code>install.bat</code>, cài thủ công trong cùng thư mục: bấm đúp <strong>simpmusic.crt</strong> → <strong>Install Certificate</strong> → <strong>Local Machine</strong> → <strong>Next</strong> → <strong>Place all certificates in the following store</strong> → <strong>Browse</strong> → <strong>Trusted People</strong> → <strong>OK</strong> → <strong>Next</strong> → <strong>Finish</strong>, rồi bấm đúp file <strong>.msix</strong> → <strong>Install</strong>.</p>
+      <p>Ứng dụng được ký bằng chứng chỉ riêng chứ không phải chứng chỉ trả phí, nên máy cần được báo là tin chứng chỉ này một lần.</p>
+    </div>
+    <div class="notes" data-l="en">
+      <ol>
+        <li>Download <a href="/download/windows"><code>SimpMusic-Windows-installer.zip</code></a>.</li>
+        <li>Before opening it, right-click the zip → <strong>Properties</strong>, tick <strong>Unblock</strong> at the bottom, then <strong>OK</strong>. Skip this and Smart App Control blocks the installer. No <strong>Unblock</strong> box means you can just go on.</li>
+        <li>Right-click the zip → <strong>Extract All</strong> → <strong>Extract</strong>.</li>
+        <li>In the extracted folder, double-click <strong>install.bat</strong> and click <strong>Yes</strong>. It installs the app and opens it. You'll find it in the Start Menu as <strong>SimpMusic</strong>.</li>
+      </ol>
+      <p>If Windows still blocks <code>install.bat</code>, install by hand from the same folder: double-click <strong>simpmusic.crt</strong> → <strong>Install Certificate</strong> → <strong>Local Machine</strong> → <strong>Next</strong> → <strong>Place all certificates in the following store</strong> → <strong>Browse</strong> → <strong>Trusted People</strong> → <strong>OK</strong> → <strong>Next</strong> → <strong>Finish</strong>, then double-click the <strong>.msix</strong> file → <strong>Install</strong>.</p>
+      <p>The app is signed with its own certificate rather than a paid one, so this PC has to be told to trust it once.</p>
+    </div>
+  </details>
+
+  <details data-platform="mac">
+    <summary>Mac</summary>
+    <div class="notes" data-l="vi">
+      <ol>
+        <li>Không chắc máy bạn là loại nào? Bấm menu Apple → <strong>About This Mac</strong>: thấy <strong>Chip: Apple M…</strong> là <a href="/download/mac-arm">Apple Silicon</a>, thấy <strong>Processor: Intel</strong> là <a href="/download/mac-intel">Intel</a>.</li>
+        <li>Mở file <code>.dmg</code> vừa tải rồi kéo <strong>SimpMusic</strong> vào <strong>Applications</strong>.</li>
+        <li>Mở SimpMusic trong Applications. Nếu máy hỏi có mở ứng dụng tải từ internet không, bấm <strong>Open</strong>.</li>
+      </ol>
+      <p>Cần macOS 15 Sequoia trở lên. Trên Mac, ứng dụng có tên <strong>SimpMusic</strong>. Nếu máy đã có bản SimpMusic chính thức, bản này sẽ thay thế nó và giữ nguyên thư viện cùng cài đặt.</p>
+    </div>
+    <div class="notes" data-l="en">
+      <ol>
+        <li>Not sure which Mac you have? Apple menu → <strong>About This Mac</strong>: <strong>Chip: Apple M…</strong> is <a href="/download/mac-arm">Apple Silicon</a>, <strong>Processor: Intel</strong> is <a href="/download/mac-intel">Intel</a>.</li>
+        <li>Open the downloaded <code>.dmg</code> and drag <strong>SimpMusic</strong> onto <strong>Applications</strong>.</li>
+        <li>Open SimpMusic from Applications. If your Mac asks whether to open an app downloaded from the internet, click <strong>Open</strong>.</li>
+      </ol>
+      <p>Needs macOS 15 Sequoia or later. On a Mac it's called <strong>SimpMusic</strong>. If you already have the official SimpMusic desktop app, this replaces it and keeps its library and settings.</p>
+    </div>
+  </details>
+</section>
+</main>
+
+<footer>
+  <div data-l="vi">
+    <p><strong>Nhạc Nhẽo</strong> là bản fork cá nhân, không chính thức, của <a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a> (maxrave-dev và cộng sự), không liên kết với và không được YouTube, Google, Apple, Spotify hay dự án SimpMusic bảo trợ. Các nhãn hiệu thuộc về chủ sở hữu của chúng.</p>
+    <p>Dự án không lưu hay đăng tải âm thanh, video. Nhạc được phát từ server của YouTube và thuộc về chủ sở hữu bản quyền. Phần mềm được cung cấp "NGUYÊN TRẠNG", không có bảo hành. Dùng ứng dụng bên thứ ba có thể trái với điều khoản của các nền tảng mà app kết nối đến; bạn tự chịu trách nhiệm tuân thủ các điều khoản đó và luật bản quyền nơi bạn sống. Hãy cân nhắc đăng ký YouTube Premium hoặc mua nhạc để ủng hộ nghệ sĩ.</p>
+    <p>GNU GPL-3.0. Mã nguồn: <a href="https://github.com/baotrq/project-2b">app</a>, <a href="https://github.com/baotrq/core">core</a>. Bản cũ và liên hệ: <a href="https://github.com/baotrq/simpmusic-bao-showcase/releases">releases</a>, <a href="https://github.com/baotrq/simpmusic-bao-showcase/issues">issues</a>.</p>
+  </div>
+  <div data-l="en">
+    <p><strong>Nhạc Nhẽo</strong> is an unofficial, personal fork of <a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a> by maxrave-dev and contributors. It is not affiliated with or endorsed by YouTube, Google, Apple, Spotify or the SimpMusic project. Trademarks belong to their owners.</p>
+    <p>This project does not host or upload audio or video. Music plays from YouTube's servers and belongs to its copyright owners. The software is provided "AS IS", without warranty of any kind. Using a third-party client may go against the terms of the platforms it connects to; you are responsible for following those terms and the copyright law where you live. Please consider YouTube Premium or buying music to support the artists you listen to.</p>
+    <p>GNU GPL-3.0. Source: <a href="https://github.com/baotrq/project-2b">app</a>, <a href="https://github.com/baotrq/core">core</a>. Older versions and contact: <a href="https://github.com/baotrq/simpmusic-bao-showcase/releases">releases</a>, <a href="https://github.com/baotrq/simpmusic-bao-showcase/issues">issues</a>.</p>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll("[data-set]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      document.documentElement.lang = button.dataset.set;
+      try { localStorage.setItem("lang", button.dataset.set); } catch (e) {}
+    });
+  });
+
+  // Point at this device's download. iPadOS claims to be a Mac, so it is told apart by its touch screen.
+  var ua = navigator.userAgent;
+  var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var device = /Android/.test(ua) ? "android" : ios ? null : /Windows/.test(ua) ? "windows" : /Macintosh/.test(ua) ? "mac" : null;
+  if (device) {
+    document.querySelectorAll('.track[data-platform="' + device + '"]').forEach(function (track) { track.classList.add("is-here"); });
+    document.querySelector('details[data-platform="' + device + '"]').open = true;
+  } else {
+    document.getElementById("unsupported").style.display = "block";
+  }
+
+  // Sizes and version are extras: every button works without them.
+  fetch("/latest.json").then(function (r) { return r.ok ? r.json() : null; }).then(function (manifest) {
+    if (!manifest) return;
+    document.querySelectorAll("[data-size]").forEach(function (cell) {
+      var file = manifest.files[cell.dataset.size];
+      if (file) cell.innerHTML = "v" + file.version + "<br>" + Math.round(file.size / 1048576) + " MB";
+    });
+  }).catch(function () {});
+</script>
+</body>
+</html>
