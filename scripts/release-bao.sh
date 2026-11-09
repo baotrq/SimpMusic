@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Releases go to the showcase repo, where people download the app. Source stays public in baotrq/SimpMusic.
+# Releases go to the showcase repo, where people download the app. The source repo baotrq/SimpMusic is private.
 REPO=baotrq/simpmusic-bao-showcase
 commit_time=$(git log -1 --format=%ct)
 summary="${1:?Usage: scripts/release-bao.sh \"what changed\"}"
@@ -58,12 +58,5 @@ commit-time: $commit_time
 Phones already on a bao- build offer this update on their next launch. To install by hand, most phones want \`arm64-v8a\`; \`universal\` works on any device but is larger.
 
 Signed with the shared bao key (\`BAO_KEYSTORE\` in local.properties). A phone holding a build signed with a different key cannot update: back up in Settings, uninstall, install, then restore."
-
-# ponytail: builds before 2.5.0.5 look for updates in the source repo. Drop this once no phone runs one.
-gh release create "$tag" "$staging"/*.apk \
-  -R baotrq/SimpMusic \
-  --target "$(git rev-parse HEAD)" \
-  --title "SimpMusic (Bao) $day.$n — $summary" \
-  --notes "Moved: new releases live at https://github.com/$REPO/releases"
 
 echo "Published $tag"
