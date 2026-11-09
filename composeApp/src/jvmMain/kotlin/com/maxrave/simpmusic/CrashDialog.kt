@@ -1,5 +1,6 @@
 package com.maxrave.simpmusic
 
+import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.utils.VersionManager
 import io.sentry.Sentry
 import java.awt.BorderLayout
@@ -26,6 +27,14 @@ object CrashDialog {
 
     fun install() {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            // Into error.log as well: the dialog was the only place a crash showed, so one the user did
+            // not copy left nothing behind. Logged first, because the file writer runs on its own thread
+            // and the dialog's wait gives it time to reach the disk before exitProcess.
+            try {
+                Logger.e("Crash", "Uncaught exception in thread ${thread.name}", throwable)
+            } catch (_: Throwable) {
+                // File logging may not be set up yet this early in startup.
+            }
             try {
                 // Report to Sentry if available
                 if (BuildKonfig.sentryDsn.isNotEmpty()) {

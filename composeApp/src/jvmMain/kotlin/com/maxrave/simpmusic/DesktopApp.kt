@@ -40,6 +40,7 @@ import com.maxrave.simpmusic.extension.DesktopWindowChrome
 import com.maxrave.simpmusic.ui.component.CustomTitleBar
 import com.maxrave.simpmusic.ui.mini_player.MiniPlayerManager
 import com.maxrave.simpmusic.ui.mini_player.MiniPlayerWindow
+import com.maxrave.simpmusic.update.DesktopForkUpdater
 import com.maxrave.simpmusic.ui.theme.isDarkTheme
 import com.maxrave.simpmusic.utils.ComposeResUtils
 import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
@@ -217,6 +218,8 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
     changeLanguageNative(language)
 
     VersionManager.initialize()
+    // Fork: Mac and Windows look for this fork's own releases; Linux and dev runs keep the upstream check.
+    DesktopForkUpdater.start(BuildKonfig.versionName, isDevBuild = System.getProperty("simpmusic.dev") == "true")
     configLastfm(BuildKonfig.lastfmApiKey, BuildKonfig.lastfmSecret)
     if (BuildKonfig.sentryDsn.isNotEmpty()) {
         val installationId = machineId()

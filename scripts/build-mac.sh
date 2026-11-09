@@ -3,6 +3,10 @@
 #
 #   scripts/build-mac.sh              # both
 #   scripts/build-mac.sh aarch64      # Apple Silicon only (or: amd64)
+#   scripts/build-mac.sh --publish    # both, then onto the download site (needs `npx wrangler login` once)
+#
+# --publish is what makes Macs already running the app offer the update: DesktopForkUpdater reads the
+# download site's manifest.
 #
 # Conveyor builds and signs the .app. This script notarizes it, wraps it in the DMG CI uses
 # (wrap-mac-dmg.sh), then signs, notarizes and staples the DMG.
@@ -25,7 +29,11 @@ IDENTITY="${MAC_SIGN_IDENTITY:-Developer ID Application}"
 NOTARY_PROFILE="${MAC_NOTARY_PROFILE:-simpmusic-notary}"
 OUT=build/mac
 
-archs=("$@")
+publish=false
+archs=()
+for arg in "$@"; do
+  if [[ "$arg" == --publish ]]; then publish=true; else archs+=("$arg"); fi
+done
 [[ ${#archs[@]} -eq 0 ]] && archs=(aarch64 amd64)
 for arch in "${archs[@]}"; do
   [[ "$arch" == aarch64 || "$arch" == amd64 ]] || { echo "Unknown architecture: $arch (use aarch64 or amd64)" >&2; exit 64; }
@@ -101,3 +109,12 @@ for arch in "${archs[@]}"; do
 done
 
 ls -lh "$OUT"/*.dmg
+
+if $publish; then
+  files=()
+  for arch in "${archs[@]}"; do
+    [[ "$arch" == aarch64 ]] && site=mac-arm || site=mac-intel
+    files+=("$site=$OUT/SimpMusic-$version-mac-$arch.dmg")
+  done
+  node scripts/download-site/publish.mjs --version "$version" "${files[@]}"
+fi

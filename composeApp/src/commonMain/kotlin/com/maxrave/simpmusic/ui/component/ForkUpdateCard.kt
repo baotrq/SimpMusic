@@ -43,6 +43,8 @@ fun ForkUpdateCard(modifier: Modifier = Modifier) {
     val dismissedTag by remember(dataStore) { dataStore.getString(KEY_DISMISSED_TAG) }
         .collectAsStateWithLifecycle(build.tag)
     if (dismissedTag == build.tag) return
+    val status by ForkBuildCheck.status.collectAsStateWithLifecycle()
+    val downloading by ForkBuildCheck.downloading.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -58,6 +60,14 @@ fun ForkUpdateCard(modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp, end = 8.dp),
             )
+            status?.let {
+                Text(
+                    it,
+                    style = typo().bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 6.dp, end = 8.dp),
+                )
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -65,7 +75,7 @@ fun ForkUpdateCard(modifier: Modifier = Modifier) {
                 TextButton(onClick = { scope.launch { dataStore.putString(KEY_DISMISSED_TAG, build.tag) } }) {
                     Text(stringResource(Res.string.fork_update_not_now), color = LocalContentColor.current)
                 }
-                FilledTonalButton(onClick = { ForkBuildCheck.install?.invoke() }) {
+                FilledTonalButton(onClick = { ForkBuildCheck.install?.invoke() }, enabled = !downloading) {
                     Text(stringResource(Res.string.fork_update_now), color = LocalContentColor.current)
                 }
             }

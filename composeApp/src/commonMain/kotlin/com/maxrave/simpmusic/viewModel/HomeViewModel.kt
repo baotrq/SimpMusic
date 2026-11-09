@@ -19,6 +19,7 @@ import com.maxrave.simpmusic.playbacksync.PlaybackSnapshot
 import com.maxrave.simpmusic.playbacksync.PlaybackSync
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -243,7 +245,9 @@ class HomeViewModel(
             }
             if (succeeded || attempt == RETRY_DELAYS_MS.size) return
             val waitMs = RETRY_DELAYS_MS[attempt]
-            val cameOnline = withTimeoutOrNull(waitMs) { networkBecameAvailable().first() } != null
+            // firstOrNull, not first: a signal that ends without emitting must mean "wait out the
+            // timer", never an exception.
+            val cameOnline = withTimeoutOrNull(waitMs) { networkBecameAvailable().firstOrNull() ?: awaitCancellation() } != null
             Logger.d(tag, "Retrying $name (attempt ${attempt + 1}) after ${if (cameOnline) "connection came up" else "${waitMs}ms"}")
         }
     }
