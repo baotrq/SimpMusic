@@ -75,6 +75,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,6 +96,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -252,6 +254,8 @@ import com.mikepenz.aboutlibraries.ui.compose.LibraryDefaults
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 import com.mikepenz.aboutlibraries.ui.compose.m3.libraryColors
 import com.mikepenz.aboutlibraries.ui.compose.produceLibraries
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownTypography
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
@@ -298,8 +302,11 @@ import simpmusic.composeapp.generated.resources.backup_downloaded_description
 import simpmusic.composeapp.generated.resources.backup_frequency
 import simpmusic.composeapp.generated.resources.balance_media_loudness
 import simpmusic.composeapp.generated.resources.base_url
+import simpmusic.composeapp.generated.resources.based_on_simpmusic
+import simpmusic.composeapp.generated.resources.based_on_simpmusic_description
 import simpmusic.composeapp.generated.resources.better_lyrics
 import simpmusic.composeapp.generated.resources.kugou
+import simpmusic.composeapp.generated.resources.legal_disclaimer
 import simpmusic.composeapp.generated.resources.lrc_red
 import simpmusic.composeapp.generated.resources.megalobiz
 import simpmusic.composeapp.generated.resources.youtube_music_lyrics
@@ -2772,6 +2779,14 @@ fun SettingScreen(
                             uriHandler.openUri("https://github.com/baotrq/simpmusic-bao-showcase")
                         },
                     )
+                    SettingItem(
+                        icon = SimpIcons.Code,
+                        title = stringResource(Res.string.based_on_simpmusic),
+                        subtitle = stringResource(Res.string.based_on_simpmusic_description),
+                        onClick = {
+                            uriHandler.openUri("https://github.com/maxrave-dev/SimpMusic")
+                        },
+                    )
                     // Fork: one button. This app's own releases where they exist, upstream's elsewhere.
                     val checkForNewBuild = ForkBuildCheck.check
                     SettingItem(
@@ -2793,6 +2808,26 @@ fun SettingScreen(
                             showThirdPartyLibraries = true
                         },
                     )
+                }
+                // Fork: the README's disclaimer, bundled as a copy, so the two are updated together.
+                val disclaimer by produceState<String?>(null) {
+                    value = Res.readBytes("files/nhac_nheo_disclaimer.md").decodeToString()
+                }
+                disclaimer?.let {
+                    SettingGroup(title = stringResource(Res.string.legal_disclaimer)) {
+                        Markdown(
+                            it,
+                            typography =
+                                markdownTypography(
+                                    h2 = typo().titleMedium,
+                                    text = typo().bodyMedium,
+                                    paragraph = typo().bodyMedium,
+                                    bullet = typo().bodyMedium,
+                                    textLink = TextLinkStyles(SpanStyle(textDecoration = TextDecoration.Underline)),
+                                ),
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        )
+                    }
                 }
             }
             SettingPage.DEVELOPER -> {

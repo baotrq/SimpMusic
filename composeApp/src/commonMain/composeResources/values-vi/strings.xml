@@ -298,6 +298,9 @@
     <string name="third_party_libraries">Thư viện bên thứ ba</string>
     <string name="description_and_licenses">Mô tả và giấy phép</string>
     <string name="author">Tác giả</string>
+    <string name="based_on_simpmusic">Dựa trên SimpMusic</string>
+    <string name="based_on_simpmusic_description">Của maxrave-dev và cộng sự</string>
+    <string name="legal_disclaimer">Pháp lý</string>
     <string name="other_app">Ứng dụng khác</string>
     <string name="database">Cơ sở dữ liệu của ứng dụng</string>
     <string name="free_space">Còn trống</string>

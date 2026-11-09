@@ -9,7 +9,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Releases go to the showcase repo, where people download the app. The source repo baotrq/SimpMusic is private.
+# Releases go to the showcase repo, where people download the app. GPL-3.0 requires the source of
+# each release to stay available, so the two source links in its notes must stay public.
 REPO=baotrq/simpmusic-bao-showcase
 commit_time=$(git log -1 --format=%ct)
 summary="${1:?Usage: scripts/release-bao.sh \"what changed\"}"
@@ -21,6 +22,11 @@ fi
 git fetch -q origin
 if [[ -z "$(git branch -r --contains HEAD)" ]]; then
   echo "This commit is not on GitHub yet. Push it first (git push)." >&2
+  exit 1
+fi
+git -C core fetch -q --all
+if [[ -z "$(git -C core branch -r --contains HEAD)" ]]; then
+  echo "core's commit is not on GitHub yet. Push it first: the release links to it as its source." >&2
   exit 1
 fi
 
@@ -57,6 +63,10 @@ commit-time: $commit_time
 
 Phones already on a bao- build offer this update on their next launch. To install by hand, most phones want \`arm64-v8a\`; \`universal\` works on any device but is larger.
 
-Signed with the shared bao key (\`BAO_KEYSTORE\` in local.properties). A phone holding a build signed with a different key cannot update: back up in Settings, uninstall, install, then restore."
+Signed with the shared bao key (\`BAO_KEYSTORE\` in local.properties). A phone holding a build signed with a different key cannot update: back up in Settings, uninstall, install, then restore.
+
+## Source
+
+GPL-3.0. Source: [app](https://github.com/baotrq/project-2b/tree/$(git rev-parse HEAD)) and [core](https://github.com/baotrq/core/tree/$(git -C core rev-parse HEAD)). Based on [SimpMusic](https://github.com/maxrave-dev/SimpMusic) by maxrave-dev and contributors."
 
 echo "Published $tag"

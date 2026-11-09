@@ -319,6 +319,9 @@
     <string name="third_party_libraries">Third party libraries</string>
     <string name="description_and_licenses">Description and licenses</string>
     <string name="author">Author</string>
+    <string name="based_on_simpmusic">Based on SimpMusic</string>
+    <string name="based_on_simpmusic_description">By maxrave-dev and contributors</string>
+    <string name="legal_disclaimer">Legal</string>
     <string name="other_app">Other app</string>
     <string name="database">App database</string>
     <string name="free_space">Free space</string>
