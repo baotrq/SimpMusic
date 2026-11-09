@@ -30,18 +30,18 @@
 
 SimpMusic ©2023-2026 Tuan Minh Nguyen Duc (maxrave-dev) and contributors. Fork changes ©2026 baotrq. Licensed under GPL-3.0. Source: [app](https://github.com/baotrq/project-2b), [core](https://github.com/baotrq/core).
 
-<sub>Everything below this line is SimpMusic's own README. Its legal section speaks for SimpMusic, not for this fork; in particular, its statement that the project is not monetized does not describe this fork.</sub>
+<sub>Everything below this line is based on SimpMusic's own README. Its legal section speaks for SimpMusic, not for this fork; in particular, its statement that the project is not monetized does not describe this fork.</sub>
 
 ---
 
 <div align="center"> <img src="https://raw.githubusercontent.com/maxrave-dev/SimpMusic/dev/fastlane/metadata/android/en-US/images/featureGraphic.png"> <h1>SimpMusic</h1>  
-A FOSS YouTube Music client for Android and Desktop with many features from<br>Spotify, SponsorBlock, ReturnYouTubeDislike using Compose Multiplatform to develop.
+A FOSS music client for Android and Desktop with many features from<br>Spotify, SponsorBlock, ReturnYouTubeDislike using Compose Multiplatform to develop.
 <br> 
 <br>
 <a href="https://github.com/maxrave-dev/SimpMusic/releases"><img src="https://img.shields.io/github/v/release/maxrave-dev/SimpMusic"></a> <a href="https://github.com/maxrave-dev/SimpMusic/releases"><img src="https://img.shields.io/github/downloads/maxrave-dev/SimpMusic/total"></a> <br> <br> <a href="https://trendshift.io/repositories/13482" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13482" alt="maxrave-dev%2FSimpMusic | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 <br>
 <br>
-<a href="https://www.producthunt.com/products/simpmusic/reviews?utm_source=badge-product_rating&utm_medium=badge&utm_source=badge-simpmusic" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/product_rating.svg?product_id=903836&theme=dark" alt="SimpMusic - A&#0032;FOSS&#0032;YouTube&#0032;Music&#0032;client&#0032;for&#0032;Android&#0032;with&#0032;many&#0032;features | Product Hunt" style="width: 242px; height: 108px;" width="242" height="108" /></a>
+<a href="https://www.producthunt.com/products/simpmusic/reviews?utm_source=badge-product_rating&utm_medium=badge&utm_source=badge-simpmusic" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/product_rating.svg?product_id=903836&theme=dark" alt="SimpMusic - A&#0032;FOSS&#0032;music&#0032;client&#0032;for&#0032;Android&#0032;with&#0032;many&#0032;features | Product Hunt" style="width: 242px; height: 108px;" width="242" height="108" /></a>
 <br> 
 <h4>Download</h4>  
 <a href="https://apt.izzysoft.de/packages/com.maxrave.simpmusic/"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" width="200"></a> 
@@ -60,7 +60,7 @@ A FOSS YouTube Music client for Android and Desktop with many features from<br>S
 [![Sponsor](https://readme.cash/i/janwgx1dnp.svg)](https://readme.cash/c/janwgx1dnp)
   
 ## Features ✨️    
-- Play music from YouTube Music or YouTube for free, without ads and in the background
+- Play music for free, without ads and in the background
 - Recognize the song playing near you, then find it in SimpMusic (Android) (NEW)
 - Add your own synced lyrics, line by line or word by word, to songs that have none (NEW)
 - Read YouTube comments in Now Playing, and post, reply or like them when signed in (NEW)
@@ -74,23 +74,23 @@ A FOSS YouTube Music client for Android and Desktop with many features from<br>S
 - Home screen widgets: turntable, playlists and listening insights (NEW)
 - Send your sign-ins from Android to Desktop by scanning a QR code (NEW)
 - Preferred audio language for videos with several audio tracks (NEW)
-- High quality up-to 256kbps stream (Opus or AAC) for YouTube Music Premium users
-- Browsing Home, Charts, Podcast, Moods & Genre with YouTube Music data at high speed    
+- High quality up-to 256kbps stream (Opus or AAC) for YouTube Premium users
+- Browsing Home, Charts, Podcast, Moods & Genre at high speed    
 - Search everything on YouTube    
 - Spotify Canvas and Animated Album Art supported (NEW)
 - Power your experience with SimpMusic Chart (https://chart.simpmusic.org/)
 - Play 1080p video option with subtitle    
-- Play YouTube Music live stations (NEW)
+- Play live stations (NEW)
 - AI song suggestions and an AI reading of your music taste (NEW)
 - Import playlists converted from Spotify and other apps
-- Customize your playlist, synced with YouTube Music
+- Customize your playlist, synced with your account
 - Notifications from followed artists    
 - Caching and offline playback support, plus Smart downloads of the songs you play most (Android) (NEW)    
 - Crossfade with DJ-style like Apple Music
 - Customizing THEME (Light, Dark, Color, etc)
 - Synced lyrics from SimpMusic Lyrics, LRCLIB, BetterLyrics, Spotify (require login) and YouTube Transcript - AI lyrics translation (BETA) (\*)  
 - Personalize data (\**) and multi-YouTube-account support    
-- Dislike songs on YouTube Music so it recommends them less (NEW)
+- Dislike songs so they're recommended less (NEW)
 - Last.fm scrobbling (Full version)
 - Supports SponsorBlock and Return YouTube Dislike
 - Sleep Timer    
@@ -105,7 +105,7 @@ A FOSS YouTube Music client for Android and Desktop with many features from<br>S
 > **Warning**    
  > This app is in the beta stage, so it may have many bugs and make it crash. If you find any bugs,      
 > please create an issue or contact me via email or Discord server.   
-> Because of depending on YouTube Music, the player error will happen and it's normally, please don't ask me about the stable state of this app.
+> Because of depending on YouTube, the player error will happen and it's normally, please don't ask me about the stable state of this app.
     
 ## Screenshots    
  <p align="center">          
@@ -133,10 +133,10 @@ A FOSS YouTube Music client for Android and Desktop with many features from<br>S
  #### More [screenshots](https://photos.app.goo.gl/AbieoXG5ctDrpwzp7) here.
  
  ## Data    
-- This app uses hidden API from YouTube Music with some tricks to get data from YouTube Music.    
+- This app uses a hidden YouTube API with some tricks to get data.    
 - Use Spotify Web API and some tricks to get Spotify Canvas and Lyrics    
-- Thanks to [InnerTune](https://github.com/z-huang/InnerTune/) for the idea to get data from YouTube Music. This repo is my inspiration to create this app.    
-- Special thanks to [SmartTube](https://github.com/yuliskov/SmartTube). This repo help me to extract the streaming URL of YouTube Music.    
+- Thanks to [InnerTune](https://github.com/z-huang/InnerTune/) for the idea to get data from YouTube. This repo is my inspiration to create this app.    
+- Special thanks to [SmartTube](https://github.com/yuliskov/SmartTube). This repo help me to extract the streaming URL from YouTube.    
 - My app is using [SponsorBlock](https://sponsor.ajay.app/) to skip sponsor in YouTube videos.    
 - ReturnYouTubeDislike for getting information on votes 
 - Main lyrics data from SimpMusic Lyrics
@@ -145,7 +145,7 @@ A FOSS YouTube Music client for Android and Desktop with many features from<br>S
  
  ## Privacy    
  SimpMusic doesn't have any tracker or third-party server for collecting user data in FOSS version. If YouTube      
-logged-in users enable "Send back to Google" feature, SimpMusic only uses YouTube Music Tracking API to send listening history and listening record of video to Google for better recommendations and      
+logged-in users enable "Send back to Google" feature, SimpMusic only uses YouTube's tracking API to send listening history and listening record of video to Google for better recommendations and      
 supporting artist or YouTube Creator (For API reference,      
 see [this](https://github.com/maxrave-dev/core/blob/master/service/kotlinYtmusicScraper/src/commonMain/kotlin/com/maxrave/kotlinytmusicscraper/Ytmusic.kt)).
 
@@ -204,7 +204,7 @@ Contributions are welcome — the full guide lives in [CONTRIBUTING.md](CONTRIBU
 SimpMusic is a fully open-source project (FOSS) created purely for educational purposes and personal use. **We do not sell this application, nor do we monetize it in any way.** There are no advertisements, no premium features, no subscriptions, and no hidden fees within the app. This project has absolutely no commercial value or financial intent. 
 
 ### 2. A Custom Browser with Content Filtering
-SimpMusic acts strictly as a specialized, third-party web browser and client. It simply parses the publicly available website content and APIs of YouTube and YouTube Music, rendering them in a custom user interface. The ad-free experience it provides is fundamentally no different from using a standard web browser (like Chrome, Firefox, or Brave) equipped with a common ad-blocking extension (such as uBlock Origin). 
+SimpMusic acts strictly as a specialized, third-party web browser and client. It simply parses the publicly available website content and APIs of YouTube, rendering them in a custom user interface. The ad-free experience it provides is fundamentally no different from using a standard web browser (like Chrome, Firefox, or Brave) equipped with a common ad-blocking extension (such as uBlock Origin). 
 
 ### 3. Support Content Creators
 We deeply respect the hard work of artists, musicians, and content creators. **We strongly encourage all users to subscribe to [YouTube Premium](https://www.youtube.com/premium).** Purchasing a Premium subscription is the best way to financially support the creators you listen to and ensure the continued growth of the platform. SimpMusic is built as a proof-of-concept for developers and enthusiasts, not to harm creators' revenues.
