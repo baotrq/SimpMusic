@@ -3,8 +3,8 @@ import java.util.Properties
 // SimpMusic for vivo: androidApp's sources, shipped under a package vivo's Origin Island follows.
 // vivo's island and music widget only follow apps on vivo's own list of package names, and a normal
 // app cannot add itself to that list. This module builds androidApp unchanged under one of the listed
-// names. That name must stay in Config.OFFICIAL_PACKAGE_NAMES, and the APK must be signed with our key,
-// or the unofficial-build check blocks it. Built with: ./build_and_sign_apk.sh --release --full --vivo
+// names. Fork: release skips the unofficial-build check and signs with the shared bao key.
+// Built with: ./gradlew :vivoAndroidApp:assembleRelease
 // Everything except the package and the ABI mirrors androidApp/build.gradle.kts: keep the two in step.
 
 val isFullBuild: Boolean =
@@ -95,9 +95,28 @@ android {
         }
     }
 
+    // Fork: same shared key as androidApp, named in local.properties (see there).
+    val baoSigning =
+        runCatching {
+            Properties().apply { rootProject.file("local.properties").inputStream().use(::load) }
+        }.getOrNull()
+            ?.takeIf { !it.getProperty("BAO_KEYSTORE").isNullOrBlank() }
+    signingConfigs {
+        if (baoSigning != null) {
+            create("bao") {
+                storeFile = file(baoSigning.getProperty("BAO_KEYSTORE"))
+                storePassword = baoSigning.getProperty("BAO_KEYSTORE_PASSWORD", "android")
+                keyAlias = baoSigning.getProperty("BAO_KEY_ALIAS", "androiddebugkey")
+                keyPassword = baoSigning.getProperty("BAO_KEY_PASSWORD", storePassword)
+            }
+        }
+    }
+
     buildTypes {
         release {
-            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "false")
+            signingConfig = signingConfigs.findByName("bao") ?: signingConfigs.getByName("debug")
+            // Fork: this key is not upstream's release key, so the unofficial-copy check would lock it out.
+            buildConfigField("boolean", "SKIP_OFFICIAL_BUILD_CHECK", "true")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
