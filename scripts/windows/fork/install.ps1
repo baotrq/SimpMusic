@@ -42,16 +42,22 @@ if ($LASTEXITCODE -ne 0) { Fail "Certificate import failed." }
 # Start would list two SimpMusic apps. Settings and library live in ~/.simpmusic, not in either install,
 # so nothing is lost.
 Write-Host "[2/4] Removing the old .msi version, if any ..."
-$uninstallKeys = @(
-    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
-    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$uninstallRoots = @(
+    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 )
-Get-ItemProperty -Path $uninstallKeys -ErrorAction SilentlyContinue |
-    Where-Object { $_.DisplayName -eq 'SimpMusic' -and $_.Publisher -eq 'baotrq' -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$' } |
-    ForEach-Object {
-        Write-Host "      uninstalling $($_.DisplayName) $($_.DisplayVersion)"
-        Start-Process msiexec.exe -ArgumentList "/x $($_.PSChildName) /qn" -Wait
+# One key at a time: a single odd value under Uninstall makes a wildcard Get-ItemProperty throw
+# "Specified cast is not valid" for the whole batch, which stopped the installer on some PCs.
+foreach ($root in $uninstallRoots) {
+    try { $keys = Get-ChildItem -Path $root -ErrorAction Stop } catch { continue }
+    foreach ($key in $keys) {
+        try { $app = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction Stop } catch { continue }
+        if ($app.DisplayName -eq 'SimpMusic' -and $app.Publisher -eq 'baotrq' -and $key.PSChildName -match '^\{[0-9A-Fa-f-]+\}$') {
+            Write-Host "      uninstalling $($app.DisplayName) $($app.DisplayVersion)"
+            Start-Process msiexec.exe -ArgumentList "/x $($key.PSChildName) /qn" -Wait
+        }
     }
+}
 
 Write-Host "[3/4] Installing $($msix.Name) ..."
 # -ForceUpdateFromAnyVersion installs over an existing copy in place (keeping its data) even at the
