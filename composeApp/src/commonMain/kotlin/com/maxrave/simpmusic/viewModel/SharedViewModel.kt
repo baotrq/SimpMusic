@@ -1722,14 +1722,8 @@ class SharedViewModel(
             }
             val songProvider = songLyricsProvider(videoId).first()?.takeIf { it.isNotEmpty() }
             val lyricsProvider = songProvider ?: dataStoreManager.lyricsProvider.first()
-            // Fork: word timing for the exact recording goes first, unless a source was picked on
-            // purpose for this song or as a main provider other than the default.
-            if (songProvider == null &&
-                lyricsProvider == DataStoreManager.SIMPMUSIC &&
-                tryExtraLyrics(DataStoreManager.LRC_RED, videoId, song.title, artist.orEmpty(), duration)
-            ) {
-                return@launch
-            }
+            // Fork: the chosen source (per-song pick, else the main provider, SimpMusic by default)
+            // is asked first; a miss goes to SimpMusic, then lrc.red, then the rest of the chain.
             when (lyricsProvider) {
                 DataStoreManager.SIMPMUSIC -> {
                     getSimpMusicLyrics(
@@ -1745,6 +1739,7 @@ class SharedViewModel(
                         song,
                         (artist ?: ""),
                         duration,
+                        chosen = true,
                     )
                 }
 
@@ -1767,7 +1762,13 @@ class SharedViewModel(
 
                 DataStoreManager.LRC_RED, DataStoreManager.KUGOU, DataStoreManager.MEGALOBIZ, DataStoreManager.YOUTUBE_MUSIC -> {
                     if (!tryExtraLyrics(lyricsProvider, videoId, song.title, artist.orEmpty(), duration)) {
-                        getSimpMusicLyrics(videoId, song, artist.orEmpty(), duration)
+                        getSimpMusicLyrics(
+                            videoId,
+                            song,
+                            artist.orEmpty(),
+                            duration,
+                            lrcRedTried = lyricsProvider == DataStoreManager.LRC_RED,
+                        )
                     }
                 }
             }
@@ -1779,6 +1780,9 @@ class SharedViewModel(
         song: SongEntity,
         artist: String?,
         duration: Int,
+        // True when LRCLIB was the chosen source and already missed: skip it (and Spotify) here.
+        lrclibTried: Boolean = false,
+        lrcRedTried: Boolean = false,
     ) {
         lyricsCanvasRepository.getSimpMusicLyrics(videoId).collectLatest {
             Logger.d(tag, "Get SimpMusic Lyrics for $videoId: ${it::class.simpleName}")
@@ -1799,6 +1803,12 @@ class SharedViewModel(
                     videoId,
                     data,
                 )
+            } else if (!lrcRedTried &&
+                tryExtraLyrics(DataStoreManager.LRC_RED, videoId, song.title, artist.orEmpty(), duration)
+            ) {
+                Logger.d(tag, "lrc.red answered after SimpMusic missed")
+            } else if (lrclibTried) {
+                finishLyricsSearch(song.toTrack().copy(durationSeconds = duration))
             } else if (dataStoreManager.spotifyLyrics.first() == TRUE) {
                 getSpotifyLyrics(
                     song.toTrack().copy(durationSeconds = duration),
@@ -1870,6 +1880,8 @@ class SharedViewModel(
         song: SongEntity,
         artist: String,
         duration: Int,
+        // True only when LRCLIB is the chosen source: a miss then tries SimpMusic and lrc.red.
+        chosen: Boolean = false,
     ) {
         viewModelScope.launch {
             lyricsCanvasRepository
@@ -1901,11 +1913,15 @@ class SharedViewModel(
                         }
 
                         else -> {
-                            finishLyricsSearch(
-                                song.toTrack().copy(
-                                    durationSeconds = duration,
-                                ),
-                            )
+                            if (chosen) {
+                                getSimpMusicLyrics(song.videoId, song, artist, duration, lrclibTried = true)
+                            } else {
+                                finishLyricsSearch(
+                                    song.toTrack().copy(
+                                        durationSeconds = duration,
+                                    ),
+                                )
+                            }
                         }
                     }
                 }
