@@ -46,13 +46,16 @@ tag="bao-$day.$n"
 version=$(sed -n 's/^version-name = "\(.*\)"/\1/p' gradle/libs.versions.toml)
 title="SimpMusic (Bao) $day.$n — $summary"
 
-./gradlew :androidApp:assembleRelease
+./gradlew :androidApp:assembleRelease :vivoAndroidApp:assembleRelease
 
 out=androidApp/build/outputs/apk/release
 staging=$(mktemp -d)
 trap 'rm -rf "$staging"' EXIT
 cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-$tag-arm64-v8a.apk"
 cp "$out/androidApp-universal-release.apk" "$staging/SimpMusic-$tag-universal.apk"
+# vivo edition: the same app under com.spotify.music, arm64 only. It has no updater, so the site is its only channel.
+vivo_apk=$(ls vivoAndroidApp/build/outputs/apk/release/*.apk | head -1)
+cp "$vivo_apk" "$staging/SimpMusic-$tag-vivo.apk"
 # The same arm64 APK under a name that never changes, so one link always downloads the newest:
 # https://github.com/baotrq/simpmusic-bao-showcase/releases/latest/download/SimpMusic-arm64-v8a.apk
 cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-arm64-v8a.apk"
@@ -60,7 +63,8 @@ cp "$out/androidApp-arm64-v8a-release.apk" "$staging/SimpMusic-arm64-v8a.apk"
 node scripts/download-site/publish.mjs \
   --version "$version" --tag "$tag" --commit-time "$commit_time" --title "$title" \
   "android=$staging/SimpMusic-$tag-arm64-v8a.apk" \
-  "android-universal=$staging/SimpMusic-$tag-universal.apk"
+  "android-universal=$staging/SimpMusic-$tag-universal.apk" \
+  "android-vivo=$staging/SimpMusic-$tag-vivo.apk"
 echo "Published $tag to the site"
 
 # The copy for builds from before the site. It runs last and may fail: the release is already out.
@@ -73,7 +77,7 @@ gh release create "$tag" "$staging"/*.apk \
 
 commit-time: $commit_time
 
-Phones already on a bao- build offer this update on their next launch. To install by hand, most phones want \`arm64-v8a\`; \`universal\` works on any device but is larger.
+Phones already on a bao- build offer this update on their next launch. To install by hand, most phones want \`arm64-v8a\`; \`universal\` works on any device but is larger. \`vivo\` is for vivo phones with Origin Island: it installs as \`com.spotify.music\`, so it cannot sit next to the real Spotify.
 
 Signed with the shared bao key (\`BAO_KEYSTORE\` in local.properties). A phone holding a build signed with a different key cannot update: back up in Settings, uninstall, install, then restore.
 

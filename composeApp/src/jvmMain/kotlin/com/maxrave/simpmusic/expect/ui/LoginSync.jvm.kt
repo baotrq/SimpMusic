@@ -126,7 +126,7 @@ actual fun LoginSyncDialog(onDismiss: () -> Unit) {
                     }
 
                     is LoginSyncHostState.Done -> {
-                        Text(text = stringResource(Res.string.login_sync_received, s.services.joinToString { it.label }))
+                        Text(text = stringResource(Res.string.login_sync_received, s.services.map { it.displayName() }.joinToString()))
                     }
 
                     LoginSyncHostState.Expired -> {

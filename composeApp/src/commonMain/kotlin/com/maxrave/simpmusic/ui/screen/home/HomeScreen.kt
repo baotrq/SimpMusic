@@ -1,6 +1,6 @@
 package com.maxrave.simpmusic.ui.screen.home
 
-import com.maxrave.simpmusic.ui.component.ForkUpdateCard
+import com.maxrave.simpmusic.ui.component.ForkUpdateDialog
 import com.maxrave.simpmusic.ui.component.DonatePrompt
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.only
@@ -610,7 +610,14 @@ fun HomeScreen(
             if (getPlatform() == Platform.Desktop) Lifecycle.State.STARTED else Lifecycle.State.RESUMED,
         )
     LaunchedEffect(homeInFront) { if (homeInFront) PlaybackSync.refreshRemote() }
-    val promoBlocked = otherDialogOpen || nowPlayingOpen || !homeInFront
+    var forkUpdateShowing by remember { mutableStateOf(false) }
+    val promoBlocked = otherDialogOpen || nowPlayingOpen || !homeInFront || forkUpdateShowing
+    // Fork: the update window, in the middle of the screen. It waits for the same things the banner does,
+    // except itself.
+    ForkUpdateDialog(
+        blocked = otherDialogOpen || nowPlayingOpen || !homeInFront || promoBanner != null,
+        onShowing = { forkUpdateShowing = it },
+    )
     // It draws only once the banner has gone a moment unblocked since it was decided. The wait belongs
     // to that banner, so nothing left over from before it arrived can let it through early: it never
     // flashes in the gap between two dialogs, and the update dialog, raised a frame after its check
@@ -810,7 +817,6 @@ fun HomeScreen(
                                         Modifier
                                             .padding(horizontal = 15.dp),
                                 ) {
-                                    if (index == 0) ForkUpdateCard()
                                     if (index == 0) {
                                         // The header's own height plus 8dp, so the first section does not
                                         // sit right under the chips.

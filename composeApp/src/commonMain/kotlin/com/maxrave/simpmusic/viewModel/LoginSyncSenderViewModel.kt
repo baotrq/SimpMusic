@@ -12,14 +12,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Android: scans the Desktop's QR, asks the user to trust it, sends the chosen sign-ins. */
+/** Android: scans the Desktop's QR, asks the user to trust it, sends the chosen sign-ins and settings. */
 class LoginSyncSenderViewModel(
     private val repository: LoginSyncSenderRepository,
 ) : ViewModel() {
     sealed interface Step {
         data object Loading : Step
-
-        data object NothingSignedIn : Step
 
         /** [blocked]: denied with "don't ask again", so only the system settings can grant it now. */
         data class NeedsCamera(
@@ -55,7 +53,7 @@ class LoginSyncSenderViewModel(
 
     data class UiState(
         val step: Step = Step.Loading,
-        val signedIn: List<LoginSyncService> = emptyList(),
+        val available: List<LoginSyncService> = emptyList(),
         val selected: Set<LoginSyncService> = emptySet(),
     )
 
@@ -68,17 +66,12 @@ class LoginSyncSenderViewModel(
     fun open(hasCamera: Boolean) {
         _uiState.value = UiState()
         viewModelScope.launch {
-            val signedIn = repository.signedInServices()
+            val available = repository.availableServices()
             _uiState.value =
                 UiState(
-                    step =
-                        when {
-                            signedIn.isEmpty() -> Step.NothingSignedIn
-                            hasCamera -> Step.Scanning
-                            else -> Step.NeedsCamera(blocked = false)
-                        },
-                    signedIn = signedIn,
-                    selected = signedIn.toSet(),
+                    step = if (hasCamera) Step.Scanning else Step.NeedsCamera(blocked = false),
+                    available = available,
+                    selected = available.toSet(),
                 )
         }
     }

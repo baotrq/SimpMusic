@@ -4,7 +4,7 @@
 //   node publish.mjs --version 2.5.0.10 windows=path/to/SimpMusic-Windows-installer.zip
 //   node publish.mjs --version 2.5.0.10 mac-arm=a.dmg mac-intel=b.dmg
 //   node publish.mjs --version 2.5.0.10 --tag bao-2026.11.09.1 --commit-time 1794136603 --title "..." \
-//     android=arm64.apk android-universal=universal.apk
+//     android=arm64.apk android-universal=universal.apk android-vivo=vivo.apk
 //
 // The manifest is written only after every upload worked, so a failure leaves the site as it was.
 // The previous file of each platform is kept, so a download already running is not cut off; the one
@@ -18,7 +18,7 @@ import { parseArgs } from "node:util";
 
 const SITE = process.env.SITE_URL ?? "https://nhacnheo.pages.dev";
 const BUCKET = "nhac-nheo-files";
-const PLATFORMS = ["android", "android-universal", "windows", "mac-arm", "mac-intel"];
+const PLATFORMS = ["android", "android-universal", "android-vivo", "windows", "mac-arm", "mac-intel"];
 const here = dirname(fileURLToPath(import.meta.url));
 
 const { values: flags, positionals } = parseArgs({

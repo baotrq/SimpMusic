@@ -86,7 +86,6 @@ import simpmusic.composeapp.generated.resources.login_sync_code_expired
 import simpmusic.composeapp.generated.resources.login_sync_connecting
 import simpmusic.composeapp.generated.resources.login_sync_failed
 import simpmusic.composeapp.generated.resources.login_sync_no_camera
-import simpmusic.composeapp.generated.resources.login_sync_nothing_signed_in
 import simpmusic.composeapp.generated.resources.login_sync_open_settings
 import simpmusic.composeapp.generated.resources.login_sync_scan_hint
 import simpmusic.composeapp.generated.resources.login_sync_send
@@ -248,13 +247,9 @@ actual fun LoginSyncDialog(onDismiss: () -> Unit) {
                             Status(stringResource(Res.string.login_sync_no_camera), progress = false)
                         }
 
-                        Step.NothingSignedIn -> {
-                            Status(stringResource(Res.string.login_sync_nothing_signed_in), progress = false)
-                        }
-
                         is Step.Done -> {
                             Status(
-                                stringResource(Res.string.login_sync_sent, step.desktop.name, step.services.joinToString { it.label }),
+                                stringResource(Res.string.login_sync_sent, step.desktop.name, step.services.map { it.displayName() }.joinToString()),
                                 progress = false,
                             ) {
                                 SheetButton(stringResource(Res.string.ok), ::close)
@@ -299,7 +294,7 @@ actual fun LoginSyncDialog(onDismiss: () -> Unit) {
                 title = { Text(text = stringResource(Res.string.login_sync_choose_title), style = typo().titleSmall) },
                 text = {
                     Column {
-                        uiState.signedIn.forEach { service ->
+                        uiState.available.forEach { service ->
                             Row(
                                 modifier =
                                     Modifier
@@ -313,7 +308,7 @@ actual fun LoginSyncDialog(onDismiss: () -> Unit) {
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Checkbox(checked = service in uiState.selected, onCheckedChange = null)
-                                Text(text = service.label, style = typo().bodyMedium)
+                                Text(text = service.displayName(), style = typo().bodyMedium)
                             }
                         }
                     }
