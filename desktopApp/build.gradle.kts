@@ -136,7 +136,7 @@ tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorCon
         // Image, 0xc0e90002"). Microsoft's 21.0.12 ships them unsigned and broke 2.5.0.12 that way; Temurin
         // (Eclipse Foundation) and Zulu (Azul) sign theirs. Override with -PconveyorJdk=<stdlib path>, and
         // check every Windows build with scripts/windows/fork/check-signatures.ps1 before publishing.
-        val bundledJdk = (project.findProperty("conveyorJdk") as String?) ?: "/stdlib/jdk/21.0.13/eclipse.conf"
+        val bundledJdk = (project.findProperty("conveyorJdk") as String?) ?: "/stdlib/jdk/21.0.12.1+1/eclipse.conf"
         val config = destination.get().asFile
         val generatedJdk = """include required("/stdlib/jdk/21/openjdk.conf")"""
         check(generatedJdk in config.readText()) { "writeConveyorConfig no longer imports $generatedJdk; re-check the bundled JDK" }
