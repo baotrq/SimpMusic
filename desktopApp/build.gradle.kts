@@ -131,10 +131,16 @@ tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorCon
         // LIR_Assembler::osr_entry; JDK-8310844, fixed in 21.0.3, and JDK-8335662, fixed in 21.0.8) when
         // it OSR-compiles a large Compose method: Apple Silicon Macs crashed minutes in, at random.
         // Conveyor accepts one JDK import only, so it is swapped here. `conveyor jdk-table` lists builds.
+        // The vendor must ship Authenticode-signed Windows DLLs: Conveyor signs every unsigned binary with
+        // our self-signed CN=SimpMusic certificate, which Smart App Control rejects ("jimage.dll ... Bad
+        // Image, 0xc0e90002"). Microsoft's 21.0.12 ships them unsigned and broke 2.5.0.12 that way; Temurin
+        // (Eclipse Foundation) and Zulu (Azul) sign theirs. Override with -PconveyorJdk=<stdlib path>, and
+        // check every Windows build with scripts/windows/fork/check-signatures.ps1 before publishing.
+        val bundledJdk = (project.findProperty("conveyorJdk") as String?) ?: "/stdlib/jdk/21.0.13/eclipse.conf"
         val config = destination.get().asFile
         val generatedJdk = """include required("/stdlib/jdk/21/openjdk.conf")"""
         check(generatedJdk in config.readText()) { "writeConveyorConfig no longer imports $generatedJdk; re-check the bundled JDK" }
-        config.writeText(config.readText().replace(generatedJdk, """include required("/stdlib/jdk/21.0.12/microsoft.conf")"""))
+        config.writeText(config.readText().replace(generatedJdk, """include required("$bundledJdk")"""))
         destination.get().asFile.appendText(
             """
             |app.fsname = simpmusic
