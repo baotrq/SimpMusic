@@ -64,6 +64,38 @@ object CrashDialog {
         }
     }
 
+    // Windows prints this exact phrase for any file an Application Control policy (Smart App
+    // Control / WDAC) blocked from loading — it is Windows' own wording, not specific to one DLL,
+    // so matching it here covers any future unsigned native the app bundles, not just sqlite's.
+    private const val APP_CONTROL_BLOCK_PHRASE = "Application Control policy has blocked this file"
+
+    // The real UnsatisfiedLinkError can arrive wrapped (NoClassDefFoundError as a suppressed
+    // exception carrying its own ExceptionInInitializerError cause), so both `cause` and
+    // `suppressed` are walked rather than assuming the thrown exception is the one with the message.
+    private fun relatedThrowables(root: Throwable): Sequence<Throwable> =
+        sequence {
+            val seen = mutableSetOf<Throwable>()
+            val queue = ArrayDeque<Throwable>()
+            queue.add(root)
+            while (queue.isNotEmpty()) {
+                val next = queue.removeFirst()
+                if (!seen.add(next)) continue
+                yield(next)
+                next.cause?.let { queue.add(it) }
+                next.suppressed.forEach { queue.add(it) }
+            }
+        }
+
+    private fun friendlyMessageFor(throwable: Throwable): String? {
+        val blocked = relatedThrowables(throwable).any { it.message?.contains(APP_CONTROL_BLOCK_PHRASE, ignoreCase = true) == true }
+        if (!blocked) return null
+        return "Windows blocked SimpMusic from loading one of its own files (Smart App Control / an " +
+            "Application Control policy). This is a Windows security feature, not an app bug — it refuses " +
+            "files that aren't signed by a certificate Windows already trusts. To work around it, open " +
+            "Windows Security → App & browser control → Smart App Control, and turn it off (or set " +
+            "it to Evaluation mode), then relaunch SimpMusic."
+    }
+
     private fun showCrashDialog(thread: Thread, throwable: Throwable) {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
@@ -72,6 +104,7 @@ object CrashDialog {
         }
 
         val stackTrace = StringWriter().also { throwable.printStackTrace(PrintWriter(it)) }.toString()
+        val friendlyMessage = friendlyMessageFor(throwable)
         val versionInfo = try {
             "SimpMusic Desktop v${VersionManager.getVersionName()}"
         } catch (_: Exception) {
@@ -96,8 +129,15 @@ object CrashDialog {
                 font = font.deriveFont(Font.BOLD, 16f)
             }
             val subtitleLabel = JLabel(
-                "<html>An unexpected error occurred. The stack trace below may help diagnose the issue.<br>" +
-                    "<font color='gray'>$versionInfo · Thread: ${thread.name}</font></html>"
+                "<html><body style='width: 620px'>" +
+                    if (friendlyMessage != null) {
+                        "<b><font color='#D08700'>$friendlyMessage</font></b><br><br>" +
+                            "<font color='gray'>$versionInfo · Thread: ${thread.name}</font>"
+                    } else {
+                        "An unexpected error occurred. The stack trace below may help diagnose the issue.<br>" +
+                            "<font color='gray'>$versionInfo · Thread: ${thread.name}</font>"
+                    } +
+                    "</body></html>"
             ).apply {
                 font = font.deriveFont(12f)
             }
