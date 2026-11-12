@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in / Đăng nhập — Nhạc Nhẽo</title>
+<meta name="description" content="How to sign in to YouTube Music on the Nhạc Nhẽo / SimpMusic desktop app. Cách đăng nhập YouTube Music trên ứng dụng desktop.">
+<meta property="og:title" content="Sign in / Đăng nhập — Nhạc Nhẽo">
+<meta property="og:description" content="Step-by-step guide to signing in to YouTube Music on the desktop app.">
+<meta property="og:image" content="https://nhacnheo.pages.dev/img/banner.png">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23fff'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23000'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap&subset=vietnamese">
+<script>
+  // Before first paint, so the wrong language never flashes.
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("lang"); } catch (e) {}
+    var lang = saved || (/^vi/i.test(navigator.language || "") ? "vi" : "en");
+    document.documentElement.lang = lang;
+  })();
+</script>
+<style>
+  :root {
+    --ink: #f4f3ef;
+    --paper: #0a0a0a;
+    --dim: rgba(244, 243, 239, .62);
+    --faint: rgba(244, 243, 239, .34);
+    --rule: rgba(244, 243, 239, .2);
+    --display: "Bricolage Grotesque", "Be Vietnam Pro", sans-serif;
+    --body: "Be Vietnam Pro", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --gutter: clamp(16px, 4vw, 56px);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { background: var(--paper); color: var(--ink); -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { background: var(--paper); font: 400 17px/1.65 var(--body); overflow-x: clip; position: relative; }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  html[lang="vi"] [data-l="en"], html[lang="en"] [data-l="vi"] { display: none !important; }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .bar {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: 18px var(--gutter);
+    font: 500 13px/1 var(--mono); letter-spacing: .04em;
+    position: relative; z-index: 3;
+  }
+  .bar a.home { text-decoration: none; }
+  .lang { display: flex; border: 1px solid var(--rule); border-radius: 99px; }
+  .lang button {
+    all: unset; cursor: pointer; padding: 9px 14px; min-width: 20px; text-align: center; border-radius: 99px;
+    color: var(--dim);
+  }
+  html[lang="vi"] .lang [data-set="vi"], html[lang="en"] .lang [data-set="en"] { background: var(--ink); color: var(--paper); }
+
+  main { max-width: 52em; margin: 0 auto; padding: 0 var(--gutter) clamp(48px, 8vh, 96px); position: relative; z-index: 2; }
+
+  .guide-hero { padding: clamp(28px, 6vh, 64px) 0 clamp(20px, 4vh, 40px); }
+  .eyebrow { font: 500 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+  h1 {
+    font: 800 clamp(32px, 6vw, 56px)/1.1 var(--display); letter-spacing: -.02em;
+    margin-top: 10px;
+  }
+  .lead { font: 400 18px/1.6 var(--body); color: var(--dim); margin-top: 18px; max-width: 38em; }
+
+  .tip {
+    margin-top: 28px; padding: 16px 20px; border: 1px solid var(--ink); border-radius: 14px;
+    font-size: 15px; line-height: 1.6;
+  }
+  .tip strong { display: block; font: 500 13px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; color: var(--ink); }
+  .tip a { text-decoration: underline; }
+
+  section.step-group { padding: clamp(32px, 6vh, 56px) 0 0; border-top: 1px solid var(--rule); margin-top: clamp(32px, 6vh, 56px); }
+  section.step-group:first-of-type { border-top: none; margin-top: 0; }
+  .step-group h2 { font: 500 clamp(24px, 3.4vw, 34px)/1.15 var(--display); letter-spacing: -.015em; }
+  .step-group .sub { color: var(--dim); font-size: 15px; margin-top: 6px; }
+
+  ol.steps { list-style: none; padding: 0; margin-top: 28px; counter-reset: step; }
+  ol.steps > li { counter-increment: step; padding: 22px 0; border-bottom: 1px solid var(--rule); }
+  ol.steps > li:first-child { padding-top: 0; }
+  .step-row { display: grid; grid-template-columns: 2.6em 1fr; gap: 4px 18px; }
+  .step-row::before {
+    content: counter(step, decimal-leading-zero);
+    font: 500 15px/1.6 var(--mono); color: var(--dim);
+  }
+  .step-text p { font: 400 17px/1.6 var(--body); }
+  .step-text code { font: 400 .92em var(--mono); background: rgba(244,243,239,.08); padding: .1em .35em; border-radius: 5px; overflow-wrap: anywhere; }
+  .step-text strong { color: var(--ink); font-weight: 600; }
+  .step-text a { text-decoration: underline; }
+  .step-text figure { margin-top: 16px; }
+  .step-text img {
+    width: 100%; max-width: 480px; height: auto; display: block;
+    border-radius: clamp(8px, 1.6vw, 16px); border: 1px solid var(--rule);
+  }
+  .step-text figcaption { margin-top: 8px; font-size: 13px; color: var(--dim); }
+
+  .warn {
+    margin-top: 16px; padding: 14px 18px; border: 1px dashed var(--faint); border-radius: 12px;
+    font-size: 14px; color: var(--dim); line-height: 1.6;
+  }
+  .warn strong { color: var(--ink); }
+
+  .done { margin-top: 28px; font: 500 20px/1.3 var(--display); }
+
+  footer {
+    padding: clamp(40px, 7vh, 72px) var(--gutter); border-top: 1px solid var(--ink);
+    font-size: 14px; line-height: 1.6; color: var(--dim); position: relative; z-index: 2; background: var(--paper);
+  }
+  footer > div { max-width: 60em; margin: 0 auto; }
+  footer p + p { margin-top: 12px; }
+  footer strong { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .step-row { grid-template-columns: 2em 1fr; gap: 4px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <a class="home" href="/"><span>Nhạc</span> <span>Nhẽo</span></a>
+  <div class="lang" role="group" aria-label="Language / Ngôn ngữ">
+    <button type="button" data-set="vi" lang="vi">VI</button>
+    <button type="button" data-set="en" lang="en">EN</button>
+  </div>
+</header>
+
+<main>
+  <div class="guide-hero">
+    <div class="eyebrow"><span data-l="vi">Desktop · Đăng nhập</span><span data-l="en">Desktop · Sign in</span></div>
+    <h1>
+      <span data-l="vi">Cách đăng nhập YouTube Music trên Desktop</span>
+      <span data-l="en">How to sign in to YouTube Music on Desktop</span>
+    </h1>
+    <p class="lead">
+      <span data-l="vi">Desktop không thể mở cửa sổ trình duyệt bên trong ứng dụng, nên không có nút "Đăng nhập bằng Google". Thay vào đó, bạn đăng nhập qua trình duyệt của mình một lần, rồi sao chép phiên đăng nhập đó vào app — sau đó mọi thứ sẽ tự hoạt động.</span>
+      <span data-l="en">Desktop can't open a browser window inside the app, so there's no "Sign in with Google" button. Instead, you sign in through your own browser once, then copy that session into the app — after that it just works.</span>
+    </p>
+
+    <div class="tip">
+      <span data-l="vi">
+        <strong>Có điện thoại Android?</strong>
+        Mở app trên điện thoại, vào Cài đặt → <em>Gửi thông tin đăng nhập sang máy tính</em>, rồi quét mã QR hiện trên máy tính của bạn. Bạn có thể bỏ qua phần còn lại bên dưới.
+      </span>
+      <span data-l="en">
+        <strong>Have an Android phone instead?</strong>
+        Open the app there, go to Settings → <em>Send sign-ins to desktop</em>, and scan the QR code shown on your computer. You can skip everything below.
+      </span>
+    </div>
+  </div>
+
+  <section class="step-group">
+    <h2><span data-l="vi">Chuẩn bị trước khi bắt đầu</span><span data-l="en">Before you start</span></h2>
+    <p class="sub">
+      <span data-l="vi">Một trình duyệt dựa trên Chromium — Chrome, Brave hoặc Edge đều dùng được (ảnh chụp trong bài này là từ Brave) — và một tài khoản YouTube Music / Google mà bạn có thể đăng nhập.</span>
+      <span data-l="en">A Chromium-based browser — Chrome, Brave, or Edge all work (these screenshots are from Brave) — and a YouTube Music / Google account you can log into.</span>
+    </p>
+  </section>
+
+  <section class="step-group">
+    <h2><span data-l="vi">Phần 1 — Cài tiện ích SimpMusic Utils</span><span data-l="en">Part 1 — Install the SimpMusic Utils extension</span></h2>
+    <p class="sub">
+      <span data-l="vi">Chỉ cần làm một lần. Bạn sẽ không phải lặp lại phần này.</span>
+      <span data-l="en">A one-time setup. You won't need to repeat this part.</span>
+    </p>
+
+    <ol class="steps">
+      <li class="step-row">
+        <div class="step-text">
+          <p>
+            <span data-l="vi">Vào <a href="https://github.com/maxrave-dev/utils" target="_blank" rel="noopener">github.com/maxrave-dev/utils</a>, mở mục <strong>Releases</strong> ở bên phải, rồi tải file zip của phiên bản mới nhất.</span>
+            <span data-l="en">Go to <a href="https://github.com/maxrave-dev/utils" target="_blank" rel="noopener">github.com/maxrave-dev/utils</a>, open the <strong>Releases</strong> panel on the right side, and download the zip of the latest version.</span>
+          </p>
+          <figure>
+            <img src="/img/login-guide/01-releases.jpg" width="1100" height="419" loading="lazy" alt="The GitHub Releases panel for maxrave-dev/utils, showing version 1.1.1 as the latest release">
+            <figcaption><span data-l="vi">Mục Releases, ở trang chính của repo.</span><span data-l="en">The Releases panel, on the repo's main page.</span></figcaption>
+          </figure>
+        </div>
+      </li>
+      <li class="step-row">
+        <div class="step-text">
+          <p><span data-l="vi">Giải nén file vừa tải.</span><span data-l="en">Unzip the downloaded file.</span></p>
+        </div>
+      </li>
+      <li class="step-row">
+        <div class="step-text">
+          <p>
+            <span data-l="vi">Trên trình duyệt, mở <code>brave://extensions</code> (hoặc <code>chrome://extensions</code> nếu dùng Chrome) và bật <strong>Developer mode</strong> ở góc trên bên phải.</span>
+            <span data-l="en">In your browser, open <code>brave://extensions</code> (or <code>chrome://extensions</code> on Chrome) and turn on <strong>Developer mode</strong> in the top-right corner.</span>
+          </p>
+          <figure>
+            <img src="/img/login-guide/02-dev-mode.jpg" width="1100" height="703" loading="lazy" alt="The browser extensions page with the Developer mode toggle switched on">
+            <figcaption><span data-l="vi">Developer mode, ở góc trên bên phải trang tiện ích.</span><span data-l="en">Developer mode, top-right of the extensions page.</span></figcaption>
+          </figure>
+        </div>
+      </li>
+      <li class="step-row">
+        <div class="step-text">
+          <p><span data-l="vi">Bấm <strong>Load unpacked</strong>.</span><span data-l="en">Click <strong>Load unpacked</strong>.</span></p>
+          <figure>
+            <img src="/img/login-guide/03-load-unpacked.jpg" width="1100" height="387" loading="lazy" alt="Close-up of the Load unpacked button">
+            <figcaption><span data-l="vi">Nút Load unpacked xuất hiện khi Developer mode đã bật.</span><span data-l="en">The Load unpacked button appears once Developer mode is on.</span></figcaption>
+          </figure>
+        </div>
+      </li>
+      <li class="step-row">
+        <div class="step-text">
+          <p>
+            <span data-l="vi">Trong hộp thoại chọn thư mục, mở thư mục vừa giải nén và chọn <strong>thư mục</strong> (<code>simpmusic-utils-chrome-extension</code>) — không chọn file <code>.zip</code> nằm cạnh nó.</span>
+            <span data-l="en">In the folder picker, open the unzipped download and select the <strong>folder</strong> (<code>simpmusic-utils-chrome-extension</code>) — not the <code>.zip</code> file sitting next to it.</span>
+          </p>
+          <figure>
+            <img src="/img/login-guide/04-folder-picker.jpg" width="1100" height="687" loading="lazy" alt="The folder picker dialog, with the extracted extension folder selected">
+            <figcaption><span data-l="vi">Chọn thư mục đã giải nén, rồi bấm Select.</span><span data-l="en">Select the extracted folder, then click Select.</span></figcaption>
+          </figure>
+          <div class="warn">
+            <span data-l="vi"><strong>Bước dễ làm sai:</strong> chọn nhầm file <code>.zip</code> thay vì thư mục đã giải nén.</span>
+            <span data-l="en"><strong>Easy to get wrong:</strong> picking the <code>.zip</code> file instead of the unzipped folder.</span>
+            <figure>
+              <img src="/img/login-guide/05-folder-vs-zip.jpg" width="1100" height="219" loading="lazy" alt="Close-up of the unzipped folder sitting next to the original zip file">
+            </figure>
+          </div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="step-group">
+    <h2><span data-l="vi">Phần 2 — Đăng nhập và sao chép phiên đăng nhập</span><span data-l="en">Part 2 — Sign in and copy your session</span></h2>
+
+    <ol class="steps">
+      <li class="step-row">
+        <div class="step-text"><p><span data-l="vi">Vào <strong>music.youtube.com</strong> và đăng nhập tài khoản Google như bình thường.</span><span data-l="en">Go to <strong>music.youtube.com</strong> and sign in to your Google account as normal.</span></p></div>
+      </li>
+      <li class="step-row">
+        <div class="step-text">
+          <p>
+            <span data-l="vi">Bấm vào biểu tượng <strong>SimpMusic Utils</strong> trên thanh công cụ. Ở mục <strong>YouTube Music</strong>, để nguyên ô định dạng ở <strong>String Format</strong>.</span>
+            <span data-l="en">Click the <strong>SimpMusic Utils</strong> icon in your toolbar. Under <strong>YouTube Music</strong>, leave the format dropdown on <strong>String Format</strong>.</span>
+          </p>
+          <figure>
+            <img src="/img/login-guide/06-extension-popup.jpg" width="807" height="1100" loading="lazy" alt="The SimpMusic Utils extension popup, with YouTube Music and Spotify sections, each with an Extract button and a Copy to Clipboard button">
+            <figcaption><span data-l="vi">Popup của tiện ích — mục YouTube Music ở trên, Spotify ở dưới.</span><span data-l="en">The extension popup — YouTube Music section on top, Spotify below.</span></figcaption>
+          </figure>
+        </div>
+      </li>
+      <li class="step-row">
+        <div class="step-text"><p><span data-l="vi">Bấm <strong>Extract Cookies</strong>, sau đó bấm <strong>Copy to Clipboard</strong>.</span><span data-l="en">Click <strong>Extract Cookies</strong>, then <strong>Copy to Clipboard</strong>.</span></p></div>
+      </li>
+      <li class="step-row">
+        <div class="step-text"><p><span data-l="vi">Chuyển sang <strong>ứng dụng SimpMusic desktop</strong>, mở màn hình <strong>Log in</strong>, rồi bấm vào huy hiệu <strong>DEV</strong> ở góc trên bên phải.</span><span data-l="en">Switch to the <strong>SimpMusic desktop app</strong>, open the <strong>Log in</strong> screen, and tap the <strong>DEV</strong> badge in the top-right corner.</span></p></div>
+      </li>
+      <li class="step-row">
+        <div class="step-text">
+          <p><span data-l="vi">Dán vào ô <strong>"Your YouTube Cookie"</strong> rồi bấm <strong>Set</strong>.</span><span data-l="en">Paste into the <strong>"Your YouTube Cookie"</strong> field and tap <strong>Set</strong>.</span></p>
+          <figure>
+            <img src="/img/login-guide/07-app-login.jpg" width="1100" height="687" loading="lazy" alt="The SimpMusic desktop login screen, with the DEV badge in the top-right corner and the paste dialog open, labeled Your YouTube Cookie">
+            <figcaption><span data-l="vi">Màn hình Log in của app, với hộp thoại dán cookie đang mở.</span><span data-l="en">The app's Log in screen, with the paste dialog open.</span></figcaption>
+          </figure>
+        </div>
+      </li>
+    </ol>
+
+    <p class="done"><span data-l="vi">Xong — bạn đã đăng nhập thành công.</span><span data-l="en">Done — you should now be signed in.</span></p>
+  </section>
+
+  <section class="step-group">
+    <h2><span data-l="vi">Spotify, cho Canvas và lời bài hát</span><span data-l="en">Spotify, for Canvas and lyrics</span></h2>
+    <p class="sub">
+      <span data-l="vi">Cùng một tiện ích — dùng nút <strong>Extract Cookie</strong> / <strong>Copy to Clipboard</strong> ở mục <strong>Spotify (sp_dc)</strong> thay vì YouTube Music, rồi dán vào ô Spotify tương ứng trong app.</span>
+      <span data-l="en">Same extension — use the <strong>Spotify (sp_dc)</strong> section's <strong>Extract Cookie</strong> / <strong>Copy to Clipboard</strong> buttons instead, then paste into the matching Spotify field in the app.</span>
+    </p>
+  </section>
+
+  <section class="step-group">
+    <h2><span data-l="vi">Nếu sau này không đăng nhập được nữa</span><span data-l="en">If it stops working later</span></h2>
+    <p class="sub">
+      <span data-l="vi">Phiên đăng nhập có thể hết hạn, giống như khi bạn bị đăng xuất khỏi một trang web. Chỉ cần lặp lại Phần 2 — bạn không cần cài lại tiện ích.</span>
+      <span data-l="en">Your session can expire, same as being logged out of a website. Just repeat Part 2 — you won't need to reinstall the extension.</span>
+    </p>
+  </section>
+</main>
+
+<footer>
+  <div data-l="vi">
+    <p><strong>Nhạc Nhẽo</strong> là bản fork cá nhân, không chính thức, của <a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a> (maxrave-dev và cộng sự), không liên kết với và không được YouTube, Google, Apple, Spotify hay dự án SimpMusic bảo trợ. Các nhãn hiệu thuộc về chủ sở hữu của chúng.</p>
+    <p>GNU GPL-3.0. Mã nguồn: <a href="https://github.com/baotrq/project-2b">app</a>, <a href="https://github.com/baotrq/core">core</a>. Bản cũ và liên hệ: <a href="https://github.com/baotrq/simpmusic-bao-showcase/releases">releases</a>, <a href="https://github.com/baotrq/simpmusic-bao-showcase/issues">issues</a>.</p>
+  </div>
+  <div data-l="en">
+    <p><strong>Nhạc Nhẽo</strong> is an unofficial, personal fork of <a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a> by maxrave-dev and contributors. It is not affiliated with or endorsed by YouTube, Google, Apple, Spotify or the SimpMusic project. Trademarks belong to their owners.</p>
+    <p>GNU GPL-3.0. Source: <a href="https://github.com/baotrq/project-2b">app</a>, <a href="https://github.com/baotrq/core">core</a>. Older versions and contact: <a href="https://github.com/baotrq/simpmusic-bao-showcase/releases">releases</a>, <a href="https://github.com/baotrq/simpmusic-bao-showcase/issues">issues</a>.</p>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll("[data-set]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      document.documentElement.lang = button.dataset.set;
+      try { localStorage.setItem("lang", button.dataset.set); } catch (e) {}
+    });
+  });
+</script>
+</body>
+</html>
