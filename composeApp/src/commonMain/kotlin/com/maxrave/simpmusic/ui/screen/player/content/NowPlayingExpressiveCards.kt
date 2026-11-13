@@ -131,6 +131,7 @@ import simpmusic.composeapp.generated.resources.lyrics_provider_simpmusic
 import simpmusic.composeapp.generated.resources.lyrics_provider_youtube
 import simpmusic.composeapp.generated.resources.offline_mode
 import simpmusic.composeapp.generated.resources.lyrics_provider_custom
+import simpmusic.composeapp.generated.resources.lyrics_provider_community
 import simpmusic.composeapp.generated.resources.published_at
 import simpmusic.composeapp.generated.resources.rate_lyrics
 import simpmusic.composeapp.generated.resources.rich_synced
@@ -735,6 +736,10 @@ internal fun ExpressiveBelowTheFold(
 
                                     LyricsProvider.CUSTOM -> {
                                         stringResource(Res.string.lyrics_provider_custom)
+                                    }
+
+                                    LyricsProvider.COMMUNITY -> {
+                                        stringResource(Res.string.lyrics_provider_community)
                                     }
 
                                     LyricsProvider.BETTER_LYRICS -> {

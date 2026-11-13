@@ -176,6 +176,9 @@ import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.component.lyrics.TapAlongLyricsDialog
 import com.maxrave.simpmusic.ui.icon.ThumbsUpDown
 import com.maxrave.simpmusic.ui.icon.TouchApp
+import com.maxrave.simpmusic.ui.icon.Groups
+import com.maxrave.simpmusic.lyricsfix.LyricsFixes
+import androidx.compose.runtime.produceState
 import com.maxrave.simpmusic.ui.screen.player.content.canVote
 import com.maxrave.simpmusic.ui.screen.player.content.stripRichSyncTimestamps
 import com.maxrave.simpmusic.ui.icon.Speed
@@ -257,6 +260,7 @@ import simpmusic.composeapp.generated.resources.list_all_cookies_of_this_page
 import simpmusic.composeapp.generated.resources.lrclib
 import simpmusic.composeapp.generated.resources.lyrics
 import simpmusic.composeapp.generated.resources.lyrics_provider_custom
+import simpmusic.composeapp.generated.resources.lyrics_provider_community
 import simpmusic.composeapp.generated.resources.lyrics_provider_for_this_song
 import simpmusic.composeapp.generated.resources.lyrics_provider_none
 import simpmusic.composeapp.generated.resources.rich_synced
@@ -274,6 +278,16 @@ import simpmusic.composeapp.generated.resources.rate_lyrics
 import simpmusic.composeapp.generated.resources.tap_along
 import simpmusic.composeapp.generated.resources.tap_along_description
 import simpmusic.composeapp.generated.resources.tap_along_remove
+import simpmusic.composeapp.generated.resources.send
+import simpmusic.composeapp.generated.resources.lyrics_fix_share
+import simpmusic.composeapp.generated.resources.lyrics_fix_share_description
+import simpmusic.composeapp.generated.resources.lyrics_fix_share_description_admin
+import simpmusic.composeapp.generated.resources.lyrics_fix_share_title
+import simpmusic.composeapp.generated.resources.lyrics_fix_share_message
+import simpmusic.composeapp.generated.resources.lyrics_fix_sent
+import simpmusic.composeapp.generated.resources.lyrics_fix_published
+import simpmusic.composeapp.generated.resources.lyrics_fix_too_many
+import simpmusic.composeapp.generated.resources.lyrics_fix_failed
 import simpmusic.composeapp.generated.resources.merging_audio_and_video
 import simpmusic.composeapp.generated.resources.mime_type
 import simpmusic.composeapp.generated.resources.move_down
@@ -1542,6 +1556,47 @@ fun NowPlayingBottomSheet(
         val screenData by sharedViewModel.nowPlayingScreenData.collectAsStateWithLifecycle()
         val lyricsData = screenData.lyricsData
         var showVoteDialog by remember { mutableStateOf(false) }
+        var confirmShareFix by remember { mutableStateOf(false) }
+        // Fork: on the owner's devices (admin key), the pick this dialog was closed on is published
+        // by itself. Only a pick made here counts, so opening the dialog to look publishes nothing.
+        var pickedHere by remember(videoId) { mutableStateOf(false) }
+        DisposableEffect(videoId) {
+            onDispose { if (pickedHere) sharedViewModel.autoPublishLyricsFix(videoId) }
+        }
+        val isFixAdmin by produceState(false, dataStoreManager) { value = LyricsFixes.isAdmin(dataStoreManager) }
+
+        if (confirmShareFix) {
+            AlertDialog(
+                onDismissRequest = { confirmShareFix = false },
+                containerColor = rememberSurfaceDarkColors().container,
+                title = { Text(text = stringResource(Res.string.lyrics_fix_share_title), style = typo().titleMedium) },
+                text = { Text(text = stringResource(Res.string.lyrics_fix_share_message), style = typo().bodyMedium) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            confirmShareFix = false
+                            coroutineScope.launch {
+                                val message =
+                                    when (sharedViewModel.shareLyricsFix(videoId)) {
+                                        LyricsFixes.SendResult.SUGGESTED -> Res.string.lyrics_fix_sent
+                                        LyricsFixes.SendResult.PUBLISHED, LyricsFixes.SendResult.REMOVED -> Res.string.lyrics_fix_published
+                                        LyricsFixes.SendResult.TOO_MANY -> Res.string.lyrics_fix_too_many
+                                        LyricsFixes.SendResult.FAILED, null -> Res.string.lyrics_fix_failed
+                                    }
+                                showToast(getString(message), ToastGravity.Bottom)
+                            }
+                        },
+                    ) {
+                        Text(text = stringResource(Res.string.send), style = typo().labelSmall)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmShareFix = false }) {
+                        Text(text = stringResource(Res.string.cancel), style = typo().labelSmall)
+                    }
+                },
+            )
+        }
 
         if (showVoteDialog) {
             val lyricsVoteState by sharedViewModel.lyricsVoteState.collectAsStateWithLifecycle()
@@ -1628,6 +1683,7 @@ fun NowPlayingBottomSheet(
                     // A tap applies at once and the dialog stays, so sources can be tried one after another.
                     val pick = { option: String ->
                         selected = option
+                        pickedHere = true
                         sharedViewModel.setSongLyricsProvider(videoId, option)
                     }
                     options.forEach { option ->
@@ -1716,6 +1772,27 @@ fun NowPlayingBottomSheet(
                             }
                         }
                     }
+                    if (onAddLyrics != null) {
+                        TextButton(
+                            onClick = {
+                                mainLyricsProvider = false
+                                hideModalBottomSheet()
+                                onAddLyrics()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = SimpIcons.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = stringResource(Res.string.add_lyrics),
+                                style = typo().labelSmall,
+                                color = LocalContentColor.current,
+                            )
+                        }
+                    }
                     if (lyricsData?.lyricsProvider == LyricsProvider.CUSTOM) {
                         TextButton(
                             onClick = {
@@ -1728,6 +1805,31 @@ fun NowPlayingBottomSheet(
                                 style = typo().labelSmall,
                                 color = LocalContentColor.current,
                             )
+                        }
+                    }
+                    // Fork: a fix made here (own lyrics, a source pick, or no lyrics) can go to every install.
+                    if (lyricsData?.lyricsProvider == LyricsProvider.CUSTOM || selected.isNotEmpty()) {
+                        TextButton(onClick = { confirmShareFix = true }) {
+                            Icon(
+                                imageVector = SimpIcons.Groups,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(Res.string.lyrics_fix_share),
+                                    style = typo().labelSmall,
+                                    color = LocalContentColor.current,
+                                )
+                                Text(
+                                    text =
+                                        stringResource(
+                                            if (isFixAdmin) Res.string.lyrics_fix_share_description_admin else Res.string.lyrics_fix_share_description,
+                                        ),
+                                    style = typo().bodySmall,
+                                )
+                            }
                         }
                     }
                 }
@@ -3651,7 +3753,7 @@ private fun LyricsProvider.sourceKey(): String? =
         LyricsProvider.KUGOU -> DataStoreManager.KUGOU
         LyricsProvider.MEGALOBIZ -> DataStoreManager.MEGALOBIZ
         LyricsProvider.YOUTUBE_MUSIC -> DataStoreManager.YOUTUBE_MUSIC
-        LyricsProvider.SPOTIFY, LyricsProvider.AI, LyricsProvider.OFFLINE, LyricsProvider.CUSTOM -> null
+        LyricsProvider.SPOTIFY, LyricsProvider.AI, LyricsProvider.OFFLINE, LyricsProvider.CUSTOM, LyricsProvider.COMMUNITY -> null
     }
 
 @Composable
@@ -3668,5 +3770,6 @@ private fun shownSourceName(provider: LyricsProvider): String =
         LyricsProvider.SPOTIFY -> stringResource(Res.string.spotify)
         LyricsProvider.OFFLINE -> stringResource(Res.string.lyrics_source_saved)
         LyricsProvider.CUSTOM -> stringResource(Res.string.lyrics_provider_custom)
+        LyricsProvider.COMMUNITY -> stringResource(Res.string.lyrics_provider_community)
         LyricsProvider.AI -> "AI"
     }

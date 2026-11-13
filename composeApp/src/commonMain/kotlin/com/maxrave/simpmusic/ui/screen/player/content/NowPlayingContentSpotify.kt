@@ -190,6 +190,7 @@ import simpmusic.composeapp.generated.resources.lyrics_provider_youtube
 import simpmusic.composeapp.generated.resources.now_playing_upper
 import simpmusic.composeapp.generated.resources.offline_mode
 import simpmusic.composeapp.generated.resources.lyrics_provider_custom
+import simpmusic.composeapp.generated.resources.lyrics_provider_community
 import simpmusic.composeapp.generated.resources.playing_on_device
 import simpmusic.composeapp.generated.resources.published_at
 import simpmusic.composeapp.generated.resources.radio_mix_upper
@@ -1468,6 +1469,10 @@ fun NowPlayingContentSpotify(
 
                                                     LyricsProvider.CUSTOM -> {
                                                         stringResource(Res.string.lyrics_provider_custom)
+                                                    }
+
+                                                    LyricsProvider.COMMUNITY -> {
+                                                        stringResource(Res.string.lyrics_provider_community)
                                                     }
 
                                                     LyricsProvider.BETTER_LYRICS -> {

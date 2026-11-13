@@ -786,11 +786,10 @@ fun NowPlayingScreenContent(
             song = null, // Auto set now playing
             setSleepTimerEnable = true,
             changeMainLyricsProviderEnable = true,
-            // Offered only once every provider and the offline cache came back empty for this song.
+            // Fork: offered on every song, so wrong lyrics can be replaced too (saved as the song's own lyrics).
             onAddLyrics =
                 nowPlayingState
                     ?.songEntity
-                    ?.takeIf { screenDataState.lyricsNotFound && screenDataState.lyricsData == null }
                     ?.let { song ->
                         { addLyricsFor = arrayListOf(song.videoId, song.title, song.artistName?.joinToString(", ").orEmpty()) }
                     },

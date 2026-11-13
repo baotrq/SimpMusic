@@ -1228,4 +1228,23 @@
     <string name="donate_qr_hint">Save the QR, then open it from the scan screen in MoMo or a Vietnamese banking app.</string>
     <string name="donate_save_qr">Save QR</string>
     <string name="donate_close">Close</string>
+    <string name="proxy_unreachable_title">Proxy isn't working</string>
+    <string name="proxy_unreachable_message">Songs can't load because nothing answers at your proxy (%1$s). Turn the proxy off, or start the app that provides it.</string>
+    <string name="turn_off_proxy">Turn off proxy</string>
+    <string name="lyrics_provider_community">Community fix</string>
+    <string name="lyrics_fix_share">Share this fix with everyone</string>
+    <string name="lyrics_fix_share_description">Sends your lyrics or source pick for review. Once approved, every Nhạc Nhẽo user gets it.</string>
+    <string name="lyrics_fix_share_description_admin">Publishes your lyrics or source pick for every Nhạc Nhẽo user now.</string>
+    <string name="lyrics_fix_share_title">Share this fix?</string>
+    <string name="lyrics_fix_share_message">This sends the song, your lyrics or the source you picked, and a random id for this install to Nhạc Nhẽo's server. Nothing else about you is sent.</string>
+    <string name="lyrics_fix_sent">Sent for review. Thank you!</string>
+    <string name="lyrics_fix_published">Published for everyone</string>
+    <string name="lyrics_fix_too_many">Too many suggestions today. Try again tomorrow.</string>
+    <string name="lyrics_fix_failed">Couldn't send the fix. Check your connection.</string>
+    <string name="community_lyrics_fixes">Community lyrics fixes</string>
+    <string name="community_lyrics_fixes_description">Use lyrics fixes approved for every Nhạc Nhẽo user. Asks Nhạc Nhẽo's server about each song you play.</string>
+    <string name="community_lyrics_admin_key">Lyrics fixes admin key</string>
+    <string name="add_lyrics_import">Import .lrc file</string>
+    <string name="add_lyrics_import_failed">Couldn't read that file</string>
+    <string name="lyrics_fix_removed">Shared fix removed</string>
 </resources>

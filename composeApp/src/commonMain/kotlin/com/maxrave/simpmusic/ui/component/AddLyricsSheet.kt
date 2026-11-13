@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,13 @@ import com.maxrave.domain.data.model.metadata.Lyrics
 import com.maxrave.simpmusic.ui.icon.Check
 import com.maxrave.simpmusic.ui.icon.Close
 import com.maxrave.simpmusic.ui.icon.Error
+import com.maxrave.simpmusic.ui.icon.FileOpen
+import com.eygraber.uri.toKmpUri
+import com.maxrave.simpmusic.expect.ui.filePickerResult
+import com.maxrave.simpmusic.viewModel.readPickedFile
+import multiplatform.network.cmptoast.ToastGravity
+import multiplatform.network.cmptoast.showToast
+import org.jetbrains.compose.resources.getString
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.utils.UserLrcMark
@@ -60,6 +68,8 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.add_lyrics
+import simpmusic.composeapp.generated.resources.add_lyrics_import
+import simpmusic.composeapp.generated.resources.add_lyrics_import_failed
 import simpmusic.composeapp.generated.resources.add_lyrics_bad_offset
 import simpmusic.composeapp.generated.resources.add_lyrics_bad_time
 import simpmusic.composeapp.generated.resources.add_lyrics_bad_word_time
@@ -77,8 +87,8 @@ import simpmusic.composeapp.generated.resources.rich_synced
 import simpmusic.composeapp.generated.resources.save
 
 /**
- * Lyrics typed or pasted by hand for a song no provider has lyrics for: plain LRC, or eLRC timed
- * word by word. Times are coloured as they are typed, every problem is named with its line, and
+ * Lyrics typed, pasted or imported from an .lrc file, for a song with no lyrics or wrong ones: plain
+ * LRC, or eLRC timed word by word. Times are coloured as they are typed, every problem is named with its line, and
  * Save stays off until nothing is left to fix. [onSave] gets lyrics shaped like a provider's.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +107,25 @@ fun AddLyricsSheet(
     val text = textState.text.toString()
     val check = remember(text) { checkUserLrc(text) }
     val close: () -> Unit = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() } }
+    // An .lrc file from storage lands in the field, where it is checked like typed text.
+    val importLauncher =
+        filePickerResult { uri ->
+            uri ?: return@filePickerResult
+            scope.launch {
+                val imported =
+                    runCatching {
+                        val bytes = readPickedFile(uri.toKmpUri())
+                        require(bytes.size <= MAX_LRC_BYTES)
+                        // Windows editors often start a UTF-8 file with a byte order mark.
+                        bytes.decodeToString().removePrefix("﻿")
+                    }.getOrNull()
+                if (imported.isNullOrBlank()) {
+                    showToast(getString(Res.string.add_lyrics_import_failed), ToastGravity.Bottom)
+                } else {
+                    textState.setTextAndPlaceCursorAtEnd(imported)
+                }
+            }
+        }
 
     val lineTimeColor = MaterialTheme.colorScheme.primary
     val wordTimeColor = MaterialTheme.colorScheme.tertiary
@@ -168,6 +197,13 @@ fun AddLyricsSheet(
                             color = colors.content,
                         )
                         Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = { importLauncher.launch() }) {
+                            Icon(
+                                imageVector = SimpIcons.FileOpen,
+                                contentDescription = stringResource(Res.string.add_lyrics_import),
+                                tint = colors.content,
+                            )
+                        }
                         TextButton(
                             onClick = {
                                 check.lyrics?.let {
@@ -293,3 +329,6 @@ private fun UserLrcProblem.message(): String =
         UserLrcProblem.Kind.BAD_OFFSET -> stringResource(Res.string.add_lyrics_bad_offset)
         UserLrcProblem.Kind.NO_TIMED_LINES -> stringResource(Res.string.add_lyrics_no_timed_lines)
     }
+
+/** Far above any song's lyrics: a bigger pick is not an .lrc file. */
+private const val MAX_LRC_BYTES = 1_000_000

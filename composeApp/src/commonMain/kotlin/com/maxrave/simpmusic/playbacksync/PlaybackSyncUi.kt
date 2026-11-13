@@ -189,7 +189,7 @@ fun ColumnScope.PlaybackSyncSettingItems() {
 }
 
 @Composable
-private fun TextValueDialog(
+internal fun TextValueDialog(
     title: String,
     initial: String,
     hidden: Boolean,

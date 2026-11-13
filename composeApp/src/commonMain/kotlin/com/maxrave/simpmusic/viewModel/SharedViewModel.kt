@@ -77,12 +77,15 @@ import com.maxrave.simpmusic.expect.isOnUnmeteredNetwork
 import com.maxrave.simpmusic.expect.ui.toByteArray
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.playbacksync.SettingsSync
+import com.maxrave.simpmusic.lyricsfix.LyricsFixes
 import com.maxrave.simpmusic.playbacksync.SongLyricsSync
 import com.maxrave.simpmusic.utils.CustomLyrics
 import com.maxrave.simpmusic.utils.LyricsPromo
+import com.maxrave.simpmusic.utils.UnreachableProxy
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.decodeLyricsPromos
 import com.maxrave.simpmusic.utils.decodePromos
+import com.maxrave.simpmusic.utils.findUnreachableProxy
 import com.maxrave.simpmusic.utils.isEnglishOrVietnamese
 import com.maxrave.simpmusic.utils.shownPromoIds
 import com.maxrave.simpmusic.utils.withShownPromo
@@ -90,6 +93,7 @@ import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -122,6 +126,9 @@ import simpmusic.composeapp.generated.resources.added_to_queue
 import simpmusic.composeapp.generated.resources.added_to_youtube_liked
 import simpmusic.composeapp.generated.resources.disliked
 import simpmusic.composeapp.generated.resources.error
+import simpmusic.composeapp.generated.resources.lyrics_fix_failed
+import simpmusic.composeapp.generated.resources.lyrics_fix_published
+import simpmusic.composeapp.generated.resources.lyrics_fix_removed
 import simpmusic.composeapp.generated.resources.lastfm_login_failed
 import simpmusic.composeapp.generated.resources.login_success
 import simpmusic.composeapp.generated.resources.no_update
@@ -172,6 +179,46 @@ class SharedViewModel(
 
     private var _sleepTimerState = MutableStateFlow(SleepTimerState(false, 0))
     val sleepTimerState: StateFlow<SleepTimerState> = _sleepTimerState
+
+    /** Set when a song failed while the proxy from Settings cannot be reached; App shows a dialog for it. */
+    private val _unreachableProxy = MutableStateFlow<UnreachableProxy?>(null)
+    val unreachableProxy: StateFlow<UnreachableProxy?> = _unreachableProxy.asStateFlow()
+
+    /**
+     * A player error. When the proxy is on and nothing answers on its address, that is the cause,
+     * so the dialog that offers to turn it off replaces the generic [fallbackMessage] toast.
+     */
+    fun onPlayerError(fallbackMessage: String) {
+        viewModelScope.launch {
+            val proxy = runCatching { findUnreachableProxy(dataStoreManager) }.getOrNull()
+            if (proxy != null) {
+                Logger.w("Proxy", "Player error with the proxy at ${proxy.address} unreachable")
+                _unreachableProxy.value = proxy
+            } else {
+                makeToast(fallbackMessage)
+            }
+        }
+    }
+
+    fun dismissUnreachableProxy() {
+        _unreachableProxy.value = null
+    }
+
+    /** Turns the proxy off and tries the current song again. The player reads the setting per connection. */
+    fun turnOffProxyAndRetry() {
+        _unreachableProxy.value = null
+        viewModelScope.launch {
+            dataStoreManager.setUsingProxy(false)
+            Logger.i("Proxy", "Turned off from the unreachable-proxy dialog")
+            // The player's proxy selector follows the same setting from its own collector; give it a
+            // moment to see the change before the retry opens a connection.
+            dataStoreManager.usingProxy.first { it != DataStoreManager.TRUE }
+            delay(300)
+            val player = mediaPlayerHandler.player
+            player.seekTo(player.currentMediaItemIndex, 0L)
+            player.play()
+        }
+    }
 
 
     private var _format: MutableStateFlow<NewFormatEntity?> = MutableStateFlow(null)
@@ -1027,7 +1074,55 @@ class SharedViewModel(
             CustomLyrics.write(videoId, lyrics)
             SongLyricsSync.push(videoId, dataStoreManager)
             if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
+            autoPublishLyricsFix(videoId)
         }
+    }
+
+    /**
+     * On the owner's devices (admin key set), makes the shared fix for [videoId] match this device's
+     * own: its lyrics, else its source pick; with neither (back to Automatic), the shared fix is taken
+     * down. Does nothing elsewhere, where sharing stays a deliberate tap.
+     */
+    fun autoPublishLyricsFix(videoId: String) {
+        viewModelScope.launch {
+            if (!LyricsFixes.isAdmin(dataStoreManager)) return@launch
+            val result = shareLyricsFix(videoId) ?: LyricsFixes.remove(dataStoreManager, videoId)
+            when (result) {
+                LyricsFixes.SendResult.PUBLISHED -> makeToast(getString(Res.string.lyrics_fix_published))
+                LyricsFixes.SendResult.REMOVED -> makeToast(getString(Res.string.lyrics_fix_removed))
+                else -> makeToast(getString(Res.string.lyrics_fix_failed))
+            }
+        }
+    }
+
+    /**
+     * Shares this device's fix for [videoId] with every install: its own lyrics if it has them,
+     * otherwise its source pick ("none" included). Null when there is no fix to share. Goes for the
+     * owner's review, or live at once from a device holding the admin key.
+     */
+    suspend fun shareLyricsFix(videoId: String): LyricsFixes.SendResult? {
+        val own = withContext(Dispatchers.IO) { CustomLyrics.load(videoId) }
+        val pick = songLyricsProvider(videoId).first().orEmpty()
+        val (kind, source) =
+            when {
+                own != null -> LyricsFixes.KIND_LYRICS to null
+                pick == SongLyricsSync.NO_LYRICS -> LyricsFixes.KIND_NONE to null
+                pick.isNotEmpty() -> LyricsFixes.KIND_SOURCE to pick
+                else -> return null
+            }
+        val song = _nowPlayingState.value?.songEntity?.takeIf { it.videoId == videoId }
+        // With a source pick, what is on screen goes along so the owner can judge it before approving.
+        val preview = if (song != null && kind == LyricsFixes.KIND_SOURCE) _nowPlayingScreenData.value.lyricsData?.lyrics else null
+        return LyricsFixes.send(
+            dataStore = dataStoreManager,
+            videoId = videoId,
+            kind = kind,
+            source = source,
+            lyrics = own ?: preview,
+            title = song?.title,
+            artist = song?.artistName?.joinToString(", "),
+            duration = if (song != null) (_timeline.value.total / 1000).toInt() else null,
+        )
     }
 
     fun loadSharedMediaItem(videoId: String) {
@@ -1558,6 +1653,8 @@ class SharedViewModel(
                 lyricsProvider != LyricsProvider.SIMPMUSIC &&
                 // Tap-along timing is personal and stays on the device.
                 lyricsProvider != LyricsProvider.CUSTOM &&
+                // Already shared, through Nhạc Nhẽo's own server.
+                lyricsProvider != LyricsProvider.COMMUNITY &&
                 // A copy of Apple's lyrics, not something to republish in the community database.
                 lyricsProvider != LyricsProvider.LRC_RED
         if (_nowPlayingState.value?.songEntity?.videoId == videoId) {
@@ -1721,7 +1818,26 @@ class SharedViewModel(
                 }
             }
             val songProvider = songLyricsProvider(videoId).first()?.takeIf { it.isNotEmpty() }
-            val lyricsProvider = songProvider ?: dataStoreManager.lyricsProvider.first()
+            // Fork: a fix the owner approved for every install. This device's own pick still wins.
+            val fix = if (songProvider == null) LyricsFixes.fetch(videoId, dataStoreManager) else null
+            if (fix != null && _nowPlayingState.value?.songEntity?.videoId == videoId) {
+                when (fix.kind) {
+                    LyricsFixes.KIND_LYRICS ->
+                        fix.lyrics?.takeUnless { it.lines.isNullOrEmpty() }?.let { shared ->
+                            updateLyrics(videoId, duration, shared, false, LyricsProvider.COMMUNITY)
+                            getAITranslationLyrics(videoId, shared)
+                            return@launch
+                        }
+                    LyricsFixes.KIND_NONE -> {
+                        _nowPlayingScreenData.update { it.copy(lyricsData = null) }
+                        return@launch
+                    }
+                }
+            }
+            val lyricsProvider =
+                songProvider
+                    ?: fix?.source?.takeIf { fix.kind == LyricsFixes.KIND_SOURCE }
+                    ?: dataStoreManager.lyricsProvider.first()
             // Fork: the chosen source (per-song pick, else the main provider, SimpMusic by default)
             // is asked first; a miss goes to SimpMusic, then lrc.red, then the rest of the chain.
             when (lyricsProvider) {
@@ -2188,6 +2304,7 @@ class SharedViewModel(
             CustomLyrics.save(videoId, lines, timed)
             SongLyricsSync.push(videoId, dataStoreManager)
             if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
+            autoPublishLyricsFix(videoId)
         }
     }
 
@@ -2196,6 +2313,7 @@ class SharedViewModel(
             CustomLyrics.delete(videoId)
             SongLyricsSync.push(videoId, dataStoreManager, lyricsRemoved = true)
             if (nowPlayingState.value?.songEntity?.videoId == videoId) setLyricsProvider()
+            autoPublishLyricsFix(videoId)
         }
     }
 
@@ -2618,6 +2736,9 @@ enum class LyricsProvider {
     AI,
     OFFLINE,
     CUSTOM,
+
+    /** A fix approved for every install (LyricsFixes). */
+    COMMUNITY,
 }
 
 data class NowPlayingScreenData(

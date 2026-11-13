@@ -165,10 +165,13 @@ import simpmusic.composeapp.generated.resources.do_not_show_again
 import simpmusic.composeapp.generated.resources.github
 import simpmusic.composeapp.generated.resources.good_night
 import simpmusic.composeapp.generated.resources.notification
+import simpmusic.composeapp.generated.resources.proxy_unreachable_message
+import simpmusic.composeapp.generated.resources.proxy_unreachable_title
 import simpmusic.composeapp.generated.resources.settings
 import simpmusic.composeapp.generated.resources.sleep_timer_off
 import simpmusic.composeapp.generated.resources.this_app_needs_to_access_your_notification
 import simpmusic.composeapp.generated.resources.this_link_is_not_supported
+import simpmusic.composeapp.generated.resources.turn_off_proxy
 import simpmusic.composeapp.generated.resources.unknown
 import simpmusic.composeapp.generated.resources.update_available
 import simpmusic.composeapp.generated.resources.update_message
@@ -199,6 +202,7 @@ fun App(
     }
 
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
+    val unreachableProxy by viewModel.unreachableProxy.collectAsStateWithLifecycle()
     val nowPlayingData by viewModel.nowPlayingState.collectAsStateWithLifecycle()
     val updateData by viewModel.updateResponse.collectAsStateWithLifecycle()
     val intent by viewModel.intent.collectAsStateWithLifecycle()
@@ -260,7 +264,7 @@ fun App(
     // LocalAppDialogOpen. (The banner waits for a running update check by itself.)
     val appDialogOpen =
         shouldShowUpdateDialog || showNotificationPermissionDialog ||
-            showDesktopNotificationPermissionDialog || sleepTimerState.isDone
+            showDesktopNotificationPermissionDialog || sleepTimerState.isDone || unreachableProxy != null
 
     // Set by the first press or wheel scroll anywhere in the app this launch, or by opening Now
     // Playing. A launch banner that has not had its turn yet then waits for a later launch.
@@ -1038,6 +1042,25 @@ fun App(
                             }
                         }
                     }
+                }
+
+                unreachableProxy?.let { proxy ->
+                    // A song failed and nothing answers on the proxy from Settings; see SharedViewModel.onPlayerError.
+                    AlertDialog(
+                        onDismissRequest = { viewModel.dismissUnreachableProxy() },
+                        confirmButton = {
+                            TextButton(onClick = { viewModel.turnOffProxyAndRetry() }) {
+                                Text(stringResource(Res.string.turn_off_proxy))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { viewModel.dismissUnreachableProxy() }) {
+                                Text(stringResource(Res.string.cancel))
+                            }
+                        },
+                        title = { Text(stringResource(Res.string.proxy_unreachable_title)) },
+                        text = { Text(stringResource(Res.string.proxy_unreachable_message, proxy.address)) },
+                    )
                 }
 
                 if (sleepTimerState.isDone) {

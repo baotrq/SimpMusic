@@ -1186,4 +1186,23 @@
     <string name="donate_qr_hint">Lưu mã QR, rồi mở nó từ màn hình quét trong MoMo hoặc ứng dụng ngân hàng.</string>
     <string name="donate_save_qr">Lưu mã QR</string>
     <string name="donate_close">Đóng</string>
+    <string name="proxy_unreachable_title">Proxy không hoạt động</string>
+    <string name="proxy_unreachable_message">Không tải được bài hát vì proxy của bạn (%1$s) không phản hồi. Hãy tắt proxy, hoặc mở ứng dụng cung cấp proxy đó.</string>
+    <string name="turn_off_proxy">Tắt proxy</string>
+    <string name="lyrics_provider_community">Bản sửa của cộng đồng</string>
+    <string name="lyrics_fix_share">Chia sẻ bản sửa với mọi người</string>
+    <string name="lyrics_fix_share_description">Gửi lời hoặc nguồn bạn chọn để duyệt. Khi được duyệt, mọi người dùng Nhạc Nhẽo đều nhận được.</string>
+    <string name="lyrics_fix_share_description_admin">Đăng ngay lời hoặc nguồn bạn chọn cho mọi người dùng Nhạc Nhẽo.</string>
+    <string name="lyrics_fix_share_title">Chia sẻ bản sửa này?</string>
+    <string name="lyrics_fix_share_message">Ứng dụng sẽ gửi bài hát, lời của bạn hoặc nguồn bạn chọn, cùng một mã ngẫu nhiên của bản cài đặt này tới máy chủ của Nhạc Nhẽo. Không gửi gì khác về bạn.</string>
+    <string name="lyrics_fix_sent">Đã gửi để duyệt. Cảm ơn bạn!</string>
+    <string name="lyrics_fix_published">Đã đăng cho mọi người</string>
+    <string name="lyrics_fix_too_many">Hôm nay bạn đã gửi quá nhiều. Hãy thử lại vào ngày mai.</string>
+    <string name="lyrics_fix_failed">Không gửi được bản sửa. Hãy kiểm tra kết nối mạng.</string>
+    <string name="community_lyrics_fixes">Bản sửa lời của cộng đồng</string>
+    <string name="community_lyrics_fixes_description">Dùng các bản sửa lời đã được duyệt cho mọi người dùng Nhạc Nhẽo. Ứng dụng sẽ hỏi máy chủ của Nhạc Nhẽo về từng bài bạn nghe.</string>
+    <string name="community_lyrics_admin_key">Khóa quản trị bản sửa lời</string>
+    <string name="add_lyrics_import">Nhập tệp .lrc</string>
+    <string name="add_lyrics_import_failed">Không đọc được tệp này</string>
+    <string name="lyrics_fix_removed">Đã gỡ bản sửa đã chia sẻ</string>
 </resources>

@@ -765,17 +765,12 @@ fun FullscreenPlayer(
                     setSleepTimerEnable = true,
                     changeMainLyricsProviderEnable = true,
                     song = null,
-                    // Offered only once every provider and the offline cache came back empty for this song.
-                    onAddLyrics =
-                        if (nowPlayingState.lyricsNotFound && nowPlayingState.lyricsData == null) {
-                            {
-                                sharedViewModel.nowPlayingState.value?.songEntity?.let { song ->
-                                    addLyricsFor = arrayListOf(song.videoId, song.title, song.artistName?.joinToString(", ").orEmpty())
-                                }
-                            }
-                        } else {
-                            null
-                        },
+                    // Fork: offered on every song, so wrong lyrics can be replaced too (saved as the song's own lyrics).
+                    onAddLyrics = {
+                        sharedViewModel.nowPlayingState.value?.songEntity?.let { song ->
+                            addLyricsFor = arrayListOf(song.videoId, song.title, song.artistName?.joinToString(", ").orEmpty())
+                        }
+                    },
                 )
             }
             addLyricsFor?.let { (videoId, title, artist) ->

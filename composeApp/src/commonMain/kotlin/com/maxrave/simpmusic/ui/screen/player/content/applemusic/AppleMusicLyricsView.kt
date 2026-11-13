@@ -68,6 +68,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.lyrics_provider_custom
+import simpmusic.composeapp.generated.resources.lyrics_provider_community
 import simpmusic.composeapp.generated.resources.lyrics_provider_kugou
 import simpmusic.composeapp.generated.resources.lyrics_provider_lrc_red
 import simpmusic.composeapp.generated.resources.lyrics_provider_megalobiz
@@ -392,4 +393,5 @@ private fun appleMusicLyricsProviderText(lyricsData: NowPlayingScreenData.Lyrics
         LyricsProvider.YOUTUBE_MUSIC -> stringResource(Res.string.lyrics_provider_youtube_music)
         LyricsProvider.AI -> ""
         LyricsProvider.CUSTOM -> stringResource(Res.string.lyrics_provider_custom)
+        LyricsProvider.COMMUNITY -> stringResource(Res.string.lyrics_provider_community)
     }

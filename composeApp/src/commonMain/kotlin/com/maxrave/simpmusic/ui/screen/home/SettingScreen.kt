@@ -141,6 +141,8 @@ import com.maxrave.simpmusic.extension.isTwoLetterCode
 import com.maxrave.simpmusic.extension.isValidProxyHost
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.playbacksync.PlaybackSyncSettingItems
+import com.maxrave.simpmusic.lyricsfix.CommunityLyricsFixesItem
+import com.maxrave.simpmusic.lyricsfix.LyricsFixesAdminKeyItem
 import com.maxrave.simpmusic.ui.component.ActionButton
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.EndOfPage
@@ -1508,6 +1510,7 @@ fun SettingScreen(
                             ),
                         onClick = { showLyricsOffsetDialog = true },
                     )
+                    CommunityLyricsFixesItem()
 
                     translationLanguageRow()
                     SettingItem(
@@ -1997,6 +2000,7 @@ fun SettingScreen(
                         footer = { Text(stringResource(Res.string.playback_sync_footer), style = typo().bodySmall) },
                     ) {
                         PlaybackSyncSettingItems()
+                        LyricsFixesAdminKeyItem()
                     }
                 }
                 SettingGroup(title = stringResource(Res.string.proxy)) {
