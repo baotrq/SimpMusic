@@ -960,6 +960,12 @@ fun NowPlayingScreenContent(
                     actions = actions,
                 )
 
+            DataStoreManager.NOW_PLAYING_STYLE_SOUNDCLOUD ->
+                NowPlayingContentSoundCloud(
+                    state = state,
+                    actions = actions,
+                )
+
             else ->
                 NowPlayingContentSpotify(
                     state = state,
