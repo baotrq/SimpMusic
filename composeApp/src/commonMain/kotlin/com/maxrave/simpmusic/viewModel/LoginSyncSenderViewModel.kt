@@ -2,9 +2,12 @@ package com.maxrave.simpmusic.viewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.maxrave.domain.data.model.librarysync.LibrarySyncException
+import com.maxrave.domain.data.model.librarysync.LibrarySyncProblem
 import com.maxrave.domain.data.model.loginsync.DesktopInfo
 import com.maxrave.domain.data.model.loginsync.LoginSyncException
 import com.maxrave.domain.data.model.loginsync.LoginSyncService
+import com.maxrave.domain.repository.LibrarySyncPhoneRepository
 import com.maxrave.domain.repository.LoginSyncSenderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,9 +15,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Android: scans the Desktop's QR, asks the user to trust it, sends the chosen sign-ins and settings. */
+/**
+ * Android: scans the Desktop's QR, asks the user to trust it, sends the chosen sign-ins and settings.
+ * Paired for library sync, it skips the QR and sends over the paired channel, where the computer's user
+ * decides.
+ */
 class LoginSyncSenderViewModel(
     private val repository: LoginSyncSenderRepository,
+    private val librarySync: LibrarySyncPhoneRepository,
 ) : ViewModel() {
     sealed interface Step {
         data object Loading : Step
@@ -40,6 +48,16 @@ class LoginSyncSenderViewModel(
 
         data object Sending : Step
 
+        /** Paired: the computer is asking its user (D4). */
+        data class Waiting(
+            val desktop: DesktopInfo,
+        ) : Step
+
+        /** Paired: the computer's user ignored the sign-ins, or did not answer in time. */
+        data class Declined(
+            val desktop: DesktopInfo,
+        ) : Step
+
         data class Done(
             val desktop: DesktopInfo,
             val services: List<LoginSyncService>,
@@ -55,6 +73,8 @@ class LoginSyncSenderViewModel(
         val step: Step = Step.Loading,
         val available: List<LoginSyncService> = emptyList(),
         val selected: Set<LoginSyncService> = emptySet(),
+        /** The computer this phone is paired with for library sync, if any. */
+        val pairedTo: DesktopInfo? = null,
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -64,12 +84,19 @@ class LoginSyncSenderViewModel(
 
     /** The sheet opened. [hasCamera]: the camera permission is already granted. */
     fun open(hasCamera: Boolean) {
-        _uiState.value = UiState()
+        val pairedTo = librarySync.state.value.peers.firstOrNull()?.let { DesktopInfo(it.name, it.os) }
+        _uiState.value = UiState(pairedTo = pairedTo)
         viewModelScope.launch {
             val available = repository.availableServices()
             _uiState.value =
                 UiState(
-                    step = if (hasCamera) Step.Scanning else Step.NeedsCamera(blocked = false),
+                    pairedTo = pairedTo,
+                    step =
+                        when {
+                            pairedTo != null -> Step.Choose(pairedTo)
+                            hasCamera -> Step.Scanning
+                            else -> Step.NeedsCamera(blocked = false)
+                        },
                     available = available,
                     selected = available.toSet(),
                 )
@@ -110,6 +137,7 @@ class LoginSyncSenderViewModel(
         val choose = _uiState.value.step as? Step.Choose ?: return
         val services = _uiState.value.selected
         if (services.isEmpty()) return
+        if (_uiState.value.pairedTo != null) return sendPaired(choose.desktop, services)
         step(Step.Sending)
         viewModelScope.launch {
             step(
@@ -122,9 +150,34 @@ class LoginSyncSenderViewModel(
         }
     }
 
+    private fun sendPaired(
+        desktop: DesktopInfo,
+        services: Set<LoginSyncService>,
+    ) {
+        step(Step.Waiting(desktop))
+        viewModelScope.launch {
+            step(
+                try {
+                    val taken = librarySync.sendLogins(services)
+                    if (taken.isEmpty()) Step.Declined(desktop) else Step.Done(desktop, taken)
+                } catch (e: LibrarySyncException) {
+                    val reason = if (e.problem == LibrarySyncProblem.UNREACHABLE) LoginSyncException.Reason.UNREACHABLE else LoginSyncException.Reason.FAILED
+                    Step.Failed(reason, e.detail)
+                },
+            )
+        }
+    }
+
     fun retry(hasCamera: Boolean) {
         repository.disconnect()
-        step(if (hasCamera) Step.Scanning else Step.NeedsCamera(blocked = false))
+        val pairedTo = _uiState.value.pairedTo
+        step(
+            when {
+                pairedTo != null -> Step.Choose(pairedTo)
+                hasCamera -> Step.Scanning
+                else -> Step.NeedsCamera(blocked = false)
+            },
+        )
     }
 
     /** The sheet is gone. A computer still waiting on this phone is put back on its QR. */

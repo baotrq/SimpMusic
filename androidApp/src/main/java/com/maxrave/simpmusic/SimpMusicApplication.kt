@@ -23,6 +23,7 @@ import com.maxrave.data.di.loader.loadAllModules
 import com.maxrave.domain.data.player.MeteredNetwork
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
+import com.maxrave.domain.repository.LibrarySyncPhoneRepository
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.carmode.CarMode
 import com.maxrave.simpmusic.carmode.CarModeDownloads
@@ -32,6 +33,7 @@ import com.maxrave.simpmusic.led.LedStripSync
 import com.maxrave.simpmusic.playbacksync.PlaybackSync
 import com.maxrave.simpmusic.playbacksync.SettingsSync
 import com.maxrave.simpmusic.service.backup.AutoBackupScheduler
+import com.maxrave.simpmusic.service.sync.LibrarySyncScheduler
 import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -122,6 +124,12 @@ class SimpMusicApplication :
 
         // Car LED strip follows the artwork colour; idle unless enabled in Settings → LED strip.
         LedStripSync.start(this, dataStoreManager, get<MediaPlayerHandler>())
+
+        // Library sync (#2663): LAN rounds with the paired computer.
+        val librarySyncScheduler = LibrarySyncScheduler(this, get<LibrarySyncPhoneRepository>())
+        applicationScope.launch {
+            librarySyncScheduler.observeAndSchedule()
+        }
 
         CaocConfig.Builder
             .create()
