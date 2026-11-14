@@ -9,6 +9,7 @@ import com.maxrave.simpmusic.viewModel.ArtistViewModel
 import com.maxrave.simpmusic.viewModel.BrowseViewModel
 import com.maxrave.simpmusic.viewModel.BrowserLoginViewModel
 import com.maxrave.simpmusic.viewModel.CommentsViewModel
+import com.maxrave.simpmusic.viewModel.SoundCloudPlayerViewModel
 import com.maxrave.simpmusic.viewModel.HomeViewModel
 import com.maxrave.simpmusic.viewModel.ImportViewModel
 import com.maxrave.simpmusic.viewModel.LibraryDynamicPlaylistViewModel
@@ -74,6 +75,7 @@ val viewModelModule =
         viewModel { LibrarySyncPhoneViewModel(get()) }
         viewModel { BrowserLoginViewModel(get()) }
         viewModel { CommentsViewModel(get(), get()) }
+        viewModel { SoundCloudPlayerViewModel(get()) }
         viewModel {
             NowPlayingBottomSheetViewModel(
                 get(),

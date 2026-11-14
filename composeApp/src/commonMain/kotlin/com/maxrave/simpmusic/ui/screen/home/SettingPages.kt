@@ -6,6 +6,7 @@ import simpmusic.composeapp.generated.resources.ai_guide_step_4
 import androidx.compose.material3.OutlinedButton
 import simpmusic.composeapp.generated.resources.style_player_nhac_nheo
 import simpmusic.composeapp.generated.resources.now_playing_style_nhac_nheo
+import simpmusic.composeapp.generated.resources.now_playing_style_soundcloud
 import simpmusic.composeapp.generated.resources.ai_guide_get_openai_key
 import simpmusic.composeapp.generated.resources.ai_guide_get_gemini_key
 import simpmusic.composeapp.generated.resources.ai_guide_privacy
@@ -295,6 +296,11 @@ internal fun playerStyleOptions(): List<StyleOption> =
             stringResource(Res.string.now_playing_style_apple_music),
             null,
             androidVersionNote(),
+        ),
+        StyleOption(
+            DataStoreManager.NOW_PLAYING_STYLE_SOUNDCLOUD,
+            stringResource(Res.string.now_playing_style_soundcloud),
+            null,
         ),
     )
 
