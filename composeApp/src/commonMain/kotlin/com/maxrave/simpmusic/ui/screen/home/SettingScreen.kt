@@ -296,6 +296,9 @@ import simpmusic.composeapp.generated.resources.audio_delay
 import simpmusic.composeapp.generated.resources.audio_delay_description
 import simpmusic.composeapp.generated.resources.audio_reverb
 import simpmusic.composeapp.generated.resources.audio_reverb_description
+import simpmusic.composeapp.generated.resources.audio_eight_d
+import simpmusic.composeapp.generated.resources.audio_eight_d_description
+import simpmusic.composeapp.generated.resources.eight_d_unavailable
 import simpmusic.composeapp.generated.resources.author
 import simpmusic.composeapp.generated.resources.auto_backup
 import simpmusic.composeapp.generated.resources.auto_backup_description
@@ -706,6 +709,8 @@ fun SettingScreen(
     val equalizerType by viewModel.equalizerType.collectAsStateWithLifecycle()
     val delayEnabled by viewModel.delayEnabled.collectAsStateWithLifecycle()
     val reverbEnabled by viewModel.reverbEnabled.collectAsStateWithLifecycle()
+    val eightDEnabled by viewModel.eightDEnabled.collectAsStateWithLifecycle()
+    val eightDAvailable by viewModel.eightDAvailable.collectAsStateWithLifecycle()
     val lastfmLoggedIn by viewModel.lastfmLoggedIn.collectAsStateWithLifecycle()
     val lastfmUsername by viewModel.lastfmUsername.collectAsStateWithLifecycle()
     val lastfmScrobbleEnabled by viewModel.lastfmScrobbleEnabled.collectAsStateWithLifecycle()
@@ -1152,6 +1157,23 @@ fun SettingScreen(
                     // Same again: the room and the wet level outlive the switch.
                     AnimatedVisibility(visible = reverbEnabled) {
                         ReverbSection()
+                    }
+                    SettingItem(
+                        icon = SimpIcons.Headphones,
+                        title = stringResource(Res.string.audio_eight_d),
+                        subtitle =
+                            when {
+                                castState.isRemote -> stringResource(Res.string.not_available_while_casting)
+                                !eightDAvailable -> stringResource(Res.string.eight_d_unavailable)
+                                else -> stringResource(Res.string.audio_eight_d_description)
+                            },
+                        smallSubtitle = true,
+                        switch = (eightDEnabled to viewModel::setEightDEnabled),
+                        // A saved on-state may still be switched off when the native filter is absent.
+                        isEnable = !castState.isRemote && (eightDAvailable || eightDEnabled),
+                    )
+                    AnimatedVisibility(visible = eightDEnabled && eightDAvailable && !castState.isRemote) {
+                        EightDSection()
                     }
                     SettingItem(
                         icon = SimpIcons.Save,
